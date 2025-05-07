@@ -44,9 +44,11 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str
     SUPABASE_SERVICE_KEY: str
     
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    model_config = {
+        "case_sensitive": True,
+        "env_file": ".env",
+        "extra": "allow"
+    }
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
