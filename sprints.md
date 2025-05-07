@@ -12,7 +12,7 @@ Focus: Basic infrastructure and core backend setup
 - #1 Set up FastAPI project structure and basic configuration
 - #2 Configure Supabase connection and environment variables
 - #3 Implement database migrations using Alembic
-- #4 Set up CORS middleware and basic error handling
+- #4 Set up CORS middleware and applicative error handling
 - #7 Create initial database migration for User model
 - #14 Implement user registration endpoint
 - #15 Implement user login endpoint with JWT
