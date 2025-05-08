@@ -9,13 +9,13 @@
 Focus: Basic infrastructure and core backend setup
 
 ### Backend (P0)
-- #1 Set up FastAPI project structure and basic configuration
-- #2 Configure Supabase connection and environment variables
-- #3 Implement database migrations using Alembic
-- #4 Set up CORS middleware and applicative error handling
-- #7 Create initial database migration for User model
-- #14 Implement user registration endpoint
-- #15 Implement user login endpoint with JWT
+- #1 Set up FastAPI project structure and basic configuration - DONE
+- #2 Configure Supabase connection and environment variables - DONE
+- #3 Implement database migrations using Alembic - DONE
+- #4 Set up CORS middleware and applicative error handling - DONE
+- #7 Create initial database migration for User model - DONE
+- #14 Implement user registration endpoint - DONE
+- #15 Implement user login endpoint with JWT - DONE
 
 ### Frontend (P0)
 - #46 Set up React project with TypeScript
@@ -46,7 +46,7 @@ Focus: Basic recipe management functionality
 - #58 Create recipe card component
 
 ### Testing (P1)
-- #83 Write unit tests for backend models
+- #83 Write unit tests for backend models - PARTIALLY DONE
 - #84 Create API endpoint integration tests
 
 ## Sprint 3 - Recipe Enhancement (Weeks 5-6)
@@ -139,6 +139,7 @@ Nice to have features that can be implemented as needed:
 - #72 Implement advanced search filters
 - #77 Implement shopping list feature UI
 - #88 Implement rate limiting
+- #101 Add more comprehensive tests (unit, integration, e2e)
 
 ## Dependencies
 - Frontend authentication views depend on backend authentication endpoints

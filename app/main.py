@@ -2,17 +2,41 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.supabase_client import get_supabase_client, get_supabase_admin_client  # Import client functions
 import logging
 
 logger = logging.getLogger(__name__)
 
+# New lifespan context manager
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    # Startup: Initialize Supabase clients
+    logger.info("Lifespan: Initializing Supabase clients...")
+    try:
+        app_instance.state.supabase = get_supabase_client()
+        app_instance.state.supabase_admin = get_supabase_admin_client()
+        logger.info("Lifespan: Supabase clients initialized and stored in app state.")
+    except Exception as e:
+        logger.error(f"Lifespan: Failed to initialize Supabase clients: {e}")
+        # Optionally re-raise or handle to prevent app startup on critical failure
+
+    yield  # Application runs here
+
+    # Shutdown: Clean up resources (if any)
+    logger.info("Lifespan: Shutting down application...")
+    # If Supabase clients had explicit close methods, call them here
+    # e.g., if hasattr(app_instance.state, 'supabase') and hasattr(app_instance.state.supabase, 'close'):
+    #     await app_instance.state.supabase.close()
+    logger.info("Lifespan: Application shutdown complete.")
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.PROJECT_VERSION,
     description=settings.PROJECT_DESCRIPTION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan # Added lifespan manager
 )
 
 # Configure CORS
@@ -50,30 +74,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={"detail": "Validation Error", "errors": exc.errors()},
     )
-
-# Startup event handler
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Initializing Supabase clients...")
-    try:
-        app.state.supabase = get_supabase_client()  # Store regular client
-        app.state.supabase_admin = get_supabase_admin_client() # Store admin client
-        logger.info("Supabase clients initialized and stored in app state.")
-    except Exception as e:
-        logger.error(f"Failed to initialize Supabase clients during startup: {e}")
-        # Depending on the application's needs, you might want to raise the exception
-        # or handle it differently (e.g., prevent the app from starting).
-
-# Shutdown event handler (optional, as Supabase client doesn't strictly require explicit closing)
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down application...")
-    # If the Supabase client had a close method, you would call it here:
-    # if hasattr(app.state, 'supabase') and hasattr(app.state.supabase, 'close'):
-    #     await app.state.supabase.close()
-    # if hasattr(app.state, 'supabase_admin') and hasattr(app.state.supabase_admin, 'close'):
-    #     await app.state.supabase_admin.close()
-    logger.info("Application shutdown complete.")
 
 # Import and include routers
 from app.api.v1.endpoints import users, recipes

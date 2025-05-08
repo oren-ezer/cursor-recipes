@@ -6,7 +6,7 @@ import os
 import re
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def extract_supabase_url(postgres_url: str) -> str:
@@ -63,12 +63,12 @@ class Settings(BaseSettings):
                 logger.error("Failed to extract Supabase URL from PostgreSQL connection string")
 
 # Log environment variables
-logger.info(f"Environment file exists: {os.path.exists('.env')}")
-logger.info(f"Current working directory: {os.getcwd()}")
+# logger.info(f"Environment file exists: {os.path.exists('.env')}") # Commented out
+# logger.info(f"Current working directory: {os.getcwd()}") # Commented out
 
 settings = Settings()
 
 # Log loaded settings
-logger.info(f"Loaded SUPABASE_URL: {settings.SUPABASE_URL}")
-logger.info(f"Loaded SUPABASE_KEY length: {len(settings.SUPABASE_KEY) if settings.SUPABASE_KEY else 0}")
-logger.info(f"Loaded SUPABASE_SERVICE_KEY length: {len(settings.SUPABASE_SERVICE_KEY) if settings.SUPABASE_SERVICE_KEY else 0}") 
+# logger.info(f"Loaded SUPABASE_URL: {settings.SUPABASE_URL}") # Commented out
+# logger.info(f"Loaded SUPABASE_KEY length: {len(settings.SUPABASE_KEY) if settings.SUPABASE_KEY else 0}") # Commented out
+# logger.info(f"Loaded SUPABASE_SERVICE_KEY length: {len(settings.SUPABASE_SERVICE_KEY) if settings.SUPABASE_SERVICE_KEY else 0}") # Commented out 

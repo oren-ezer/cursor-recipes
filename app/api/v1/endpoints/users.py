@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi.security import OAuth2PasswordRequestForm
 from app.core.config import settings
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password, create_access_token
 from app.models.user import User
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 import logging
 import socket
 from urllib.parse import urlparse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,11 @@ class UsersResponse(BaseModel):
 
 class SetSuperuserRequest(BaseModel):
     is_superuser: bool
+
+# New Token schema
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 @router.get("/test-supabase")
 async def test_supabase_connection(request: Request):
@@ -581,5 +587,49 @@ async def read_users_me(request: Request):
         return {"message": "Current user endpoint (Supabase client accessible)"}
     except AttributeError:
         return {"message": "Current user endpoint (Supabase client NOT accessible in state)"}
+
+# Login endpoint
+@router.post("/token", response_model=Token, tags=["authentication"])
+async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
+    supabase = request.app.state.supabase
+    
+    # 1. Get user from DB by email (username)
+    user_query_response = supabase.from_("users").select("*").eq("email", form_data.username).maybe_single().execute()
+    
+    # Check the response itself before accessing .data
+    if not user_query_response or not hasattr(user_query_response, 'data') or not user_query_response.data:
+        # This handles cases where user is not found OR if the query execution itself had an issue
+        # that resulted in a response without a 'data' attribute (like the observed 406).
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    db_user_data = user_query_response.data
+
+    # 2. Verify password
+    if not verify_password(form_data.password, db_user_data["hashed_password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    # 3. Check if user is active (optional, but good practice)
+    if not db_user_data.get("is_active", True): # Default to True if not present for some reason
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Inactive user"
+        )
+
+    # 4. Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_user_data["email"], "user_id": db_user_data["id"]}, 
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
