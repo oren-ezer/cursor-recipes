@@ -18,9 +18,9 @@ Focus: Basic infrastructure and core backend setup
 - #15 Implement user login endpoint with JWT - DONE
 
 ### Frontend (P0)
-- #46 Set up React project with TypeScript
-- #47 Configure Tailwind CSS and shadcn/ui
-- #48 Set up React Router configuration
+- #46 Set up React project with TypeScript - DONE
+- #47 Configure Tailwind CSS and shadcn/ui - DONE
+- #48 Set up React Router configuration - DONE
 - #50 Set up authentication context/state management
 
 ### Documentation (P1)
