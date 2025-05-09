@@ -21,7 +21,7 @@ Focus: Basic infrastructure and core backend setup
 - #46 Set up React project with TypeScript - DONE
 - #47 Configure Tailwind CSS and shadcn/ui - DONE
 - #48 Set up React Router configuration - DONE
-- #50 Set up authentication context/state management
+- #50 Set up authentication context/state management - DONE
 
 ### Documentation (P1)
 - #98 Write deployment documentation
@@ -40,7 +40,7 @@ Focus: Basic recipe management functionality
 ### Frontend (P0)
 - #49 Implement basic layout components
 - #51 Configure API client with authentication
-- #52 Create login page component
+- #52 Create login page component - DONE
 - #53 Create registration page component
 - #57 Create recipe list page component
 - #58 Create recipe card component
