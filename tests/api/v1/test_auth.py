@@ -38,7 +38,8 @@ def test_user(supabase_admin_client):
         "is_active": True,
         "is_superuser": False,
         "created_at": current_time,
-        "updated_at": current_time
+        "updated_at": current_time,
+        "uuid": str(uuid.uuid4())
     }
     
     created_user = None

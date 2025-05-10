@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext'; // Adjusted import path
-// import { jwtDecode } from 'jwt-decode'; // No longer needed here if AuthProvider handles decoding
-// import { AuthUser } from '../contexts/AuthContext'; // No longer needed here if AuthProvider handles decoding
+import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui/button'; // Shadcn UI import
+import { Input } from '../components/ui/input';   // Shadcn UI import
+import { Label } from '../components/ui/label';   // Shadcn UI import
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card" // Shadcn UI import
 
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -37,9 +46,8 @@ const LoginPage: React.FC = () => {
 
       const data = await response.json();
       const token = data.access_token;
-      // AuthProvider's login will decode the user from the token
-      await login(token); 
-      navigate('/'); // Navigate to home page on successful login
+      await login(token);
+      navigate('/');
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     }
@@ -47,42 +55,61 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2>Login</h2>
-      <form onSubmit={handleLogin}>
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="email" style={{ display: 'block', marginBottom: '5px' }}>Email:</label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-          />
-        </div>
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="password" style={{ display: 'block', marginBottom: '5px' }}>Password:</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-          />
-        </div>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button type="submit" disabled={isLoading} style={{ padding: '10px 15px', width: '100%' }}>
-          {isLoading ? 'Logging in...' : 'Login'}
-        </button>
-      </form>
-      <p style={{ marginTop: '15px' }}>
-        Don't have an account? <Link to="/register">Register here</Link> {/* Assuming /register route will be created */}
-      </p>
-      <p>
-        <Link to="/">Go to Home</Link>
-      </p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
+          <CardDescription className="text-center">
+            Enter your email and password to access your account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                value={email}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+            {error && (
+              <p className="text-sm font-medium text-destructive text-center">
+                {error}
+              </p>
+            )}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Logging in...' : 'Login'}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="flex flex-col items-center space-y-2 text-sm">
+          <p>
+            Don't have an account?{' '}
+            <Link to="/register" className="underline hover:text-primary">
+              Register here
+            </Link>
+          </p>
+          <Link to="/" className="underline hover:text-primary">
+            Go to Home
+          </Link>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

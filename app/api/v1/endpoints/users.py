@@ -9,6 +9,7 @@ import logging
 import socket
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
+    uuid: str
     email: str
     full_name: Optional[str]
     is_active: bool
@@ -367,7 +369,8 @@ async def register_user(user_data: UserCreate, request: Request):
             "is_active": True,
             "is_superuser": False,
             "created_at": current_time,
-            "updated_at": current_time
+            "updated_at": current_time,
+            "uuid": str(uuid.uuid4())
         }
         
         # Insert user into database
@@ -626,7 +629,7 @@ async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequ
     # 4. Create access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": db_user_data["email"], "user_id": db_user_data["id"]}, 
+        data={"sub": db_user_data["email"], "user_id": db_user_data["id"], "uuid": db_user_data["uuid"]}, 
         expires_delta=access_token_expires
     )
     
