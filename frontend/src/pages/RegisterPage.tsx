@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import { apiClient, ApiError } from '../lib/api-client';
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -68,31 +69,23 @@ const RegisterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/v1/users/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          full_name: formData.fullName || undefined,
-        }),
-      });
+      await apiClient.register(
+        formData.email,
+        formData.password,
+        formData.fullName || undefined
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Registration failed');
-      }
-
-      // Registration successful, redirect to login page
-      navigate('/login', { 
-        state: { 
-          message: 'Registration successful! Please log in with your new account.' 
+      navigate('/login', {
+        state: {
+          message: 'Registration successful! Please log in with your new account.'
         }
       });
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
     } finally {
       setIsLoading(false);
     }

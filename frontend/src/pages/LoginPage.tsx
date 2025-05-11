@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/ui/button'; // Shadcn UI import
-import { Input } from '../components/ui/input';   // Shadcn UI import
-import { Label } from '../components/ui/label';   // Shadcn UI import
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import {
   Card,
   CardContent,
@@ -11,7 +11,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "../components/ui/card" // Shadcn UI import
+} from "../components/ui/card";
+import { apiClient, ApiError } from '../lib/api-client';
 
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -24,10 +25,8 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Check for registration success message in location state
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
-      // Clear the message from location state
       window.history.replaceState({}, document.title);
     }
   }, [location]);
@@ -38,31 +37,18 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', email);
-      formData.append('password', password);
-
-      const response = await fetch('/api/v1/users/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString(),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
-      }
-
-      const data = await response.json();
-      const token = data.access_token;
-      await login(token);
+      const { access_token } = await apiClient.login(email, password);
+      await login(access_token);
       navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred.');
+      }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (

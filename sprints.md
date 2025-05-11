@@ -22,12 +22,13 @@ Focus: Basic infrastructure and core backend setup
 - #47 Configure Tailwind CSS and shadcn/ui - DONE
 - #48 Set up React Router configuration - DONE
 - #50 Set up authentication context/state management - DONE
-- #49 Implement basic layout components
-- #51 Configure API client with authentication
+- #49 Implement basic layout components - PARTIALLY DONE
+- #51 Configure API client with authentication - PARTIALLY DONE
 - #52 Create login page component - DONE
 - #53 Create registration page component
 - #54 Implement registration form with validation - DONE
 - #57 Create recipe list page component
+- #103 Create my recipes page component
 
 ### Documentation (P1)
 - #98 Write deployment documentation
@@ -51,6 +52,7 @@ Focus: Basic recipe management functionality
 - #54 Implement registration form with validation - DONE
 - #57 Create recipe list page component
 - #58 Create recipe card component
+- #103 Create my recipes page component
 
 ### Testing (P1)
 - #83 Write unit tests for backend models - PARTIALLY DONE
