@@ -22,6 +22,12 @@ Focus: Basic infrastructure and core backend setup
 - #47 Configure Tailwind CSS and shadcn/ui - DONE
 - #48 Set up React Router configuration - DONE
 - #50 Set up authentication context/state management - DONE
+- #49 Implement basic layout components
+- #51 Configure API client with authentication
+- #52 Create login page component - DONE
+- #53 Create registration page component
+- #54 Implement registration form with validation - DONE
+- #57 Create recipe list page component
 
 ### Documentation (P1)
 - #98 Write deployment documentation
@@ -30,7 +36,7 @@ Focus: Basic infrastructure and core backend setup
 Focus: Basic recipe management functionality
 
 ### Backend (P0)
-- #8 Create database migration for Recipe model
+- #8 Create database migration for Recipe model - DONE
 - #9 Create database migration for Tag and RecipeTag models
 - #21 Implement create recipe endpoint
 - #22 Implement get single recipe endpoint
@@ -42,12 +48,14 @@ Focus: Basic recipe management functionality
 - #51 Configure API client with authentication
 - #52 Create login page component - DONE
 - #53 Create registration page component
+- #54 Implement registration form with validation - DONE
 - #57 Create recipe list page component
 - #58 Create recipe card component
 
 ### Testing (P1)
 - #83 Write unit tests for backend models - PARTIALLY DONE
 - #84 Create API endpoint integration tests
+- #102 Write tests for user registration endpoint - DONE
 
 ## Sprint 3 - Recipe Enhancement (Weeks 5-6)
 Focus: Recipe sharing and tags

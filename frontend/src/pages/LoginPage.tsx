@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button'; // Shadcn UI import
 import { Input } from '../components/ui/input';   // Shadcn UI import
@@ -16,10 +16,21 @@ import {
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Check for registration success message in location state
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      // Clear the message from location state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -65,6 +76,11 @@ const LoginPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
+            {successMessage && (
+              <p className="text-sm font-medium text-green-600 dark:text-green-400 text-center">
+                {successMessage}
+              </p>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
