@@ -2,10 +2,10 @@ import pytest
 import uuid
 from fastapi import status
 from fastapi.testclient import TestClient
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.core.config import settings
-from app.core.security import get_password_hash
+from app.core.security import hash_password
 from app.core.supabase_client import get_supabase_admin_client
 
 # This assumes that your .env file is loaded correctly when pytest runs,
@@ -29,8 +29,9 @@ def test_user(supabase_admin_client):
     """
     test_email = f"test_user_{uuid.uuid4()}@example.com"
     test_password = "TestPassword123!"
-    hashed_password = get_password_hash(test_password)
-    current_time = datetime.utcnow().isoformat()
+    hashed_password = hash_password(test_password)
+    current_time = datetime.now(timezone.utc).isoformat()
+
     user_data = {
         "email": test_email,
         "hashed_password": hashed_password,
@@ -65,8 +66,8 @@ def inactive_test_user(supabase_admin_client):
     """
     test_email = f"inactive_user_{uuid.uuid4()}@example.com"
     test_password = "TestPassword123!"
-    hashed_password = get_password_hash(test_password)
-    current_time = datetime.utcnow().isoformat()
+    hashed_password = hash_password(test_password)
+    current_time = datetime.now(timezone.utc).isoformat()
     user_data = {
         "email": test_email,
         "hashed_password": hashed_password,
@@ -74,7 +75,8 @@ def inactive_test_user(supabase_admin_client):
         "is_active": False,
         "is_superuser": False,
         "created_at": current_time,
-        "updated_at": current_time
+        "updated_at": current_time,
+        "uuid": str(uuid.uuid4())
     }
     
     created_user = None

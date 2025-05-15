@@ -21,6 +21,7 @@ async def lifespan(app_instance: FastAPI):
     except Exception as e:
         logger.error(f"Lifespan: Failed to initialize Supabase clients: {e}")
         # Optionally re-raise or handle to prevent app startup on critical failure
+        raise e
 
     yield  # Application runs here
 

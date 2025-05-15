@@ -5,6 +5,8 @@
 - P2: Medium priority
 - P3: Nice to have
 
+choosing the model for Cursor IDE - https://docs.cursor.com/guides/selecting-models
+
 ## Sprint 1 - Foundation (Weeks 1-2)
 Focus: Basic infrastructure and core backend setup
 
@@ -150,6 +152,8 @@ Nice to have features that can be implemented as needed:
 - #77 Implement shopping list feature UI
 - #88 Implement rate limiting
 - #101 Add more comprehensive tests (unit, integration, e2e)
+- #104 add monitoring support including app health and performance
+- #105 add password invalidation after n days?
 
 ## Dependencies
 - Frontend authentication views depend on backend authentication endpoints

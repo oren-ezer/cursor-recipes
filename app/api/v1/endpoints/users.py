@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from app.core.config import settings
-from app.core.security import get_password_hash, verify_password, create_access_token
+from app.core.security import hash_password, verify_password, create_access_token
 from app.models.user import User
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 import logging
 import socket
 from urllib.parse import urlparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,8 @@ async def test_supabase_connection(request: Request):
         
         # Execute a simple query to test the connection
         logger.info("Testing connection with a simple query...")
-        response = supabase.from_('test_dummy').select('*').limit(1).execute()
+        # response = supabase.from_('test_dummy').select('*').limit(1).execute()
+        response = supabase.from_('users').select('*').limit(1).execute()
         
         return {
             "status": "success",
@@ -139,7 +140,8 @@ async def test_db_connection(request: Request):
         
         # Execute a simple query to test the connection
         logger.info("Testing connection with a simple query...")
-        response = supabase.from_('test_dummy').select('*').limit(1).execute()
+        # response = supabase.from_('test_dummy').select('*').limit(1).execute()
+        response = supabase.from_('users').select('*').limit(1).execute()
         
         return {
             "status": "success",
@@ -219,8 +221,8 @@ async def search_users(
             "page_size": page_size
         }
         
-    except AttributeError:
-        logger.error("Supabase client not found in app state.")
+    except AttributeError as ae:
+        logger.error(f"Supabase client not found in app state: {str(ae)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Server configuration error: Supabase client not initialized."
@@ -276,8 +278,8 @@ async def get_users(
             "page_size": page_size
         }
         
-    except AttributeError:
-        logger.error("Supabase client not found in app state.")
+    except AttributeError as ae:
+        logger.error(f"Supabase client not found in app state: {str(ae)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Server configuration error: Supabase client not initialized."
@@ -318,8 +320,8 @@ async def get_user(user_id: int, request: Request):
             
         return response.data[0]
         
-    except AttributeError:
-        logger.error("Supabase client not found in app state.")
+    except AttributeError as ae:
+        logger.error(f"Supabase client not found in app state: {str(ae)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Server configuration error: Supabase client not initialized."
@@ -360,16 +362,18 @@ async def register_user(user_data: UserCreate, request: Request):
             )
             
         # Create new user
-        hashed_password = get_password_hash(user_data.password)
-        current_time = datetime.utcnow().isoformat()
+        hashed_password = hash_password(user_data.password)
+        current_time_utc = datetime.now(timezone.utc).isoformat()
+        # current_time = datetime.utcnow().isoformat()
+
         new_user = {
             "email": user_data.email,
             "hashed_password": hashed_password,
             "full_name": user_data.full_name,
             "is_active": True,
             "is_superuser": False,
-            "created_at": current_time,
-            "updated_at": current_time,
+            "created_at": current_time_utc,
+            "updated_at": current_time_utc,
             "uuid": str(uuid.uuid4())
         }
         
@@ -447,11 +451,14 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request):
                 )
             
         if "password" in update_data:
-            update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+            update_data["hashed_password"] = hash_password(update_data.pop("password"))
             
         # If there's anything to update, add the timestamp
         if update_data:
-            update_data["updated_at"] = datetime.utcnow().isoformat()
+            
+            # update_data["updated_at"] = datetime.utcnow().isoformat()
+            update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+            
         else:
             # No fields to update, return current user data or 204? Let's return current data.
              get_response = supabase.from_('users').select('*').eq('id', user_id).single().execute()
@@ -549,7 +556,9 @@ async def set_superuser_status(user_id: int, payload: SetSuperuserRequest, reque
         # Update the user's superuser status and updated_at timestamp
         update_data = {
             "is_superuser": payload.is_superuser,
-            "updated_at": datetime.utcnow().isoformat()
+            # "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat()
+            
         }
         
         response = supabase.from_('users').update(update_data).eq('id', user_id).execute()
