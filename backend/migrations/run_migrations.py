@@ -7,7 +7,7 @@ import sys
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv("backend/.env")
 
 # Verify that DATABASE_URL is set
 if not os.getenv("DATABASE_URL"):

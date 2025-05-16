@@ -6,7 +6,7 @@ from alembic import context
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+load_dotenv("backend/.env")
 
 # Import the SQLModel metadata
 from backend.models import User, Recipe

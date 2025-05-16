@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     
     model_config = {
         "case_sensitive": True,
-        "env_file": ".env",
+        "env_file": "backend/.env",
         "extra": "allow"
     }
     
