@@ -155,6 +155,15 @@ Nice to have features that can be implemented as needed:
 - #104 add monitoring support including app health and performance
 - #105 add password invalidation after n days?
 
+## Tests Backlog (P3)
+More test that can be implemented:
+### Integration tests
+- email uniqness on user creation and user update
+### Unit ttests
+- email validations based on real logic
+- password validation base on real logic
+
+
 ## Dependencies
 - Frontend authentication views depend on backend authentication endpoints
 - Recipe management UI depends on recipe core functionality endpoints

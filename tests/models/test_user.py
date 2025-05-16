@@ -1,11 +1,12 @@
 import pytest
 from app.models.user import User
+from pydantic import EmailStr, ValidationError
 
 def test_create_user_instance():
     """Test creating a User instance with all fields."""
     user_data = {
         "email": "test@example.com",
-        "hashed_password": "hashedpassword123",
+        "hashed_password": "ValidPass123!",
         "full_name": "Test User",
         "is_active": True,
         "is_superuser": False,
@@ -23,7 +24,7 @@ def test_create_user_instance_minimal():
     """Test creating a User instance with only required fields and check defaults."""
     user_data = {
         "email": "minimal@example.com",
-        "hashed_password": "anotherhashedpassword",
+        "hashed_password": "ValidPass123!",
     }
     user = User(**user_data)
 
@@ -33,14 +34,131 @@ def test_create_user_instance_minimal():
     assert user.is_active is True  # Default value from model
     assert user.is_superuser is False  # Default value from model
 
-def test_user_email_uniqueness_placeholder():
-    """
-    Placeholder for testing email uniqueness.
-    This typically requires a database session and integration testing.
-    """
-    # For a true unit test of uniqueness, you might mock the database interaction
-    # or rely on integration tests. For now, this serves as a reminder.
-    pass
+def test_user_uuid_generation():
+    """Test that UUID is automatically generated for new users."""
+    user_data = {
+        "email": "uuid_test@example.com",
+        "hashed_password": "ValidPass123!",
+    }
+    user = User(**user_data)
+    
+    assert user.uuid is not None
+    assert isinstance(user.uuid, str)
+    assert len(user.uuid) > 0
+
+def test_user_string_representation():
+    """Test the string representation of the User model."""
+    user_data = {
+        "email": "repr_test@example.com",
+        "hashed_password": "ValidPass123!",
+        "full_name": "Test User",
+        "is_active": True,
+        "is_superuser": False,
+    }
+    user = User(**user_data)
+    
+    expected_repr = f"<User email={user.email} full_name={user.full_name} is_active={user.is_active} is_superuser={user.is_superuser} uuid={user.uuid}>"
+    assert str(user) == f"<User email={user.email}>"
+    assert repr(user) == expected_repr
+
+def test_invalid_email_format():
+    """Test that invalid email formats are rejected."""
+    invalid_emails = [
+        "not_an_email",
+        "missing@domain",
+        "@missing_local",
+        "spaces in@email.com",
+        "invalid@.com",
+    ]
+    
+    for invalid_email in invalid_emails:
+        with pytest.raises(ValidationError):
+            User(
+                email=invalid_email,
+                hashed_password="ValidPass123!"
+            )
+
+def test_user_comparison():
+    """Test user comparison functionality."""
+    user1 = User(
+        email="same@example.com",
+        hashed_password="ValidPass123!"
+    )
+    user2 = User(
+        email="same@example.com",
+        hashed_password="ValidPass123!"
+    )
+    user3 = User(
+        email="different@example.com",
+        hashed_password="ValidPass123!"
+    )
+    
+    # Test equality
+    assert user1 == user2
+    assert user1 != user3
+    
+    # Test that different UUIDs don't affect equality
+    assert user1.uuid != user2.uuid
+    assert user1 == user2  # Should still be equal despite different UUIDs
+
+def test_password_validation_rules():
+    """Test all password validation rules."""
+    # Test empty password
+    with pytest.raises(ValidationError, match="Password cannot be empty"):
+        User(
+            email="test@example.com",
+            hashed_password=""
+        )
+
+    # Test password too short
+    with pytest.raises(ValidationError, match="Password must be at least 8 characters long"):
+        User(
+            email="test@example.com",
+            hashed_password="Abc1!"
+        )
+
+    # Test missing uppercase
+    with pytest.raises(ValidationError, match="Password must contain at least one uppercase letter"):
+        User(
+            email="test@example.com",
+            hashed_password="password123!"
+        )
+
+    # Test missing lowercase
+    with pytest.raises(ValidationError, match="Password must contain at least one lowercase letter"):
+        User(
+            email="test@example.com",
+            hashed_password="PASSWORD123!"
+        )
+
+    # Test missing number
+    with pytest.raises(ValidationError, match="Password must contain at least one number"):
+        User(
+            email="test@example.com",
+            hashed_password="Password!"
+        )
+
+    # Test missing special character
+    with pytest.raises(ValidationError, match="Password must contain at least one special character"):
+        User(
+            email="test@example.com",
+            hashed_password="Password123"
+        )
+
+    # Test common password
+    with pytest.raises(ValidationError, match="Password is too common"):
+        User(
+            email="test@example.com",
+            hashed_password="Password123!"
+        )
+
+    # Test valid password
+    valid_password = "ValidPass123!"
+    user = User(
+        email="test@example.com",
+        hashed_password=valid_password
+    )
+    assert user.hashed_password == valid_password
 
 # Add more tests here as needed, e.g., for field validations if you add them
 # (like email format, password complexity) or any model methods. 

@@ -44,5 +44,13 @@
 - isn't it better that BaseModel will hold the uuid field? the change is just moving it there?
 - in recipe.py - what is the __table_args__ ?
 
+### migrations
+- can I exclude a table in the DB from the upgrade/downgrade migration process of Alembic?
+
+### tests
+- why not all test are implemented by cursor
+- what is the best practice in python and can I impl unit + integration backend tests with the same package
+
+
 ## Frontend 
 - relative paths instead of aliases in tsx files
