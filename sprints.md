@@ -144,7 +144,7 @@ Focus: i18n support and documentation
 
 ## Backlog (P3)
 Nice to have features that can be implemented as needed:
-- #16 Implement password reset functionality
+- #16 Implement password reset functionality and password update functionality and exclude password from user_update endpoint 
 - #19 Add email verification system
 - #28 Implement ingredient search functionality
 - #29 Add recipe image upload to Supabase Storage
@@ -154,15 +154,14 @@ Nice to have features that can be implemented as needed:
 - #101 Add more comprehensive tests (unit, integration, e2e)
 - #104 add monitoring support including app health and performance
 - #105 add password invalidation after n days?
+- #106 allow 
 
 ## Tests Backlog (P3)
 More test that can be implemented:
 ### Integration tests
 - email uniqness on user creation and user update
 ### Unit ttests
-- email validations based on real logic
-- password validation base on real logic
-
+- recipes unit tests
 
 ## Dependencies
 - Frontend authentication views depend on backend authentication endpoints
