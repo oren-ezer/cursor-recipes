@@ -1,6 +1,6 @@
 from typing import Optional
 from sqlmodel import Field
-from app.models.base import BaseModel
+from backend.models.base import BaseModel
 from pydantic import EmailStr, field_validator
 import uuid
 from pydantic import ConfigDict

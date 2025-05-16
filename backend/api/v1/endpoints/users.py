@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from app.core.config import settings
-from app.core.security import hash_password, verify_password, create_access_token
-from app.models.user import User
+from backend.core.config import settings
+from backend.core.security import hash_password, verify_password, create_access_token
+from backend.models.user import User
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 import logging
@@ -451,7 +451,13 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request):
                 )
             
         if "password" in update_data:
-            update_data["hashed_password"] = hash_password(update_data.pop("password"))
+            try:
+                User.password_validation(update_data["password"])
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(e)
+                )
             
         # If there's anything to update, add the timestamp
         if update_data:

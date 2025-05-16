@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Dict, Any
-from app.utils.db import Database
-from app.core.supabase_client import get_supabase_client
+from backend.utils.db import Database
+from backend.core.supabase_client import get_supabase_client
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 

@@ -1,5 +1,5 @@
 import pytest
-from app.models.user import User
+from backend.models.user import User
 from pydantic import EmailStr, ValidationError
 
 def test_create_user_instance():

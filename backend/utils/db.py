@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional, TypeVar, Generic
 from fastapi import HTTPException, status
-from app.core.supabase_client import get_supabase_client, get_supabase_admin_client
+from backend.core.supabase_client import get_supabase_client, get_supabase_admin_client
 
 T = TypeVar('T')
 

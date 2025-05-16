@@ -3,8 +3,8 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.core.config import settings
-from app.core.supabase_client import get_supabase_client, get_supabase_admin_client  # Import client functions
+from backend.core.config import settings
+from backend.core.supabase_client import get_supabase_client, get_supabase_admin_client  # Import client functions
 import logging
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # Import and include routers
-from app.api.v1.endpoints import users, recipes
+from backend.api.v1.endpoints import users, recipes
 
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(recipes.router, prefix=settings.API_V1_STR)
