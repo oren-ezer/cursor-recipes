@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from backend.core.config import settings
-from backend.core.security import hash_password, verify_password, create_access_token
-from backend.models.user import User
+from src.core.config import settings
+from src.core.security import hash_password, verify_password, create_access_token
+from src.models.user import User
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 import logging
@@ -453,6 +453,10 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request):
         if "password" in update_data:
             try:
                 User.password_validation(update_data["password"])
+                # Hash the password before storing
+                update_data["hashed_password"] = hash_password(update_data["password"])
+                # user entry field is named 'password" but db column is "hashed_password" so we Remove the plain password from update data
+                del update_data["password"]
             except ValueError as e:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

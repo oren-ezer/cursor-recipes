@@ -39,7 +39,7 @@ Focus: Basic infrastructure and core backend setup
 Focus: Basic recipe management functionality
 
 ### Backend (P0)
-- #8 Create database migration for Recipe model - DONE
+- #8 Create database migration for Recipe model - PARTIALLY DONE
 - #9 Create database migration for Tag and RecipeTag models
 - #21 Implement create recipe endpoint
 - #22 Implement get single recipe endpoint

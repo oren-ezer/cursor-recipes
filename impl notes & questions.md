@@ -1,8 +1,24 @@
 # implementation notes and questions
 
+## How to
+- run the frontend
+    - cd frontend && npm run dev
+- debug the frontend
+    - run the npm server from within the IDE
+- run the backend
+    - uv run uvicorn src.main:app --reload
+- debug the backend
+    - run the FastAPI server from within the IDE
+- run the backend tests
+    - "uv run pytest tests/ -v"
+    - or previous version "python -m pytest tests/ -v"
+    
 ## General
 - how move or rename the "app" folder to "backend"
+    - create src with all without scripts and tests. 
+    - move conftest to inside test (or remove completely)
 - is .env used only by the backend or also by the frontend?
+    - for both
 - do I need to know anything about what's in 'venv' folder?
 
 - what is the best practice for import statements - begining? when needed/used? mixture? (see imports in main.py)
@@ -34,6 +50,8 @@
 - in users.py with login_for_access_token - why defaulting the is_active to True???
 - the DB utils impl for recipes.py vs the supabase api impl for users.py
 - isn't it common practice to cgeck for exactly 1 result when selecting by ID?
+- users/me and recipes/me endpoints are failing very ugly from swagger. how to debug and fix it?
+- how the user register is working with a password the does not include special chars but the update user swagger fails on it?
 
 ### core
 - why the call to logging.basicConfig(level=logging.INFO) is done from within supabase_client.py and commented out in config.py?

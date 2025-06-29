@@ -3,8 +3,9 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from backend.core.config import settings
-from backend.core.supabase_client import get_supabase_client, get_supabase_admin_client  # Import client functions
+from src.core.config import settings
+from src.core.supabase_client import get_supabase_client, get_supabase_admin_client  # Import client functions
+from src.utils.dependencies import get_current_user
 import logging
 
 logger = logging.getLogger(__name__)
@@ -43,11 +44,44 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Authentication middleware
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    try:
+        # Skip authentication for login and register endpoints
+        if request.url.path in [f"{settings.API_V1_STR}/users/token", f"{settings.API_V1_STR}/users/register"]:
+            logger.info(f"Skipping auth for path: {request.url.path}")
+            return await call_next(request)
+            
+        # Get the authorization header
+        auth_header = request.headers.get("Authorization")
+        logger.info(f"Auth header: {auth_header}")
+        
+        if not auth_header or not auth_header.startswith("Bearer "):
+            logger.warning("No valid auth header found")
+            request.state.user = None
+            return await call_next(request)
+            
+        # Extract the token
+        token = auth_header.split(" ")[1]
+        logger.info(f"Token extracted: {token[:10]}...")
+        
+        # Get the current user
+        user = await get_current_user(token)
+        logger.info(f"User authenticated: {user.get('email') if user else 'None'}")
+        request.state.user = user
+        
+    except Exception as e:
+        logger.error(f"Auth middleware error: {str(e)}", exc_info=True)
+        request.state.user = None
+        
+    return await call_next(request)
 
 # Generic Exception Handler
 @app.exception_handler(Exception)
@@ -77,7 +111,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # Import and include routers
-from backend.api.v1.endpoints import users, recipes
+from src.api.v1.endpoints import users, recipes
 
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(recipes.router, prefix=settings.API_V1_STR)

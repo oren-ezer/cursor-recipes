@@ -4,9 +4,9 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from datetime import datetime, timezone
 
-from backend.core.config import settings
-from backend.core.security import hash_password
-from backend.core.supabase_client import get_supabase_admin_client
+from src.core.config import settings
+from src.core.security import hash_password
+from src.core.supabase_client import get_supabase_admin_client
 
 # This assumes that your .env file is loaded correctly when pytest runs,
 # or you have pytest-dotenv configured.
