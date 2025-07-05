@@ -30,7 +30,6 @@ class User(BaseModel, table=True):
         if not isinstance(other, User):
             return False
         return self.email == other.email 
-
     @field_validator('hashed_password')
     @classmethod
     def password_validation(cls, v):

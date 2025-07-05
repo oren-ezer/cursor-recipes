@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from typing import List, Dict, Any, Optional
 from src.utils.db import Database
-from src.core.supabase_client import get_supabase_client
 from pydantic import BaseModel
 from datetime import datetime
 import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -56,73 +57,27 @@ async def read_recipes(
         HTTPException: If there's an error retrieving recipes
     """
     try:
-        supabase = request.app.state.supabase
-        
-        # Calculate offset
-        offset = (page - 1) * page_size
-        
-        # Get total count
-        count_response = supabase.from_('recipes').select('*', count='exact').execute()
-        total = count_response.count if count_response.count is not None else 0
-        
-        # Get paginated recipes
-        response = supabase.from_('recipes') \
-            .select('*') \
-            .range(offset, offset + page_size - 1) \
-            .order('id', desc=False) \
-            .execute()
+        result = Database.select_paginated(
+            table="recipes",
+            page=page,
+            page_size=page_size,
+            order_by="id"
+        )
         
         return {
-            "recipes": response.data,
-            "total": total,
-            "page": page,
-            "page_size": page_size
+            "recipes": result["data"],
+            "total": result["total"],
+            "page": result["page"],
+            "page_size": result["page_size"]
         }
         
-    except AttributeError as ae:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error: Supabase client not initialized."
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve recipes: {str(e)}"
-        )
-
-@router.get("/{recipe_id}")
-async def read_recipe(recipe_id: int):
-    """
-    Get a specific recipe by ID.
-    """
-    try:
-        recipes = Database.select("recipes", filters={"id": recipe_id})
-        if not recipes:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Recipe with ID {recipe_id} not found"
-            )
-        return recipes[0]
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error retrieving recipes: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch recipe: {str(e)}"
-        )
-
-@router.post("/")
-async def create_recipe(recipe: Dict[str, Any]):
-    """
-    Create a new recipe.
-    """
-    try:
-        new_recipe = Database.insert("recipes", recipe)
-        return new_recipe
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create recipe: {str(e)}"
+            detail=f"Failed to retrieve recipes: {str(e)}"
         )
 
 @router.get("/my", response_model=RecipesResponse)
@@ -157,43 +112,189 @@ async def read_my_recipes(
                 detail="Not authenticated"
             )
 
-        supabase = request.app.state.supabase
         logger.info(f"Using user UUID: {user['uuid']}")
         
-        # Calculate offset
-        offset = (page - 1) * page_size
+        result = Database.select_paginated(
+            table="recipes",
+            page=page,
+            page_size=page_size,
+            filters={"user_id": user['uuid']},
+            order_by="created_at.desc"
+        )
         
-        # Get total count
-        count_response = supabase.from_('recipes').select('*', count='exact').eq('user_id', user['uuid']).execute()
-        total = count_response.count if count_response.count is not None else 0
-        logger.info(f"Total recipes found: {total}")
-        
-        # Get paginated recipes
-        response = supabase.from_('recipes') \
-            .select('*') \
-            .eq('user_id', user['uuid']) \
-            .range(offset, offset + page_size - 1) \
-            .order('created_at', desc=True) \
-            .execute()
-        
-        logger.info(f"Retrieved {len(response.data)} recipes")
+        logger.info(f"Retrieved {len(result['data'])} recipes")
         
         return {
-            "recipes": response.data,
-            "total": total,
-            "page": page,
-            "page_size": page_size
+            "recipes": result["data"],
+            "total": result["total"],
+            "page": result["page"],
+            "page_size": result["page_size"]
         }
         
-    except AttributeError as ae:
-        logger.error(f"Attribute error: {str(ae)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error: Supabase client not initialized."
-        )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error retrieving recipes: {str(e)}", exc_info=True)
+        logger.error(f"Error retrieving user recipes: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve recipes: {str(e)}"
+        )
+
+@router.get("/{recipe_id}")
+async def read_recipe(recipe_id: int):
+    """
+    Get a specific recipe by ID.
+    """
+    try:
+        recipes = Database.select("recipes", filters={"id": recipe_id})
+        if not recipes:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Recipe with ID {recipe_id} not found"
+            )
+        return recipes[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving recipe {recipe_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch recipe: {str(e)}"
+        )
+
+@router.post("/")
+async def create_recipe(recipe: Dict[str, Any]):
+    """
+    Create a new recipe.
+    """
+    try:
+        new_recipe = Database.insert("recipes", recipe)
+        return new_recipe
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating recipe: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create recipe: {str(e)}"
+        )
+
+@router.put("/{recipe_id}")
+async def update_recipe(recipe_id: int, recipe_data: Dict[str, Any], request: Request):
+    """
+    Update a recipe by ID.
+    
+    Args:
+        recipe_id: The ID of the recipe to update
+        recipe_data: The recipe data to update
+        request: The request object (for accessing app state)
+        
+    Returns:
+        Updated recipe data
+        
+    Raises:
+        HTTPException: If recipe not found, user not authorized, or update fails
+    """
+    try:
+        # Get user from request
+        user = request.state.user
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated"
+            )
+
+        # Check if recipe exists and belongs to user
+        existing_recipes = Database.select("recipes", filters={"id": recipe_id})
+        if not existing_recipes:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Recipe with ID {recipe_id} not found"
+            )
+        
+        existing_recipe = existing_recipes[0]
+        if existing_recipe["user_id"] != user["uuid"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to update this recipe"
+            )
+
+        # Add updated timestamp
+        recipe_data["updated_at"] = datetime.now().isoformat()
+        
+        # Update recipe
+        updated_recipes = Database.update("recipes", recipe_data, {"id": recipe_id})
+        if not updated_recipes:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update recipe"
+            )
+        
+        return updated_recipes[0]
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating recipe {recipe_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update recipe: {str(e)}"
+        )
+
+@router.delete("/{recipe_id}")
+async def delete_recipe(recipe_id: int, request: Request):
+    """
+    Delete a recipe by ID.
+    
+    Args:
+        recipe_id: The ID of the recipe to delete
+        request: The request object (for accessing app state)
+        
+    Returns:
+        None (204 No Content)
+        
+    Raises:
+        HTTPException: If recipe not found, user not authorized, or deletion fails
+    """
+    try:
+        # Get user from request
+        user = request.state.user
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated"
+            )
+
+        # Check if recipe exists and belongs to user
+        existing_recipes = Database.select("recipes", filters={"id": recipe_id})
+        if not existing_recipes:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Recipe with ID {recipe_id} not found"
+            )
+        
+        existing_recipe = existing_recipes[0]
+        if existing_recipe["user_id"] != user["uuid"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to delete this recipe"
+            )
+
+        # Delete recipe
+        deleted_recipes = Database.delete("recipes", {"id": recipe_id})
+        if not deleted_recipes:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete recipe"
+            )
+        
+        return None  # 204 No Content
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting recipe {recipe_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete recipe: {str(e)}"
         ) 

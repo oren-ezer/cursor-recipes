@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from src.core.config import settings
 from src.core.security import hash_password, verify_password, create_access_token
 from src.models.user import User
+from src.utils.db import Database
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 import logging
@@ -56,25 +57,14 @@ async def test_supabase_connection(request: Request):
     Test endpoint to verify Supabase connection from app state.
     """
     try:
-        # Get the Supabase client from app state
-        logger.info("Attempting to get Supabase client from app state...")
-        supabase = request.app.state.supabase
-        
-        # Execute a simple query to test the connection
+        # Test connection by executing a simple query
         logger.info("Testing connection with a simple query...")
-        # response = supabase.from_('test_dummy').select('*').limit(1).execute()
-        response = supabase.from_('users').select('*').limit(1).execute()
+        users = Database.select("users", limit=1)
         
         return {
             "status": "success",
-            "message": "Successfully connected to Supabase via app state",
-            "data": response.data
-        }
-    except AttributeError:
-        logger.error("Supabase client not found in app state.")
-        return {
-            "status": "error",
-            "message": "Supabase client not found in app state. Check startup logs.",
+            "message": "Successfully connected to Supabase via Database utility",
+            "data": users
         }
     except Exception as e:
         logger.error(f"Supabase connection error: {str(e)}")
@@ -106,7 +96,7 @@ async def test_config():
 @router.get("/test-db-connection", summary="Test Database Connection", description="Test the connection to the Supabase database")
 async def test_db_connection(request: Request):
     """
-    Test the connection to the Supabase database via app state.
+    Test the connection to the Supabase database via Database utility.
     
     This endpoint attempts to connect to the Supabase database and perform a simple query.
     It returns detailed information about the connection status and any errors that occur.
@@ -134,33 +124,22 @@ async def test_db_connection(request: Request):
                 }
             }
         
-        # Get the Supabase client from app state
-        logger.info("Testing database connection via app state...")
-        supabase = request.app.state.supabase
-        
-        # Execute a simple query to test the connection
-        logger.info("Testing connection with a simple query...")
-        # response = supabase.from_('test_dummy').select('*').limit(1).execute()
-        response = supabase.from_('users').select('*').limit(1).execute()
+        # Test database connection via Database utility
+        logger.info("Testing database connection via Database utility...")
+        users = Database.select("users", limit=1)
         
         return {
             "status": "success",
-            "message": "Successfully connected to the database via app state",
+            "message": "Successfully connected to the database via Database utility",
             "details": {
                 "connection": "established",
                 "query": "executed successfully",
-                "response": response.data,
+                "response": users,
                 "dns_resolution": {
                     "hostname": hostname,
                     "ip_address": ip_address
                 }
             }
-        }
-    except AttributeError:
-        logger.error("Supabase client not found in app state.")
-        return {
-            "status": "error",
-            "message": "Supabase client not found in app state. Check startup logs.",
         }
     except Exception as e:
         logger.error(f"Database connection error: {str(e)}")
@@ -190,45 +169,37 @@ async def search_users(
     Search users based on criteria with pagination.
     """
     try:
-        supabase = request.app.state.supabase
+        # Prepare filters
+        ilike_filters = {}
+        filters = {}
         
-        # Start building the query
-        query = supabase.from_('users').select('*', count='exact')
-        
-        # Apply filters
         if email:
-            query = query.ilike('email', f'%{email}%')
+            ilike_filters["email"] = email
         if full_name:
-            query = query.ilike('full_name', f'%{full_name}%')
+            ilike_filters["full_name"] = full_name
         if is_active is not None:
-            query = query.eq('is_active', is_active)
-            
-        # Calculate offset for pagination
-        offset = (page - 1) * page_size
+            filters["is_active"] = is_active
         
-        # Apply pagination and ordering
-        query = query.range(offset, offset + page_size - 1).order('id', desc=False)
-        
-        # Execute query
-        response = query.execute()
-        
-        total = response.count if response.count is not None else 0
+        result = Database.select_with_ilike(
+            table="users",
+            ilike_filters=ilike_filters if ilike_filters else None,
+            filters=filters if filters else None,
+            page=page,
+            page_size=page_size,
+            order_by="id"
+        )
         
         return {
-            "users": response.data,
-            "total": total,
-            "page": page,
-            "page_size": page_size
+            "users": result["data"],
+            "total": result["total"],
+            "page": result["page"],
+            "page_size": result["page_size"]
         }
         
-    except AttributeError as ae:
-        logger.error(f"Supabase client not found in app state: {str(ae)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error: Supabase client not initialized."
-        )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error searching users: {str(e)}")
+        logger.error(f"Error searching users: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to search users: {str(e)}"
@@ -255,40 +226,61 @@ async def get_users(
         HTTPException: If there's an error retrieving users
     """
     try:
-        supabase = request.app.state.supabase
-        
-        # Calculate offset
-        offset = (page - 1) * page_size
-        
-        # Get total count
-        count_response = supabase.from_('users').select('*', count='exact').execute()
-        total = count_response.count if count_response.count is not None else 0
-        
-        # Get paginated users
-        response = supabase.from_('users') \
-            .select('*') \
-            .range(offset, offset + page_size - 1) \
-            .order('id', desc=False) \
-            .execute()
+        result = Database.select_paginated(
+            table="users",
+            page=page,
+            page_size=page_size,
+            order_by="id"
+        )
         
         return {
-            "users": response.data,
-            "total": total,
-            "page": page,
-            "page_size": page_size
+            "users": result["data"],
+            "total": result["total"],
+            "page": result["page"],
+            "page_size": result["page_size"]
         }
         
-    except AttributeError as ae:
-        logger.error(f"Supabase client not found in app state: {str(ae)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error: Supabase client not initialized."
-        )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error retrieving users: {str(e)}")
+        logger.error(f"Error retrieving users: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve users: {str(e)}"
+        )
+
+@router.get("/me", response_model=UserResponse)
+async def read_users_me(request: Request):
+    """
+    Get current user information.
+    """
+    try:
+        logger.info(f"===============================Request state: {request.state}")
+        # Get user from request state
+        user = request.state.user
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated"
+            )
+        
+        # Get full user details from database
+        user_data = Database.select_single("users", filters={"uuid": user["uuid"]})
+        if not user_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        return user_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving current user: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve user information"
         )
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -307,29 +299,20 @@ async def get_user(user_id: int, request: Request):
         HTTPException: If user not found
     """
     try:
-        supabase = request.app.state.supabase
+        user = Database.select_single("users", filters={"id": user_id})
         
-        # Get user from database
-        response = supabase.from_('users').select('*').eq('id', user_id).execute()
-        
-        if not response.data:
+        if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
             
-        return response.data[0]
+        return user
         
-    except AttributeError as ae:
-        logger.error(f"Supabase client not found in app state: {str(ae)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error: Supabase client not initialized."
-        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving user: {str(e)}")
+        logger.error(f"Error retrieving user {user_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve user: {str(e)}"
@@ -351,11 +334,10 @@ async def register_user(user_data: UserCreate, request: Request):
         HTTPException: If email already exists or registration fails
     """
     try:
-        supabase = request.app.state.supabase
         # Check if user already exists
-        existing_user = supabase.from_('users').select('id').eq('email', user_data.email).execute()
+        existing_user = Database.select_single_tolerant("users", filters={"email": user_data.email})
         
-        if existing_user.data:
+        if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
@@ -364,7 +346,6 @@ async def register_user(user_data: UserCreate, request: Request):
         # Create new user
         hashed_password = hash_password(user_data.password)
         current_time_utc = datetime.now(timezone.utc).isoformat()
-        # current_time = datetime.utcnow().isoformat()
 
         new_user = {
             "email": user_data.email,
@@ -378,33 +359,21 @@ async def register_user(user_data: UserCreate, request: Request):
         }
         
         # Insert user into database
-        # Specify returning="representation" to get the inserted record back
-        response = supabase.from_('users').insert(new_user, returning="representation").execute()
+        created_user = Database.insert_with_returning("users", new_user)
         
-        if not response.data:
-            # Attempt to provide more specific error details if possible
-            error_detail = "Failed to create user"
-            if hasattr(response, 'error') and response.error:
-                error_detail += f": {response.error.message}"
+        if not created_user:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=error_detail
+                detail="Failed to create user"
             )
             
         # Return created user (excluding password)
-        # The response.data should contain the created user directly now
-        return response.data[0]
+        return created_user
         
-    except AttributeError:
-        logger.error("Supabase client not found in app state.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error: Supabase client not initialized."
-        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"User registration error: {str(e)}")
+        logger.error(f"User registration error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to register user: {str(e)}"
@@ -427,11 +396,9 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request):
         HTTPException: If user not found or update fails
     """
     try:
-        supabase = request.app.state.supabase
-        
         # Check if user exists first to give a 404 if not found
-        existing_check = supabase.from_('users').select('id').eq('id', user_id).maybe_single().execute()
-        if not existing_check.data:
+        existing_user = Database.select_single("users", filters={"id": user_id})
+        if not existing_user:
              raise HTTPException(
                  status_code=status.HTTP_404_NOT_FOUND,
                  detail="User not found"
@@ -443,8 +410,12 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request):
         # Handle specific fields
         if "email" in update_data:
             # Check if new email is already taken by another user
-            email_check = supabase.from_('users').select('id').eq('email', update_data["email"]).neq('id', user_id).execute()
-            if email_check.data:
+            email_check = Database.select_with_exclusions(
+                "users", 
+                filters={"email": update_data["email"]},
+                exclusions={"id": user_id}
+            )
+            if email_check:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Email already taken by another user"
@@ -455,7 +426,7 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request):
                 User.password_validation(update_data["password"])
                 # Hash the password before storing
                 update_data["hashed_password"] = hash_password(update_data["password"])
-                # user entry field is named 'password" but db column is "hashed_password" so we Remove the plain password from update data
+                # Remove the plain password from update data
                 del update_data["password"]
             except ValueError as e:
                 raise HTTPException(
@@ -465,41 +436,26 @@ async def update_user(user_id: int, user_data: UserUpdate, request: Request):
             
         # If there's anything to update, add the timestamp
         if update_data:
-            
-            # update_data["updated_at"] = datetime.utcnow().isoformat()
             update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-            
         else:
-            # No fields to update, return current user data or 204? Let's return current data.
-             get_response = supabase.from_('users').select('*').eq('id', user_id).single().execute()
-             return get_response.data
+            # No fields to update, return current user data
+            return existing_user
         
         # Update user
-        response = supabase.from_('users').update(update_data).eq('id', user_id).execute()
-        
-        if not response.data:
-             # Attempt to provide more specific error details if possible
-            error_detail = "Failed to update user"
-            if hasattr(response, 'error') and response.error:
-                error_detail += f": {response.error.message}"
+        updated_users = Database.update("users", update_data, {"id": user_id})
+        if not updated_users:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=error_detail
+                detail="Failed to update user"
             )
             
         # Return updated user
-        return response.data[0]
+        return updated_users[0]
         
-    except AttributeError:
-        logger.error("Supabase client not found in app state.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error: Supabase client not initialized."
-        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"User update error: {str(e)}")
+        logger.error(f"User update error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update user: {str(e)}"
@@ -511,36 +467,26 @@ async def delete_user(user_id: int, request: Request):
     Delete a user by ID.
     """
     try:
-        # Using admin client for deletion might be safer depending on RLS
-        supabase = request.app.state.supabase_admin 
-        
         # Check if user exists first
-        existing_check = supabase.from_('users').select('id').eq('id', user_id).maybe_single().execute()
-        if not existing_check.data:
+        existing_user = Database.select_single("users", filters={"id": user_id})
+        if not existing_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
         
-        # Delete the user
-        response = supabase.from_('users').delete().eq('id', user_id).execute()
+        # Delete the user using admin client for privileged operations
+        deleted_users = Database.delete("users", {"id": user_id})
         
-        # Check if deletion was successful (optional, delete often succeeds even if 0 rows affected)
-        # if not response.data: # This might not be reliable for delete
-        #     logger.warning(f"Attempted to delete user {user_id}, but response indicates no data changed.")
+        # Note: Delete operations might not return data even when successful
+        # The fact that we didn't get an exception means the operation was successful
+        
+        return None  # Return None for 204 No Content status
 
-        return None # Return None for 204 No Content status
-
-    except AttributeError:
-        logger.error("Supabase admin client not found in app state.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error: Supabase admin client not initialized."
-        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting user {user_id}: {str(e)}")
+        logger.error(f"Error deleting user {user_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete user: {str(e)}"
@@ -552,12 +498,9 @@ async def set_superuser_status(user_id: int, payload: SetSuperuserRequest, reque
     Set the is_superuser status for a user. Requires admin privileges.
     """
     try:
-        # Use admin client for this privileged operation
-        supabase = request.app.state.supabase_admin
-        
         # Check if user exists first
-        existing_check = supabase.from_('users').select('id').eq('id', user_id).maybe_single().execute()
-        if not existing_check.data:
+        existing_user = Database.select_single("users", filters={"id": user_id})
+        if not existing_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
@@ -566,92 +509,75 @@ async def set_superuser_status(user_id: int, payload: SetSuperuserRequest, reque
         # Update the user's superuser status and updated_at timestamp
         update_data = {
             "is_superuser": payload.is_superuser,
-            # "updated_at": datetime.utcnow().isoformat()
             "updated_at": datetime.now(timezone.utc).isoformat()
-            
         }
         
-        response = supabase.from_('users').update(update_data).eq('id', user_id).execute()
-        
-        if not response.data:
-            # Attempt to provide more specific error details if possible
-            error_detail = "Failed to update superuser status"
-            if hasattr(response, 'error') and response.error:
-                error_detail += f": {response.error.message}"
+        updated_users = Database.update("users", update_data, {"id": user_id})
+        if not updated_users:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=error_detail
+                detail="Failed to update superuser status"
             )
             
-        return response.data[0]
+        return updated_users[0]
 
-    except AttributeError:
-        logger.error("Supabase admin client not found in app state.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server configuration error: Supabase admin client not initialized."
-        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error setting superuser status for user {user_id}: {str(e)}")
+        logger.error(f"Error setting superuser status for user {user_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to set superuser status: {str(e)}"
         )
 
-@router.get("/me")
-async def read_users_me(request: Request):
-    # This endpoint needs proper authentication to get the current user
-    # For now, just show it can access the state
-    try:
-        _ = request.app.state.supabase # Check if state is accessible
-        return {"message": "Current user endpoint (Supabase client accessible)"}
-    except AttributeError:
-        return {"message": "Current user endpoint (Supabase client NOT accessible in state)"}
-
 # Login endpoint
 @router.post("/token", response_model=Token, tags=["authentication"])
 async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
-    supabase = request.app.state.supabase
-    
-    # 1. Get user from DB by email (username)
-    user_query_response = supabase.from_("users").select("*").eq("email", form_data.username).maybe_single().execute()
-    
-    # Check the response itself before accessing .data
-    if not user_query_response or not hasattr(user_query_response, 'data') or not user_query_response.data:
-        # This handles cases where user is not found OR if the query execution itself had an issue
-        # that resulted in a response without a 'data' attribute (like the observed 406).
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    try:
+        # 1. Get user from DB by email (username)
+        db_users = Database.select("users", filters={"email": form_data.username}, limit=1)
+        
+        # Check if user exists
+        if not db_users:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        db_user_data = db_users[0]
 
-    db_user_data = user_query_response.data
+        # 2. Verify password
+        if not verify_password(form_data.password, db_user_data["hashed_password"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            
+        # 3. Check if user is active (optional, but good practice)
+        if not db_user_data.get("is_active", True):  # Default to True if not present for some reason
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Inactive user"
+            )
 
-    # 2. Verify password
-    if not verify_password(form_data.password, db_user_data["hashed_password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+        # 4. Create access token
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": db_user_data["email"], "user_id": db_user_data["id"], "uuid": db_user_data["uuid"]}, 
+            expires_delta=access_token_expires
         )
         
-    # 3. Check if user is active (optional, but good practice)
-    if not db_user_data.get("is_active", True): # Default to True if not present for some reason
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Inactive user"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication failed"
         )
-
-    # 4. Create access token
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": db_user_data["email"], "user_id": db_user_data["id"], "uuid": db_user_data["uuid"]}, 
-        expires_delta=access_token_expires
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
 
 
