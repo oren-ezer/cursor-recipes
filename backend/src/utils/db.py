@@ -2,6 +2,9 @@ from typing import Any, Dict, List, Optional, TypeVar, Generic
 from fastapi import HTTPException, status
 from src.core.supabase_client import get_supabase_client, get_supabase_admin_client
 
+# Note: For SQLModel/SQLAlchemy database sessions, see src/utils/database_session.py
+# This file contains utilities for Supabase client operations only.
+
 T = TypeVar('T')
 
 class Database:

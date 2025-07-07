@@ -1,10 +1,28 @@
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from sqlalchemy.orm import Session
 from src.core.config import settings
 from src.core.supabase_client import get_supabase_client
+from src.utils.database_session import get_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/users/token")
+
+# Database session dependency for FastAPI endpoints
+def get_database_session() -> Session:
+    """
+    FastAPI dependency to get SQLModel/SQLAlchemy database session.
+    
+    Returns:
+        Session: SQLAlchemy database session with automatic lifecycle management
+        
+    Usage:
+        @app.get("/items/")
+        def read_items(db: Session = Depends(get_database_session)):
+            # Use db session here
+            pass
+    """
+    return next(get_db())
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
