@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from src.core.config import settings
 from src.core.supabase_client import get_supabase_client
 from src.utils.database_session import get_db
+from src.services.user_service import UserService
+from typing import Annotated
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/users/token")
 
@@ -23,6 +25,24 @@ def get_database_session() -> Session:
             pass
     """
     return next(get_db())
+
+def get_user_service(db: Annotated[Session, Depends(get_database_session)]) -> UserService:
+    """
+    FastAPI dependency to get UserService instance with database session.
+    
+    Args:
+        db: Database session from FastAPI dependency
+        
+    Returns:
+        UserService: UserService instance with database session
+        
+    Usage:
+        @app.get("/users/{user_id}")
+        def get_user(user_service: UserService = Depends(get_user_service)):
+            # Use user_service here
+            pass
+    """
+    return UserService(db)
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
