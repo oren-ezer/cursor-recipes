@@ -173,13 +173,13 @@ def test_get_my_recipes_success(client: TestClient, test_user, auth_token, test_
     # Verify the response structure
     assert "recipes" in data
     assert "total" in data
-    assert "page" in data
-    assert "page_size" in data
+    assert "limit" in data
+    assert "offset" in data
     
     # Verify the data
     assert data["total"] == 2
-    assert data["page"] == 1
-    assert data["page_size"] == 10
+    assert data["limit"] == 10
+    assert data["offset"] == 0
     assert len(data["recipes"]) == 2
     
     # Verify recipe data
@@ -312,13 +312,13 @@ def test_get_my_recipes_empty_list(client: TestClient, test_user, auth_token):
     # Verify the response structure
     assert "recipes" in data
     assert "total" in data
-    assert "page" in data
-    assert "page_size" in data
+    assert "limit" in data
+    assert "offset" in data
     
     # Verify empty data
     assert data["total"] == 0
-    assert data["page"] == 1
-    assert data["page_size"] == 10
+    assert data["limit"] == 10
+    assert data["offset"] == 0
     assert len(data["recipes"]) == 0
 
 def test_get_my_recipes_pagination(client: TestClient, test_user, auth_token, supabase_admin_client):
@@ -353,25 +353,25 @@ def test_get_my_recipes_pagination(client: TestClient, test_user, auth_token, su
         
         # Test first page
         headers = {"Authorization": f"Bearer {auth_token}"}
-        response = client.get(f"{MY_RECIPES_URL}?page=1&page_size=10", headers=headers)
+        response = client.get(f"{MY_RECIPES_URL}?limit=10&offset=0", headers=headers)
         
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         
         assert data["total"] == 15
-        assert data["page"] == 1
-        assert data["page_size"] == 10
+        assert data["limit"] == 10
+        assert data["offset"] == 0
         assert len(data["recipes"]) == 10
         
         # Test second page
-        response = client.get(f"{MY_RECIPES_URL}?page=2&page_size=10", headers=headers)
+        response = client.get(f"{MY_RECIPES_URL}?limit=10&offset=10", headers=headers)
         
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         
         assert data["total"] == 15
-        assert data["page"] == 2
-        assert data["page_size"] == 10
+        assert data["limit"] == 10
+        assert data["offset"] == 10
         assert len(data["recipes"]) == 5  # Remaining 5 recipes
         
     finally:

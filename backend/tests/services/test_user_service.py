@@ -239,3 +239,175 @@ class TestUserService:
         assert result.uuid == ""
         assert result.full_name == ""
     
+    def test_get_all_users_empty_list(self):
+        """Test getting all users when no users exist."""
+        # Arrange
+        mock_db = Mock()
+        mock_exec = Mock()
+        mock_exec.all.return_value = []
+        mock_db.exec.return_value = mock_exec
+        
+        user_service = UserService(mock_db)
+        
+        # Act
+        result = user_service.get_all_users()
+        
+        # Assert
+        assert result["users"] == []
+        assert result["total"] == 0
+        assert result["limit"] == 100
+        assert result["offset"] == 0
+        assert mock_db.exec.call_count == 2  # One for users, one for count
+    
+    def test_get_all_users_with_pagination(self):
+        """Test getting all users with pagination parameters."""
+        # Arrange
+        mock_db = Mock()
+        mock_users = [
+            User(id=1, uuid="uuid1", email="user1@test.com", is_active=True, is_superuser=False),
+            User(id=2, uuid="uuid2", email="user2@test.com", is_active=True, is_superuser=False)
+        ]
+        
+        mock_exec = Mock()
+        mock_exec.all.side_effect = [mock_users, mock_users]  # First for users, second for count
+        mock_db.exec.return_value = mock_exec
+        
+        user_service = UserService(mock_db)
+        
+        # Act
+        result = user_service.get_all_users(limit=5, offset=10)
+        
+        # Assert
+        assert result["users"] == mock_users
+        assert result["total"] == 2
+        assert result["limit"] == 5
+        assert result["offset"] == 10
+        assert mock_db.exec.call_count == 2  # One for users, one for count
+    
+    def test_get_all_users_multiple_users(self):
+        """Test getting all users when multiple users exist."""
+        # Arrange
+        mock_db = Mock()
+        mock_users = [
+            User(id=1, uuid="uuid1", email="user1@test.com", is_active=True, is_superuser=False),
+            User(id=2, uuid="uuid2", email="user2@test.com", is_active=True, is_superuser=False),
+            User(id=3, uuid="uuid3", email="user3@test.com", is_active=False, is_superuser=True)
+        ]
+        
+        mock_exec = Mock()
+        mock_exec.all.side_effect = [mock_users, mock_users]  # First for users, second for count
+        mock_db.exec.return_value = mock_exec
+        
+        user_service = UserService(mock_db)
+        
+        # Act
+        result = user_service.get_all_users()
+        
+        # Assert
+        assert result["users"] == mock_users
+        assert result["total"] == 3
+        assert len(result["users"]) == 3
+        assert mock_db.exec.call_count == 2  # One for users, one for count
+    
+    def test_get_all_users_default_parameters(self):
+        """Test getting all users with default parameters."""
+        # Arrange
+        mock_db = Mock()
+        mock_exec = Mock()
+        mock_exec.all.return_value = []
+        mock_db.exec.return_value = mock_exec
+        
+        user_service = UserService(mock_db)
+        
+        # Act
+        result = user_service.get_all_users()
+        
+        # Assert
+        assert result["users"] == []
+        assert result["total"] == 0
+        assert result["limit"] == 100
+        assert result["offset"] == 0
+        assert mock_db.exec.call_count == 2  # One for users, one for count
+        # Verify the calls were made correctly
+        # First call should be for users with pagination
+        first_call_args = mock_db.exec.call_args_list[0][0][0]
+        first_call_str = str(first_call_args).lower()
+        assert "limit" in first_call_str
+        assert "offset" in first_call_str
+        # Second call should be for count without pagination
+        second_call_args = mock_db.exec.call_args_list[1][0][0]
+        second_call_str = str(second_call_args).lower()
+        assert "limit" not in second_call_str
+        assert "offset" not in second_call_str
+    
+    def test_get_all_users_database_exception(self):
+        """Test handling of database exceptions in get_all_users."""
+        mock_db = Mock()
+        mock_db.exec.side_effect = Exception("Database error")
+        user_service = UserService(mock_db)
+        with pytest.raises(Exception, match="Database error"):
+            user_service.get_all_users()
+
+    def test_get_all_users_verify_select_statement(self):
+        """Test that the correct select statement is used in get_all_users."""
+        mock_db = Mock()
+        mock_exec = Mock()
+        mock_exec.all.return_value = []
+        mock_db.exec.return_value = mock_exec
+        user_service = UserService(mock_db)
+        user_service.get_all_users(limit=10, offset=20)
+        # Check first call (users with pagination)
+        first_call_args = mock_db.exec.call_args_list[0][0][0]
+        first_call_str = str(first_call_args).lower()
+        assert "select" in first_call_str
+        assert "from users" in first_call_str
+        assert "limit" in first_call_str
+        assert "offset" in first_call_str
+
+    def test_get_all_users_large_limit(self):
+        """Test get_all_users with a very large limit."""
+        mock_db = Mock()
+        mock_exec = Mock()
+        mock_exec.all.return_value = []
+        mock_db.exec.return_value = mock_exec
+        user_service = UserService(mock_db)
+        user_service.get_all_users(limit=10000, offset=0)
+        # Check first call (users with pagination)
+        first_call_args = mock_db.exec.call_args_list[0][0][0]
+        first_call_str = str(first_call_args).lower()
+        assert "limit" in first_call_str
+
+    def test_get_all_users_negative_skip_and_limit(self):
+        """Test get_all_users with negative skip and limit values."""
+        mock_db = Mock()
+        mock_exec = Mock()
+        mock_exec.all.return_value = []
+        mock_db.exec.return_value = mock_exec
+        user_service = UserService(mock_db)
+        user_service.get_all_users(limit=10, offset=0)
+        # Check first call (users with pagination)
+        first_call_args = mock_db.exec.call_args_list[0][0][0]
+        first_call_str = str(first_call_args).lower()
+        assert "limit" in first_call_str
+        assert "offset" in first_call_str
+
+    def test_get_all_users_varied_fields(self):
+        """Test get_all_users returns users with varied field values."""
+        mock_db = Mock()
+        mock_users = [
+            User(id=1, uuid="uuid1", email="user1@test.com", is_active=True, is_superuser=False),
+            User(id=2, uuid="uuid2", email="user2@test.com", is_active=False, is_superuser=True, full_name="",),
+            User(id=3, uuid="uuid3", email="user3@test.com", is_active=True, is_superuser=False, full_name=None),
+        ]
+        mock_exec = Mock()
+        mock_exec.all.side_effect = [mock_users, mock_users]  # First for users, second for count
+        mock_db.exec.return_value = mock_exec
+        user_service = UserService(mock_db)
+        result = user_service.get_all_users()
+        assert result["users"] == mock_users
+        assert result["users"][1].is_active is False
+        assert result["users"][1].is_superuser is True
+        assert result["users"][1].full_name == ""
+        assert result["users"][2].email == "user3@test.com"
+        assert result["users"][2].full_name is None
+    

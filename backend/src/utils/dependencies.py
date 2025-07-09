@@ -2,10 +2,12 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from sqlmodel import Session as SQLModelSession
 from src.core.config import settings
 from src.core.supabase_client import get_supabase_client
-from src.utils.database_session import get_db
+from src.utils.database_session import engine
 from src.services.user_service import UserService
+from src.services.recipes_service import RecipeService
 from typing import Annotated
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/users/token")
@@ -14,6 +16,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/users/toke
 def get_database_session() -> Session:
     """
     FastAPI dependency to get SQLModel/SQLAlchemy database session.
+    
+    This follows the SQLModel best practices for session management.
+    Each request gets its own session, and it's automatically closed.
     
     Returns:
         Session: SQLAlchemy database session with automatic lifecycle management
@@ -24,7 +29,8 @@ def get_database_session() -> Session:
             # Use db session here
             pass
     """
-    return next(get_db())
+    with SQLModelSession(engine) as session:
+        yield session
 
 def get_user_service(db: Annotated[Session, Depends(get_database_session)]) -> UserService:
     """
@@ -43,6 +49,24 @@ def get_user_service(db: Annotated[Session, Depends(get_database_session)]) -> U
             pass
     """
     return UserService(db)
+
+def get_recipe_service(db: Annotated[Session, Depends(get_database_session)]) -> RecipeService:
+    """
+    FastAPI dependency to get RecipeService instance with database session.
+    
+    Args:
+        db: Database session from FastAPI dependency
+        
+    Returns:
+        RecipeService: RecipeService instance with database session
+        
+    Usage:
+        @app.get("/recipes/{recipe_id}")
+        def get_recipe(recipe_service: RecipeService = Depends(get_recipe_service)):
+            # Use recipe_service here
+            pass
+    """
+    return RecipeService(db)
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(

@@ -40,8 +40,8 @@ class UserResponse(BaseModel):
 class UsersResponse(BaseModel):
     users: List[UserResponse]
     total: int
-    page: int
-    page_size: int
+    limit: int
+    offset: int
 
 class SetSuperuserRequest(BaseModel):
     is_superuser: bool
@@ -102,17 +102,17 @@ async def search_users(
 
 @router.get("/", response_model=UsersResponse)
 async def get_users(
-    request: Request,
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(10, ge=1, le=100, description="Number of items per page")
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
     """
-    Get all users with pagination.
+    Get all users with pagination using limit/offset.
     
     Args:
-        request: The request object (for accessing app state)
-        page: Page number (starts from 1)
-        page_size: Number of items per page (1-100)
+        limit: Maximum number of records to return (1-1000)
+        offset: Number of records to skip
+        user_service: UserService instance with database session
         
     Returns:
         List of users with pagination info
@@ -121,19 +121,10 @@ async def get_users(
         HTTPException: If there's an error retrieving users
     """
     try:
-        result = Database.select_paginated(
-            table="users",
-            page=page,
-            page_size=page_size,
-            order_by="id"
-        )
+        # Get users from service with pagination
+        result = user_service.get_all_users(limit=limit, offset=offset)
         
-        return {
-            "users": result["data"],
-            "total": result["total"],
-            "page": result["page"],
-            "page_size": result["page_size"]
-        }
+        return result
         
     except HTTPException:
         raise

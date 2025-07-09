@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Annotated
 from src.utils.db import Database
+from src.utils.dependencies import get_recipe_service
+from src.services.recipes_service import RecipeService
 from pydantic import BaseModel
 from datetime import datetime
 import logging
@@ -24,7 +26,7 @@ class RecipeResponse(BaseModel):
     cooking_time: int
     servings: int
     difficulty_level: str
-    user_id: str
+    user: str
     created_at: datetime
     updated_at: datetime
     is_public: bool
@@ -33,22 +35,22 @@ class RecipeResponse(BaseModel):
 class RecipesResponse(BaseModel):
     recipes: List[RecipeResponse]
     total: int
-    page: int
-    page_size: int
+    limit: int
+    offset: int
 
 @router.get("/", response_model=RecipesResponse)
 async def read_recipes(
-    request: Request,
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(10, ge=1, le=100, description="Number of items per page")
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)],
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
     """
-    Get all recipes with pagination.
+    Get all recipes with pagination using limit/offset.
     
     Args:
-        request: The request object (for accessing app state)
-        page: Page number (starts from 1)
-        page_size: Number of items per page (1-100)
+        limit: Maximum number of records to return (1-1000)
+        offset: Number of records to skip
+        recipe_service: RecipeService instance with database session
         
     Returns:
         List of recipes with pagination info
@@ -57,19 +59,10 @@ async def read_recipes(
         HTTPException: If there's an error retrieving recipes
     """
     try:
-        result = Database.select_paginated(
-            table="recipes",
-            page=page,
-            page_size=page_size,
-            order_by="id"
-        )
+        # Get recipes from service with pagination
+        result = recipe_service.get_all_recipes(limit=limit, offset=offset)
         
-        return {
-            "recipes": result["data"],
-            "total": result["total"],
-            "page": result["page"],
-            "page_size": result["page_size"]
-        }
+        return result
         
     except HTTPException:
         raise
@@ -83,16 +76,18 @@ async def read_recipes(
 @router.get("/my", response_model=RecipesResponse)
 async def read_my_recipes(
     request: Request,
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(10, ge=1, le=100, description="Number of items per page")
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)],
+    limit: int = Query(10, ge=1, le=100, description="Maximum number of records to return"),
+    offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
     """
-    Get the current user's recipes with pagination.
+    Get the current user's recipes with pagination using limit/offset.
     
     Args:
         request: The request object (for accessing app state)
-        page: Page number (starts from 1)
-        page_size: Number of items per page (1-100)
+        limit: Maximum number of records to return (1-100)
+        offset: Number of records to skip
+        recipe_service: RecipeService instance with database session
         
     Returns:
         List of user's recipes with pagination info
@@ -114,22 +109,12 @@ async def read_my_recipes(
 
         logger.info(f"Using user UUID: {user['uuid']}")
         
-        result = Database.select_paginated(
-            table="recipes",
-            page=page,
-            page_size=page_size,
-            filters={"user_id": user['uuid']},
-            order_by="created_at.desc"
-        )
+        # Get user's recipes from service with pagination
+        result = recipe_service.get_all_recipes(limit=limit, offset=offset, user_id=user['uuid'])
         
-        logger.info(f"Retrieved {len(result['data'])} recipes")
+        logger.info(f"Retrieved {len(result['recipes'])} recipes")
         
-        return {
-            "recipes": result["data"],
-            "total": result["total"],
-            "page": result["page"],
-            "page_size": result["page_size"]
-        }
+        return result
         
     except HTTPException:
         raise
@@ -140,19 +125,35 @@ async def read_my_recipes(
             detail=f"Failed to retrieve recipes: {str(e)}"
         )
 
-@router.get("/{recipe_id}")
-async def read_recipe(recipe_id: int):
+@router.get("/{recipe_id}", response_model=RecipeResponse)
+async def read_recipe(
+    recipe_id: int, 
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)]
+):
     """
     Get a specific recipe by ID.
+    
+    Args:
+        recipe_id: The ID of the recipe to retrieve
+        recipe_service: RecipeService instance with database session
+        
+    Returns:
+        Recipe information
+        
+    Raises:
+        HTTPException: If recipe not found
     """
     try:
-        recipes = Database.select("recipes", filters={"id": recipe_id})
-        if not recipes:
+        recipe = recipe_service.get_recipe(recipe_id)
+        
+        if not recipe:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Recipe with ID {recipe_id} not found"
             )
-        return recipes[0]
+            
+        return recipe
+        
     except HTTPException:
         raise
     except Exception as e:

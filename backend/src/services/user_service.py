@@ -32,4 +32,30 @@ class UserService:
             User object if found, None otherwise
         """
         statement = select(User).where(User.id == user_id)
-        return self.db.exec(statement).first() 
+        return self.db.exec(statement).first()
+    
+    def get_all_users(self, limit: int = 100, offset: int = 0) -> dict:
+        """
+        Get all users with pagination support using limit/offset.
+        
+        Args:
+            limit: Maximum number of records to return
+            offset: Number of records to skip
+            
+        Returns:
+            Dictionary with users, total count, limit, and offset
+        """
+        # Get users for current page
+        statement = select(User).offset(offset).limit(limit)
+        users = self.db.exec(statement).all()
+        
+        # Get total count
+        count_statement = select(User)
+        total = len(self.db.exec(count_statement).all())
+        
+        return {
+            "users": users,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        } 

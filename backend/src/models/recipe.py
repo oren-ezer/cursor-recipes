@@ -4,10 +4,11 @@ from sqlmodel import SQLModel, Field
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from .base import BaseModel
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Column, UniqueConstraint
 from pydantic import field_validator, ConfigDict
+from sqlalchemy.dialects.postgresql import JSON
 
-class Recipe(BaseModel):
+class Recipe(BaseModel, table=True):
     """
     Recipe model for the database.
     Represents a cooking recipe with ingredients, instructions, and metadata.
@@ -18,11 +19,14 @@ class Recipe(BaseModel):
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True, index=True, nullable=False)
     title: str = Field(nullable=False)
     description: Optional[str] = Field(default=None)
-    ingredients: List[Dict[str, str]] = Field(nullable=False)
-    instructions: List[str] = Field(nullable=False)
+    ingredients: List[Dict[str, str]] = Field(sa_column=Column(JSON, nullable=False))
+    instructions: List[str] = Field(sa_column=Column(JSON, nullable=False))
     preparation_time: int = Field(nullable=False)
     cooking_time: int = Field(nullable=False)
     servings: int = Field(nullable=False)
+    difficulty_level: str = Field(default="Easy", nullable=False)
+    is_public: bool = Field(default=True, nullable=False)
+    image_url: Optional[str] = Field(default=None)
     user: str = Field(foreign_key="users.uuid", nullable=False)
 
     __table_args__ = (
@@ -93,4 +97,12 @@ class Recipe(BaseModel):
             raise ValueError('Servings must be positive')
         if v > 100:  # Reasonable maximum
             raise ValueError('Servings cannot exceed 100')
+        return v
+
+    @field_validator('difficulty_level')
+    @classmethod
+    def validate_difficulty_level(cls, v):
+        valid_levels = ['Easy', 'Medium', 'Hard', 'Expert']
+        if v not in valid_levels:
+            raise ValueError(f'Difficulty level must be one of: {", ".join(valid_levels)}')
         return v 
