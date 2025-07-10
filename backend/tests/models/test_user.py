@@ -102,63 +102,39 @@ def test_user_comparison():
     assert user1 == user2  # Should still be equal despite different UUIDs
 
 def test_password_validation_rules():
-    """Test all password validation rules."""
+    """Test all password validation rules using the validate_password method."""
     # Test empty password
-    with pytest.raises(ValidationError, match="Password cannot be empty"):
-        User(
-            email="test@example.com",
-            hashed_password=""
-        )
+    with pytest.raises(ValueError, match="Password cannot be empty"):
+        User.validate_password("")
 
     # Test password too short
-    with pytest.raises(ValidationError, match="Password must be at least 8 characters long"):
-        User(
-            email="test@example.com",
-            hashed_password="Abc1!"
-        )
+    with pytest.raises(ValueError, match="Password must be at least 8 characters long"):
+        User.validate_password("Abc1!")
 
     # Test missing uppercase
-    with pytest.raises(ValidationError, match="Password must contain at least one uppercase letter"):
-        User(
-            email="test@example.com",
-            hashed_password="password123!"
-        )
+    with pytest.raises(ValueError, match="Password must contain at least one uppercase letter"):
+        User.validate_password("password123!")
 
     # Test missing lowercase
-    with pytest.raises(ValidationError, match="Password must contain at least one lowercase letter"):
-        User(
-            email="test@example.com",
-            hashed_password="PASSWORD123!"
-        )
+    with pytest.raises(ValueError, match="Password must contain at least one lowercase letter"):
+        User.validate_password("PASSWORD123!")
 
     # Test missing number
-    with pytest.raises(ValidationError, match="Password must contain at least one number"):
-        User(
-            email="test@example.com",
-            hashed_password="Password!"
-        )
+    with pytest.raises(ValueError, match="Password must contain at least one number"):
+        User.validate_password("Password!")
 
     # Test missing special character
-    with pytest.raises(ValidationError, match="Password must contain at least one special character"):
-        User(
-            email="test@example.com",
-            hashed_password="Password123"
-        )
+    with pytest.raises(ValueError, match="Password must contain at least one special character"):
+        User.validate_password("Password123")
 
     # Test common password
-    with pytest.raises(ValidationError, match="Password is too common"):
-        User(
-            email="test@example.com",
-            hashed_password="Password123!"
-        )
+    with pytest.raises(ValueError, match="Password is too common"):
+        User.validate_password("Password123!")
 
     # Test valid password
     valid_password = "ValidPass123!"
-    user = User(
-        email="test@example.com",
-        hashed_password=valid_password
-    )
-    assert user.hashed_password == valid_password
+    # Should not raise any exception
+    User.validate_password(valid_password)
 
 # Add more tests here as needed, e.g., for field validations if you add them
 # (like email format, password complexity) or any model methods. 

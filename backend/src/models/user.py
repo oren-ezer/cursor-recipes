@@ -30,36 +30,60 @@ class User(BaseModel, table=True):
         if not isinstance(other, User):
             return False
         return self.email == other.email 
-    @field_validator('hashed_password')
+
     @classmethod
-    def password_validation(cls, v):
+    def validate_password(cls, password: str) -> str:
+        """
+        Validate a plain text password.
+        
+        Args:
+            password: Plain text password to validate
+            
+        Returns:
+            The password if valid
+            
+        Raises:
+            ValueError: If password doesn't meet requirements
+        """
+        print("===========================validating password===========================")
+        print("===========================validating password===========================")
+        print("===========================validating password===========================")
+        print("===========================validating password===========================")
+        print("===========================validating password===========================")
+        print("===========================validating password===========================")
+        print("===========================validating password===========================")
+        print("===========================validating password===========================")
+        print("===========================validating password===========================")
+        
+        # Check if password is a string
         # Check not empty
-        if not v:
+        if not password:
             raise ValueError('Password cannot be empty')
         
         # Check minimum length
-        if len(v) < 8:
+        if len(password) < 8:
             raise ValueError('Password must be at least 8 characters long')
         
         # Check for at least one uppercase letter
-        if not re.search(r'[A-Z]', v):
+        if not re.search(r'[A-Z]', password):
             raise ValueError('Password must contain at least one uppercase letter')
         
         # Check for at least one lowercase letter
-        if not re.search(r'[a-z]', v):
+        if not re.search(r'[a-z]', password):
             raise ValueError('Password must contain at least one lowercase letter')
         
         # Check for at least one number
-        if not re.search(r'\d', v):
+        if not re.search(r'\d', password):
             raise ValueError('Password must contain at least one number')
         
         # Check for at least one special character
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
             raise ValueError('Password must contain at least one special character')
         
         # Check for common passwords
         common_passwords = {'password123', 'password123!', 'admin123', 'qwerty123', '12345678'}
-        if v.lower() in common_passwords:
+        if password.lower() in common_passwords:
             raise ValueError('Password is too common')
         
-        return v 
+        return password
+ 
