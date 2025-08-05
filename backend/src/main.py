@@ -4,7 +4,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from src.core.config import settings
-from src.core.supabase_client import get_supabase_client, get_supabase_admin_client  # Import client functions
 from src.utils.dependencies import get_current_user
 import logging
 
@@ -13,24 +12,13 @@ logger = logging.getLogger(__name__)
 # New lifespan context manager
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
-    # Startup: Initialize Supabase clients
-    logger.info("Lifespan: Initializing Supabase clients...")
-    try:
-        app_instance.state.supabase = get_supabase_client()
-        app_instance.state.supabase_admin = get_supabase_admin_client()
-        logger.info("Lifespan: Supabase clients initialized and stored in app state.")
-    except Exception as e:
-        logger.error(f"Lifespan: Failed to initialize Supabase clients: {e}")
-        # Optionally re-raise or handle to prevent app startup on critical failure
-        raise e
-
+    # Startup: Application initialization
+    logger.info("Lifespan: Initializing application...")
+    
     yield  # Application runs here
 
     # Shutdown: Clean up resources (if any)
     logger.info("Lifespan: Shutting down application...")
-    # If Supabase clients had explicit close methods, call them here
-    # e.g., if hasattr(app_instance.state, 'supabase') and hasattr(app_instance.state.supabase, 'close'):
-    #     await app_instance.state.supabase.close()
     logger.info("Lifespan: Application shutdown complete.")
 
 app = FastAPI(
@@ -72,11 +60,21 @@ async def auth_middleware(request: Request, call_next):
         token = auth_header.split(" ")[1]
         logger.info(f"Token extracted: {token[:10]}...")
         
-        # Get the current user
-        user = await get_current_user(token)
-        logger.info(f"User authenticated: {user.get('email') if user else 'None'}")
-        request.state.user = user
+        # Get the current user using a database session
+        from src.utils.database_session import engine
+        from sqlmodel import Session as SQLModelSession
+        from src.services.user_service import UserService
         
+        with SQLModelSession(engine) as session:
+            user_service = UserService(session)
+            user = await get_current_user(user_service, token)
+            logger.info(f"User authenticated: {user.get('email') if user else 'None'}")
+            request.state.user = user
+        
+    except HTTPException:
+        # Let HTTPExceptions pass through (like 401 Unauthorized)
+        request.state.user = None
+        return await call_next(request)
     except Exception as e:
         logger.error(f"Auth middleware error: {str(e)}", exc_info=True)
         request.state.user = None

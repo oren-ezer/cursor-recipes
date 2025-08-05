@@ -27,7 +27,7 @@ class Recipe(BaseModel, table=True):
     difficulty_level: str = Field(default="Easy", nullable=False)
     is_public: bool = Field(default=True, nullable=False)
     image_url: Optional[str] = Field(default=None)
-    user: str = Field(foreign_key="users.uuid", nullable=False)
+    user_id: str = Field(foreign_key="users.uuid", nullable=False)
 
     __table_args__ = (
         UniqueConstraint('uuid', name='unique_recipe_uuid'),
@@ -42,7 +42,7 @@ class Recipe(BaseModel, table=True):
     def __eq__(self, other):
         if not isinstance(other, Recipe):
             return False
-        return self.title == other.title and self.user == other.user
+        return self.title == other.title and self.user_id == other.user_id
 
     @field_validator('title')
     @classmethod

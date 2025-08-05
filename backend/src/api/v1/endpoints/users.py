@@ -138,6 +138,9 @@ async def read_users_me(
         
         return user_data
         
+    except HTTPException:
+        # Let HTTPExceptions pass through
+        raise
     except Exception as e:
         logger.error(f"Error retrieving current user: {str(e)}", exc_info=True)
         raise HTTPException(

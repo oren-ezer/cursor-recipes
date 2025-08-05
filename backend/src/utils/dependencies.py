@@ -4,7 +4,6 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from sqlmodel import Session as SQLModelSession
 from src.core.config import settings
-from src.core.supabase_client import get_supabase_client
 from src.utils.database_session import engine
 from src.services.user_service import UserService
 from src.services.recipes_service import RecipeService
@@ -68,7 +67,10 @@ def get_recipe_service(db: Annotated[Session, Depends(get_database_session)]) ->
     """
     return RecipeService(db)
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    token: str = Depends(oauth2_scheme)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -87,14 +89,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         if email is None or user_id is None or user_uuid is None:
             raise credentials_exception
             
-        # Get user from database
-        supabase = get_supabase_client()
-        response = supabase.from_('users').select('*').eq('uuid', user_uuid).maybe_single().execute()
+        # Get user from database using SQLAlchemy
+        user = user_service.get_current_user(user_uuid)
         
-        if not response.data:
+        if not user:
             raise credentials_exception
             
-        return response.data
+        # Convert SQLModel object to dict for consistency
+        return {
+            "id": user.id,
+            "uuid": user.uuid,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active,
+            "is_superuser": user.is_superuser,
+            "created_at": user.created_at,
+            "updated_at": user.updated_at
+        }
         
     except JWTError:
         raise credentials_exception 

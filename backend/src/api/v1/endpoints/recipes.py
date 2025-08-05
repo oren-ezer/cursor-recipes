@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from typing import List, Dict, Any, Optional, Annotated
-from src.utils.db import Database
 from src.utils.dependencies import get_recipe_service
 from src.services.recipes_service import RecipeService
 from pydantic import BaseModel
@@ -15,6 +14,30 @@ class Ingredient(BaseModel):
     name: str
     amount: str
 
+class RecipeCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    ingredients: List[Ingredient]
+    instructions: List[str]
+    preparation_time: int
+    cooking_time: int
+    servings: int
+    difficulty_level: str = "Easy"
+    is_public: bool = True
+    image_url: Optional[str] = None
+
+class RecipeUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    ingredients: Optional[List[Ingredient]] = None
+    instructions: Optional[List[str]] = None
+    preparation_time: Optional[int] = None
+    cooking_time: Optional[int] = None
+    servings: Optional[int] = None
+    difficulty_level: Optional[str] = None
+    is_public: Optional[bool] = None
+    image_url: Optional[str] = None
+
 class RecipeResponse(BaseModel):
     id: int
     uuid: str
@@ -26,7 +49,7 @@ class RecipeResponse(BaseModel):
     cooking_time: int
     servings: int
     difficulty_level: str
-    user: str
+    user_id: str
     created_at: datetime
     updated_at: datetime
     is_public: bool
@@ -98,21 +121,18 @@ async def read_my_recipes(
     try:
         # Get user from request
         user = request.state.user
-        logger.info(f"User from request state: {user}")
-        
         if not user:
-            logger.warning("No user found in request state")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Not authenticated"
             )
-
-        logger.info(f"Using user UUID: {user['uuid']}")
         
-        # Get user's recipes from service with pagination
-        result = recipe_service.get_all_recipes(limit=limit, offset=offset, user_id=user['uuid'])
-        
-        logger.info(f"Retrieved {len(result['recipes'])} recipes")
+        # Get user's recipes from service
+        result = recipe_service.get_all_recipes(
+            limit=limit, 
+            offset=offset, 
+            user_id=user["uuid"]
+        )
         
         return result
         
@@ -122,7 +142,7 @@ async def read_my_recipes(
         logger.error(f"Error retrieving user recipes: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve recipes: {str(e)}"
+            detail=f"Failed to retrieve user recipes: {str(e)}"
         )
 
 @router.get("/{recipe_id}", response_model=RecipeResponse)
@@ -138,10 +158,10 @@ async def read_recipe(
         recipe_service: RecipeService instance with database session
         
     Returns:
-        Recipe information
+        Recipe data
         
     Raises:
-        HTTPException: If recipe not found
+        HTTPException: If recipe not found or there's an error retrieving it
     """
     try:
         recipe = recipe_service.get_recipe(recipe_id)
@@ -151,7 +171,7 @@ async def read_recipe(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Recipe with ID {recipe_id} not found"
             )
-            
+        
         return recipe
         
     except HTTPException:
@@ -160,28 +180,53 @@ async def read_recipe(
         logger.error(f"Error retrieving recipe {recipe_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch recipe: {str(e)}"
+            detail=f"Failed to retrieve recipe: {str(e)}"
         )
 
-@router.post("/")
-async def create_recipe(recipe: Dict[str, Any]):
+@router.post("/", response_model=RecipeResponse, status_code=status.HTTP_201_CREATED)
+async def create_recipe(
+    request: Request,
+    recipe_data: RecipeCreate,
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)]
+):
     """
     Create a new recipe.
+    
+    Args:
+        request: The request object (for accessing app state)
+        recipe_data: The recipe data to create
+        recipe_service: RecipeService instance with database session
+        
+    Returns:
+        Created recipe data
+        
+    Raises:
+        HTTPException: If user not authenticated or creation fails
     """
     try:
-        new_recipe = Database.insert("recipes", recipe)
-        return new_recipe
-    except HTTPException:
-        raise
+        user = request.state.user
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        
+        recipe_dict = recipe_data.model_dump()
+        recipe_dict["ingredients"] = [ingredient.model_dump() for ingredient in recipe_data.ingredients]
+        
+        created_recipe = recipe_service.create_recipe(recipe_dict, user["uuid"])
+        return created_recipe
+        
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating recipe: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create recipe: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to create recipe: {str(e)}")
 
-@router.put("/{recipe_id}")
-async def update_recipe(recipe_id: int, recipe_data: Dict[str, Any], request: Request):
+@router.put("/{recipe_id}", response_model=RecipeResponse)
+async def update_recipe(
+    recipe_id: int,
+    recipe_data: RecipeUpdate,
+    request: Request,
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)]
+):
     """
     Update a recipe by ID.
     
@@ -189,6 +234,7 @@ async def update_recipe(recipe_id: int, recipe_data: Dict[str, Any], request: Re
         recipe_id: The ID of the recipe to update
         recipe_data: The recipe data to update
         request: The request object (for accessing app state)
+        recipe_service: RecipeService instance with database session
         
     Returns:
         Updated recipe data
@@ -197,59 +243,39 @@ async def update_recipe(recipe_id: int, recipe_data: Dict[str, Any], request: Re
         HTTPException: If recipe not found, user not authorized, or update fails
     """
     try:
-        # Get user from request
         user = request.state.user
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authenticated"
-            )
-
-        # Check if recipe exists and belongs to user
-        existing_recipes = Database.select("recipes", filters={"id": recipe_id})
-        if not existing_recipes:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Recipe with ID {recipe_id} not found"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
         
-        existing_recipe = existing_recipes[0]
-        if existing_recipe["user_id"] != user["uuid"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to update this recipe"
-            )
-
-        # Add updated timestamp
-        recipe_data["updated_at"] = datetime.now().isoformat()
+        update_dict = recipe_data.model_dump(exclude_unset=True)
         
-        # Update recipe
-        updated_recipes = Database.update("recipes", recipe_data, {"id": recipe_id})
-        if not updated_recipes:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update recipe"
-            )
+        updated_recipe = recipe_service.update_recipe(recipe_id, update_dict, user["uuid"])
+        return updated_recipe
         
-        return updated_recipes[0]
-        
-    except HTTPException:
-        raise
+    except ValueError as e:
+        if "Recipe with ID" in str(e) and "not found" in str(e):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        elif "Not authorized" in str(e):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating recipe {recipe_id}: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update recipe: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update recipe: {str(e)}")
 
-@router.delete("/{recipe_id}")
-async def delete_recipe(recipe_id: int, request: Request):
+@router.delete("/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_recipe(
+    recipe_id: int,
+    request: Request,
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)]
+):
     """
     Delete a recipe by ID.
     
     Args:
         recipe_id: The ID of the recipe to delete
         request: The request object (for accessing app state)
+        recipe_service: RecipeService instance with database session
         
     Returns:
         None (204 No Content)
@@ -258,44 +284,20 @@ async def delete_recipe(recipe_id: int, request: Request):
         HTTPException: If recipe not found, user not authorized, or deletion fails
     """
     try:
-        # Get user from request
         user = request.state.user
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authenticated"
-            )
-
-        # Check if recipe exists and belongs to user
-        existing_recipes = Database.select("recipes", filters={"id": recipe_id})
-        if not existing_recipes:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Recipe with ID {recipe_id} not found"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
         
-        existing_recipe = existing_recipes[0]
-        if existing_recipe["user_id"] != user["uuid"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to delete this recipe"
-            )
-
-        # Delete recipe
-        deleted_recipes = Database.delete("recipes", {"id": recipe_id})
-        if not deleted_recipes:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete recipe"
-            )
-        
+        recipe_service.delete_recipe(recipe_id, user["uuid"])
         return None  # 204 No Content
         
-    except HTTPException:
-        raise
+    except ValueError as e:
+        if "Recipe with ID" in str(e) and "not found" in str(e):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        elif "Not authorized" in str(e):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error deleting recipe {recipe_id}: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete recipe: {str(e)}"
-        ) 
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete recipe: {str(e)}") 
