@@ -45,7 +45,7 @@ const MyRecipesPage: React.FC = () => {
 
   const filteredRecipes = recipes.filter(recipe =>
     recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    recipe.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    recipe.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (isLoading) {
@@ -98,12 +98,12 @@ const MyRecipesPage: React.FC = () => {
                 <CardHeader>
                   <CardTitle>{recipe.title}</CardTitle>
                   <CardDescription>
-                    {recipe.description || 'No description available'}
+                    {recipe.description}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    {recipe.ingredients?.length || 0} ingredients
+                    {recipe.ingredients.length} ingredients
                   </p>
                 </CardContent>
                 <CardFooter className="flex gap-2">

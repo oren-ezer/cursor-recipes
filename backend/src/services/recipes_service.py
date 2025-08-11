@@ -78,6 +78,7 @@ class RecipeService:
         recipe = Recipe(**recipe_data)
         self.db.add(recipe)
         self.db.flush()
+        self.db.commit()  # Commit the transaction to persist the recipe
         self.db.refresh(recipe)
         return recipe
     
@@ -122,6 +123,7 @@ class RecipeService:
         recipe.updated_at = datetime.now()
         
         self.db.flush()
+        self.db.commit()  # Commit the transaction to persist changes
         self.db.refresh(recipe)
         return recipe
     
@@ -146,4 +148,5 @@ class RecipeService:
             raise ValueError("Not authorized to delete this recipe")
         
         self.db.delete(recipe)
-        self.db.flush() 
+        self.db.flush()
+        self.db.commit()  # Commit the transaction to persist deletion 

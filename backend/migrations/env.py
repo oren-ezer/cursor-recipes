@@ -6,7 +6,7 @@ from alembic import context
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv("backend/.env")
+load_dotenv(".env")
 
 # Import the SQLModel metadata
 from src.models import User, Recipe
@@ -26,10 +26,10 @@ if config.config_file_name is not None:
 target_metadata = SQLModel.metadata
 
 # Get the database connection URL from environment variables
-db_url = os.getenv("DIRECT_ACCESS_SUPABASE_URL_FOR_ALEMBIC")
+db_url = os.getenv("DATABASE_URL")
 if not db_url:
     raise ValueError(
-        "DIRECT_ACCESS_SUPABASE_URL_FOR_ALEMBIC environment variable is not set. "
+        "DATABASE_URL environment variable is not set. "
         "Please set it to the direct PostgreSQL connection URL from your Supabase dashboard "
         "(Project Settings > Database > Connection string > URI format)"
     )

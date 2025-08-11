@@ -167,9 +167,10 @@ class UserService:
             uuid=str(uuid.uuid4())
         )
         
-        # Add to database (commit will be handled by FastAPI's dependency system)
+        # Add to database and commit the transaction
         self.db.add(new_user)
         self.db.flush()  # Flush to get database-generated values like ID
+        self.db.commit()  # Commit the transaction to persist the user
         self.db.refresh(new_user)  # Ensure object is up-to-date
         
         return new_user
@@ -224,8 +225,9 @@ class UserService:
             if hasattr(existing_user, field):
                 setattr(existing_user, field, value)
         
-        # Flush to persist changes
+        # Flush to persist changes and commit
         self.db.flush()
+        self.db.commit()  # Commit the transaction to persist changes
         self.db.refresh(existing_user)
         
         return existing_user 
@@ -245,10 +247,11 @@ class UserService:
         if not existing_user:
             raise ValueError("User not found")
         
-        # Delete the user
+        # Delete the user and commit
         self.db.delete(existing_user)
         self.db.flush()
-        # No return value (None for 204 No Content) 
+        self.db.commit()  # Commit the transaction to persist deletion
+        # No return value (None for 204 No Content)
 
     def set_superuser_status(self, user_id: int, is_superuser: bool) -> User:
         """
@@ -273,8 +276,9 @@ class UserService:
         existing_user.is_superuser = is_superuser
         existing_user.updated_at = datetime.now(timezone.utc)
         
-        # Flush to persist changes
+        # Flush to persist changes and commit
         self.db.flush()
+        self.db.commit()  # Commit the transaction to persist changes
         self.db.refresh(existing_user)
         
         return existing_user 
