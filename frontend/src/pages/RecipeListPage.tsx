@@ -7,14 +7,7 @@ import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import RecipeCard from '../components/RecipeCard';
 
 const RecipeListPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -100,28 +93,11 @@ const RecipeListPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredRecipes.map((recipe) => (
-                <Card key={recipe.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle>{recipe.title}</CardTitle>
-                    <CardDescription>
-                      {recipe.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      {recipe.ingredients.length} ingredients
-                    </p>
-                  </CardContent>
-                  <CardFooter>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => navigate(`/recipes/${recipe.id}`)}
-                    >
-                      View Recipe
-                    </Button>
-                  </CardFooter>
-                </Card>
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  variant="default"
+                />
               ))}
             </div>
           )}

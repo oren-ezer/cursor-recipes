@@ -6,14 +6,7 @@ import type { Recipe } from '../lib/api-client';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import RecipeCard from '../components/RecipeCard';
 
 const MyRecipesPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -42,6 +35,17 @@ const MyRecipesPage: React.FC = () => {
 
     fetchMyRecipes();
   }, []);
+
+  const handleDeleteRecipe = async (recipe: Recipe) => {
+    if (window.confirm(`Are you sure you want to delete "${recipe.title}"?`)) {
+      try {
+        await apiClient.deleteRecipe(recipe.id);
+        setRecipes(recipes.filter(r => r.id !== recipe.id));
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to delete recipe');
+      }
+    }
+  };
 
   const filteredRecipes = recipes.filter(recipe =>
     recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -91,41 +95,18 @@ const MyRecipesPage: React.FC = () => {
                 : 'You haven\'t created any recipes yet. Start by creating your first recipe!'}
             </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRecipes.map((recipe) => (
-              <Card key={recipe.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle>{recipe.title}</CardTitle>
-                  <CardDescription>
-                    {recipe.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    {recipe.ingredients.length} ingredients
-                  </p>
-                </CardContent>
-                <CardFooter className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => navigate(`/recipes/${recipe.id}`)}
-                  >
-                    View
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => navigate(`/recipes/${recipe.id}/edit`)}
-                  >
-                    Edit
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        )}
+                  ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredRecipes.map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  variant="my-recipes"
+                  onDelete={handleDeleteRecipe}
+                />
+              ))}
+            </div>
+          )}
       </div>
     </PageContainer>
   );
