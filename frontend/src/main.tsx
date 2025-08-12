@@ -8,6 +8,9 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import RecipeListPage from './pages/RecipeListPage'
 import MyRecipesPage from './pages/MyRecipesPage'
+import RecipeDetailPage from './pages/RecipeDetailPage'
+import RecipeCreatePage from './pages/RecipeCreatePage'
+import RecipeEditPage from './pages/RecipeEditPage'
 import PageContainer from './components/layout/PageContainer'
 
 // Placeholder Page Components
@@ -49,6 +52,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
           <Route path="/about" element={<MainLayout><AboutPage /></MainLayout>} />
           <Route path="/recipes" element={<RecipeListPage />} />
+          <Route path="/recipes/new" element={<RecipeCreatePage />} />
+          <Route path="/recipes/:recipeId" element={<RecipeDetailPage />} />
+          <Route path="/recipes/:recipeId/edit" element={<RecipeEditPage />} />
           <Route path="/my-recipes" element={<MainLayout><MyRecipesPage /></MainLayout>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

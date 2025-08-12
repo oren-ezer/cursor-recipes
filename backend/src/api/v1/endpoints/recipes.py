@@ -68,7 +68,7 @@ async def read_recipes(
     offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
     """
-    Get all recipes with pagination using limit/offset.
+    Get all public recipes with pagination using limit/offset.
     
     Args:
         limit: Maximum number of records to return (1-1000)
@@ -76,14 +76,14 @@ async def read_recipes(
         recipe_service: RecipeService instance with database session
         
     Returns:
-        List of recipes with pagination info
+        List of public recipes with pagination info
         
     Raises:
         HTTPException: If there's an error retrieving recipes
     """
     try:
-        # Get recipes from service with pagination
-        result = recipe_service.get_all_recipes(limit=limit, offset=offset)
+        # Get only public recipes from service with pagination
+        result = recipe_service.get_all_public_recipes(limit=limit, offset=offset)
         
         return result
         
@@ -128,7 +128,7 @@ async def read_my_recipes(
             )
         
         # Get user's recipes from service
-        result = recipe_service.get_all_recipes(
+        result = recipe_service.get_all_my_recipes(
             limit=limit, 
             offset=offset, 
             user_id=user["uuid"]

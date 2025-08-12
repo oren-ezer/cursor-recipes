@@ -282,9 +282,9 @@ def test_get_my_recipes_with_login_flow(client: TestClient, test_user, test_reci
 
 def test_get_my_recipes_database_error(client: TestClient, auth_token):
     """Test that endpoint handles database errors gracefully."""
-    with patch('src.services.recipes_service.RecipeService.get_all_recipes') as mock_get_all_recipes:
+    with patch('src.services.recipes_service.RecipeService.get_all_my_recipes') as mock_get_all_my_recipes:
         # Mock the service to raise an exception
-        mock_get_all_recipes.side_effect = Exception("Database connection error")
+        mock_get_all_my_recipes.side_effect = Exception("Database connection error")
         
         headers = {"Authorization": f"Bearer {auth_token}"}
         response = client.get(MY_RECIPES_URL, headers=headers)

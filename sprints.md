@@ -29,8 +29,8 @@ Focus: Basic infrastructure and core backend setup
 - #52 Create login page component - DONE
 - #53 Create registration page component
 - #54 Implement registration form with validation - DONE
-- #57 Create recipe list page component
-- #103 Create my recipes page component
+- #57 Create recipe list page component - DONE
+- #103 Create my recipes page component 
 
 ### Documentation (P1)
 - #98 Write deployment documentation
@@ -40,25 +40,25 @@ Focus: Basic recipe management functionality
 
 ### Backend (P0)
 - #8 Create database migration for Recipe model - PARTIALLY DONE
-- #9 Create database migration for Tag and RecipeTag models
-- #21 Implement create recipe endpoint
-- #22 Implement get single recipe endpoint
-- #23 Implement update recipe endpoint
-- #24 Implement delete recipe endpoint
+- #9 Create database migration for Tag and RecipeTag models - TBD
+- #21 Implement create recipe endpoint - DONE
+- #22 Implement get single recipe endpoint - DONE
+- #23 Implement update recipe endpoint - DONE
+- #24 Implement delete recipe endpoint - DONE
 
 ### Frontend (P0)
-- #49 Implement basic layout components
-- #51 Configure API client with authentication
+- #49 Implement basic layout components - DONE
+- #51 Configure API client with authentication - DONE
 - #52 Create login page component - DONE
-- #53 Create registration page component
+- #53 Create registration page component - DONE
 - #54 Implement registration form with validation - DONE
-- #57 Create recipe list page component
-- #58 Create recipe card component
-- #103 Create my recipes page component
+- #57 Create recipe list page component - DONE
+- #58 Create recipe card component - DONE 
+- #103 Create my recipes page component - DONE
 
 ### Testing (P1)
 - #83 Write unit tests for backend models - PARTIALLY DONE
-- #84 Create API endpoint integration tests
+- #84 Create API endpoint integration tests PARTIALLY DONE
 - #102 Write tests for user registration endpoint - DONE
 
 ## Sprint 3 - Recipe Enhancement (Weeks 5-6)
@@ -73,9 +73,9 @@ Focus: Recipe sharing and tags
 - #37 Implement add tags to recipe endpoint
 
 ### Frontend (P0)
-- #59 Create recipe detail page component
-- #60 Implement recipe creation form
-- #61 Create recipe edit form component
+- #59 Create recipe detail page component - DONE
+- #60 Implement recipe creation form - DONE
+- #61 Create recipe edit form component - DONE
 - #63 Create tag selection component
 - #65 Create shared recipes view
 
@@ -154,7 +154,9 @@ Nice to have features that can be implemented as needed:
 - #101 Add more comprehensive tests (unit, integration, e2e)
 - #104 add monitoring support including app health and performance
 - #105 add password invalidation after n days?
-- #106 allow 
+- #106 add admin endpoint
+- #107 add multiplicity to image URLs
+- #108 add AI support for uploading a recipe by understanding its text using OCR (using translation or not?)
 
 ## Tests Backlog (P3)
 More test that can be implemented:

@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from src.core.config import settings
-from src.utils.dependencies import get_current_user
+from src.utils.dependencies import _get_current_user_from_token
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,9 +42,18 @@ app.add_middleware(
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     try:
-        # Skip authentication for login and register endpoints
-        if request.url.path in [f"{settings.API_V1_STR}/users/token", f"{settings.API_V1_STR}/users/register"]:
-            logger.info(f"Skipping auth for path: {request.url.path}")
+        # Skip authentication for public endpoints
+        public_endpoints = [
+            ("/", "GET"),  # Root endpoint
+            (f"{settings.API_V1_STR}/users/token", "POST"),  # Login
+            (f"{settings.API_V1_STR}/users/register", "POST"),  # Register
+            (f"{settings.API_V1_STR}/recipes", "GET"),  # Public recipes list
+        ]
+        
+        # Skip auth for public endpoints (path + method)
+        current_endpoint = (request.url.path, request.method)
+        if current_endpoint in public_endpoints:
+            logger.info(f"Skipping auth for public endpoint: {request.method} {request.url.path}")
             return await call_next(request)
             
         # Get the authorization header
@@ -67,8 +76,8 @@ async def auth_middleware(request: Request, call_next):
         
         with SQLModelSession(engine) as session:
             user_service = UserService(session)
-            user = await get_current_user(user_service, token)
-            logger.info(f"User authenticated: {user.get('email') if user else 'None'}")
+            user = await _get_current_user_from_token(user_service, token)
+            logger.info("User authentication successful")
             request.state.user = user
         
     except HTTPException:

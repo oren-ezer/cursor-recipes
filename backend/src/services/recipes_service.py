@@ -23,7 +23,7 @@ class RecipeService:
         statement = select(Recipe).where(Recipe.id == recipe_id)
         return self.db.execute(statement).scalars().first()
     
-    def get_all_recipes(self, limit: int = 100, offset: int = 0, user_id: str = None) -> dict:
+    def get_all_my_recipes(self, limit: int = 100, offset: int = 0, user_id: str = None) -> dict:
         """
         Get all recipes with pagination support using limit/offset.
         
@@ -43,6 +43,37 @@ class RecipeService:
         if user_id:
             statement = statement.where(Recipe.user_id == user_id)
             count_statement = count_statement.where(Recipe.user_id == user_id)
+        
+        # Add pagination
+        statement = statement.offset(offset).limit(limit)
+        
+        # Get recipes for current page
+        recipes = self.db.execute(statement).scalars().all()
+        
+        # Get total count
+        total = len(self.db.execute(count_statement).scalars().all())
+        
+        return {
+            "recipes": recipes,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+    
+    def get_all_public_recipes(self, limit: int = 100, offset: int = 0) -> dict:
+        """
+        Get only public recipes with pagination support using limit/offset.
+        
+        Args:
+            limit: Maximum number of records to return
+            offset: Number of records to skip
+            
+        Returns:
+            Dictionary with public recipes, total count, limit, and offset
+        """
+        # Build base statement for public recipes only
+        statement = select(Recipe).where(Recipe.is_public == True)
+        count_statement = select(Recipe).where(Recipe.is_public == True)
         
         # Add pagination
         statement = statement.offset(offset).limit(limit)

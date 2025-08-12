@@ -1,6 +1,7 @@
 import React, { useState, useEffect, type ReactNode } from 'react';
 import { AuthContext, type AuthUser } from './AuthContext';
 import { jwtDecode } from 'jwt-decode'; // For decoding JWT to get user info (optional)
+import { apiClient } from '../lib/api-client';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -24,16 +25,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (decodedToken.exp > currentTime) {
           setToken(storedToken);
+          apiClient.setToken(storedToken);
           // Assuming your JWT 'sub' is email and you have a 'user_id' claim
           // You might fetch full user details from an API here instead of relying solely on JWT claims
           setUser({ id: decodedToken.user_id, email: decodedToken.sub }); 
         } else {
           // Token expired
           localStorage.removeItem('authToken');
+          apiClient.setToken(null);
         }
       } catch (error) {
         console.error("Failed to decode token:", error);
         localStorage.removeItem('authToken'); // Clear invalid token
+        apiClient.setToken(null);
       }
     }
     setIsLoading(false); // Finished initial auth check
@@ -42,6 +46,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (newToken: string, userData?: AuthUser) => {
     localStorage.setItem('authToken', newToken);
     setToken(newToken);
+    apiClient.setToken(newToken);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('User login successful');
+    }
     if (userData) {
       setUser(userData);
     } else {
@@ -55,6 +64,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
         setToken(null);
         localStorage.removeItem('authToken');
+        apiClient.setToken(null);
       }
     }
   };
@@ -63,6 +73,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('authToken');
     setToken(null);
     setUser(null);
+    apiClient.setToken(null);
   };
 
   return (

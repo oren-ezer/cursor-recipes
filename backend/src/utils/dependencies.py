@@ -66,34 +66,53 @@ def get_recipe_service(db: Annotated[Session, Depends(get_database_session)]) ->
             pass
     """
     return RecipeService(db)
-
+# this method is designed to be used by FastAPI during dependency injection.
+# currently it is not being used.
 async def get_current_user(
     user_service: Annotated[UserService, Depends(get_user_service)],
     token: str = Depends(oauth2_scheme)
 ):
+    return await _get_current_user_from_token(user_service, token)
+
+# this method is used by the middleware to get the current user from the token
+async def _get_current_user_from_token(user_service: UserService, token: str):
+    """
+    Internal function to get current user from token string.
+    Used by middleware and other internal functions.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("Decoding JWT token...")
+        
         payload = jwt.decode(
             token, 
             settings.SECRET_KEY, 
             algorithms=[settings.ALGORITHM]
         )
+        
         email: str = payload.get("sub")
         user_id: int = payload.get("user_id")
         user_uuid: str = payload.get("uuid")
         
         if email is None or user_id is None or user_uuid is None:
+            logger.error("Missing required claims in token")
             raise credentials_exception
             
         # Get user from database using SQLAlchemy
+        logger.info("Looking up user in database...")
         user = user_service.get_current_user(user_uuid)
         
         if not user:
+            logger.error("User not found in database")
             raise credentials_exception
+        
+        logger.info("User authentication successful")
             
         # Convert SQLModel object to dict for consistency
         return {
