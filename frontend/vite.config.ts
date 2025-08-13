@@ -17,6 +17,13 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       }
+    },
+    headers: {
+      // Security headers for development server
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
     }
   }
 })

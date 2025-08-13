@@ -17,6 +17,12 @@
 - run the local supabase
     - cd to /Users/orenezer/my-data/repos/cursor/cursor-recipes/local-supabase/supabase
     - run "npx supabase start"
+
+- run frontend tests:
+    - Run all tests 'npm run test:run'
+    - Run tests with UI 'npm run test:ui'
+    - Run tests with coverage 'npm run test:coverage'
+    - Watch mode for development 'npm run test:watch'
     
 ## General
 - how move or rename the "app" folder to "backend"
