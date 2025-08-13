@@ -24,7 +24,7 @@ Focus: Basic infrastructure and core backend setup
 - #47 Configure Tailwind CSS and shadcn/ui - DONE
 - #48 Set up React Router configuration - DONE
 - #50 Set up authentication context/state management - DONE
-- #49 Implement basic layout components - PARTIALLY DONE
+- #49 Implement basic layout components - DONE
 - #51 Configure API client with authentication - PARTIALLY DONE
 - #52 Create login page component - DONE
 - #53 Create registration page component
@@ -88,14 +88,14 @@ Focus: Recipe sharing and tags
 Focus: Search, filters, and user profile
 
 ### Backend (P1)
-- #25 Implement list recipes endpoint with pagination
-- #26 Add recipe search functionality by title
+- #25 Implement list recipes endpoint with pagination - DONE
+- #26 Add recipe search functionality by title - DONE
 - #27 Add recipe filtering by tags
 - #17 Implement user profile retrieval endpoint
 - #18 Implement user profile update endpoint
 
 ### Frontend (P1)
-- #69 Create search bar component
+- #69 Create search bar component 
 - #70 Implement tag filter component
 - #71 Create search results page
 - #73 Add pagination controls
@@ -144,25 +144,25 @@ Focus: i18n support and documentation
 
 ## Backlog (P3)
 Nice to have features that can be implemented as needed:
-- #16 Implement password reset functionality and password update functionality and exclude password from user_update endpoint 
-- #19 Add email verification system
-- #28 Implement ingredient search functionality
-- #29 Add recipe image upload to Supabase Storage
+- #16 enhance login handling: password reset, password invalidation after n days, token expiration, redirect to login on error after timeout 
+- #19 Add email verification system - send email and wait for confirmation
+- #28 Implement ingredient search functionality - DONE
+- #29 Add recipe image upload to Supabase Storage 
 - #72 Implement advanced search filters
-- #77 Implement shopping list feature UI
-- #88 Implement rate limiting
+- #77 Implement shopping list feature
+- #88 Implement rating system for recipes
 - #101 Add more comprehensive tests (unit, integration, e2e)
 - #104 add monitoring support including app health and performance
-- #105 add password invalidation after n days?
-- #106 add admin endpoint
-- #107 add multiplicity to image URLs
-- #108 add AI support for uploading a recipe by understanding its text using OCR (using translation or not?)
+- #105 add secure token storage (now could only use httpOnly cookies)
+- #106 add admin endpoint - DONE
+- #107 add multiplicity to image uploads
+- #108 add AI support for creating a recipe by understanding its text using OCR (using translation or not?) based on an uploaded image
 
 ## Tests Backlog (P3)
 More test that can be implemented:
 ### Integration tests
 - email uniqness on user creation and user update
-### Unit ttests
+### Unit tests
 - recipes unit tests
 
 ## Dependencies
