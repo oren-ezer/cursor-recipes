@@ -29,26 +29,72 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock Select component
+// Mock Select component with better structure
 vi.mock('../../src/components/ui/select', () => ({
   Select: ({ children, value, onValueChange, disabled }: any) => (
-    <div data-testid="select" data-value={value} data-disabled={disabled}>
+    <div 
+      data-testid="select" 
+      data-value={value} 
+      data-disabled={disabled}
+      className="select-root"
+      style={{ display: 'block', width: '100%' }}
+    >
       {children}
     </div>
   ),
-  SelectTrigger: ({ children, disabled }: any) => (
-    <button data-testid="select-trigger" disabled={disabled}>
+  SelectTrigger: ({ children, disabled, className }: any) => (
+    <button 
+      data-testid="select-trigger" 
+      disabled={disabled}
+      className={className}
+      style={{ 
+        display: 'flex', 
+        width: '100%', 
+        padding: '8px 12px',
+        border: '1px solid #ccc',
+        borderRadius: '4px',
+        backgroundColor: 'white'
+      }}
+    >
       {children}
     </button>
   ),
-  SelectValue: ({ placeholder }: any) => (
-    <span data-testid="select-value">{placeholder}</span>
+  SelectValue: ({ placeholder, children }: any) => (
+    <span 
+      data-testid="select-value"
+      style={{ display: 'block', width: '100%' }}
+    >
+      {children || placeholder}
+    </span>
   ),
-  SelectContent: ({ children }: any) => (
-    <div data-testid="select-content">{children}</div>
+  SelectContent: ({ children, className }: any) => (
+    <div 
+      data-testid="select-content" 
+      className={className}
+      style={{ 
+        display: 'block',
+        position: 'relative',
+        backgroundColor: 'white',
+        border: '1px solid #ccc',
+        borderRadius: '4px',
+        padding: '4px 0'
+      }}
+    >
+      {children}
+    </div>
   ),
-  SelectItem: ({ value, children }: any) => (
-    <div data-testid="select-item" data-value={value}>
+  SelectItem: ({ value, children, className }: any) => (
+    <div 
+      data-testid="select-item" 
+      data-value={value}
+      className={className}
+      style={{ 
+        display: 'block',
+        padding: '8px 12px',
+        cursor: 'pointer',
+        borderBottom: '1px solid #eee'
+      }}
+    >
       {children}
     </div>
   ),
@@ -382,99 +428,103 @@ describe('RecipeCreatePage', () => {
       const titleInput = screen.getByLabelText(/recipe title/i);
       fireEvent.change(titleInput, { target: { value: 'Test Recipe' } });
       
-      const submitButton = screen.getByRole('button', { name: /create recipe/i });
-      fireEvent.click(submitButton);
+      // Trigger form submission to validate
+      const form = document.querySelector('form');
+      fireEvent.submit(form!);
       
       await waitFor(() => {
         expect(screen.getByText('All ingredients must have both name and amount')).toBeInTheDocument();
       });
     });
 
-  //   it('should show error when instruction is empty', async () => {
-  //     const mockNavigate = vi.fn();
-  //     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
+    it('should show error when instruction is empty', async () => {
+      const mockNavigate = vi.fn();
+      vi.mocked(useNavigate).mockReturnValue(mockNavigate);
       
-  //     renderWithRouter(<RecipeCreatePage />);
+      renderWithRouter(<RecipeCreatePage />);
       
-  //     // Fill title and ingredient but leave instruction empty
-  //     const titleInput = screen.getByLabelText(/recipe title/i);
-  //     fireEvent.change(titleInput, { target: { value: 'Test Recipe' } });
+      // Fill title and ingredient but leave instruction empty
+      const titleInput = screen.getByLabelText(/recipe title/i);
+      fireEvent.change(titleInput, { target: { value: 'Test Recipe' } });
       
-  //     const nameInput = screen.getByPlaceholderText(/e\.g\., Flour/i);
-  //     fireEvent.change(nameInput, { target: { value: 'Flour' } });
+      const nameInput = screen.getByPlaceholderText(/e\.g\., Flour/i);
+      fireEvent.change(nameInput, { target: { value: 'Flour' } });
       
-  //     const amountInput = screen.getByPlaceholderText(/e\.g\., 2 cups/i);
-  //     fireEvent.change(amountInput, { target: { value: '2 cups' } });
+      const amountInput = screen.getByPlaceholderText(/e\.g\., 2 cups/i);
+      fireEvent.change(amountInput, { target: { value: '2 cups' } });
       
-  //     const submitButton = screen.getByRole('button', { name: /create recipe/i });
-  //     fireEvent.click(submitButton);
+      // Trigger form submission to validate
+      const form = document.querySelector('form');
+      fireEvent.submit(form!);
       
-  //     await waitFor(() => {
-  //       expect(screen.getByText('All instructions must not be empty')).toBeInTheDocument();
-  //     });
-  //   });
+      await waitFor(() => {
+        expect(screen.getByText('All instructions must not be empty')).toBeInTheDocument();
+      });
+    });
 
-  //   it('should show error when preparation time is invalid', async () => {
-  //     const mockNavigate = vi.fn();
-  //     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
+    it('should show error when preparation time is invalid', async () => {
+      const mockNavigate = vi.fn();
+      vi.mocked(useNavigate).mockReturnValue(mockNavigate);
       
-  //     renderWithRouter(<RecipeCreatePage />);
+      renderWithRouter(<RecipeCreatePage />);
       
-  //     // Fill required fields
-  //     const titleInput = screen.getByLabelText(/recipe title/i);
-  //     fireEvent.change(titleInput, { target: { value: 'Test Recipe' } });
+      // Fill required fields
+      const titleInput = screen.getByLabelText(/recipe title/i);
+      fireEvent.change(titleInput, { target: { value: 'Test Recipe' } });
       
-  //     const nameInput = screen.getByPlaceholderText(/e\.g\., Flour/i);
-  //     fireEvent.change(nameInput, { target: { value: 'Flour' } });
+      const nameInput = screen.getByPlaceholderText(/e\.g\., Flour/i);
+      fireEvent.change(nameInput, { target: { value: 'Flour' } });
       
-  //     const amountInput = screen.getByPlaceholderText(/e\.g\., 2 cups/i);
-  //     fireEvent.change(amountInput, { target: { value: '2 cups' } });
+      const amountInput = screen.getByPlaceholderText(/e\.g\., 2 cups/i);
+      fireEvent.change(amountInput, { target: { value: '2 cups' } });
       
-  //     const instructionInput = screen.getByPlaceholderText(/Step 1\.\.\./i);
-  //     fireEvent.change(instructionInput, { target: { value: 'Mix ingredients' } });
+      const instructionInput = screen.getByPlaceholderText(/Step 1\.\.\./i);
+      fireEvent.change(instructionInput, { target: { value: 'Mix ingredients' } });
       
-  //     // Set invalid preparation time
-  //     const prepTimeInput = screen.getByLabelText(/preparation time/i);
-  //     fireEvent.change(prepTimeInput, { target: { value: '0' } });
+      // Set invalid preparation time
+      const prepTimeInput = screen.getByLabelText(/preparation time/i);
+      fireEvent.change(prepTimeInput, { target: { value: '0' } });
       
-  //     const submitButton = screen.getByRole('button', { name: /create recipe/i });
-  //     fireEvent.click(submitButton);
+      // Trigger form submission to validate
+      const form = document.querySelector('form');
+      fireEvent.submit(form!);
       
-  //     await waitFor(() => {
-  //       expect(screen.getByText('Preparation and cooking times must be greater than 0')).toBeInTheDocument();
-  //     });
-  //   });
+      await waitFor(() => {
+        expect(screen.getByText('Preparation and cooking times must be greater than 0')).toBeInTheDocument();
+      });
+    });
 
-  //   it('should show error when servings is invalid', async () => {
-  //     const mockNavigate = vi.fn();
-  //     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
+    it('should show error when servings is invalid', async () => {
+      const mockNavigate = vi.fn();
+      vi.mocked(useNavigate).mockReturnValue(mockNavigate);
       
-  //     renderWithRouter(<RecipeCreatePage />);
+      renderWithRouter(<RecipeCreatePage />);
       
-  //     // Fill required fields
-  //     const titleInput = screen.getByLabelText(/recipe title/i);
-  //     fireEvent.change(titleInput, { target: { value: 'Test Recipe' } });
+      // Fill required fields
+      const titleInput = screen.getByLabelText(/recipe title/i);
+      fireEvent.change(titleInput, { target: { value: 'Test Recipe' } });
       
-  //     const nameInput = screen.getByPlaceholderText(/e\.g\., Flour/i);
-  //     fireEvent.change(nameInput, { target: { value: 'Flour' } });
+      const nameInput = screen.getByPlaceholderText(/e\.g\., Flour/i);
+      fireEvent.change(nameInput, { target: { value: 'Flour' } });
       
-  //     const amountInput = screen.getByPlaceholderText(/e\.g\., 2 cups/i);
-  //     fireEvent.change(amountInput, { target: { value: '2 cups' } });
+      const amountInput = screen.getByPlaceholderText(/e\.g\., 2 cups/i);
+      fireEvent.change(amountInput, { target: { value: '2 cups' } });
       
-  //     const instructionInput = screen.getByPlaceholderText(/Step 1\.\.\./i);
-  //     fireEvent.change(instructionInput, { target: { value: 'Mix ingredients' } });
+      const instructionInput = screen.getByPlaceholderText(/Step 1\.\.\./i);
+      fireEvent.change(instructionInput, { target: { value: 'Mix ingredients' } });
       
-  //     // Set invalid servings
-  //     const servingsInput = screen.getByLabelText(/servings/i);
-  //     fireEvent.change(servingsInput, { target: { value: '0' } });
+      // Set invalid servings
+      const servingsInput = screen.getByLabelText(/servings/i);
+      fireEvent.change(servingsInput, { target: { value: '0' } });
       
-  //     const submitButton = screen.getByRole('button', { name: /create recipe/i });
-  //     fireEvent.click(submitButton);
+      // Trigger form submission to validate
+      const form = document.querySelector('form');
+      fireEvent.submit(form!);
       
-  //     await waitFor(() => {
-  //       expect(screen.getByText('Servings must be greater than 0')).toBeInTheDocument();
-  //     });
-  //   });
+      await waitFor(() => {
+        expect(screen.getByText('Servings must be greater than 0')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Form Submission', () => {
