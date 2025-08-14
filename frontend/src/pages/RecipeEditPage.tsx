@@ -61,7 +61,13 @@ const RecipeEditPage: React.FC = () => {
   // Fetch recipe data
   useEffect(() => {
     const fetchRecipe = async () => {
-      if (!recipeId || !isAuthenticated) return;
+      if (!isAuthenticated) return;
+
+      if (!recipeId) {
+        setError('Recipe ID is required');
+        setIsLoading(false);
+        return;
+      }
 
       try {
         const data = await apiClient.getRecipe(parseInt(recipeId));
