@@ -21,8 +21,12 @@
 - run frontend tests:
     - Run all tests 'npm run test:run'
     - Run tests with UI 'npm run test:ui'
+    - Run a specific test file 'npm run test:run tests/pages/RecipeEditPage.test.tsx'
+    - Run a specific test suite 'npm run test:run tests/pages/RecipeCreatePage.test.tsx -- --reporter=verbose -t "Form Rendering"'
+    - Run a specific test 'npm run test:run tests/pages/RecipeCreatePage.test.tsx -- --reporter=verbose -t "should render all form fields"'
     - Run tests with coverage 'npm run test:coverage'
     - Watch mode for development 'npm run test:watch'
+
     
 ## General
 - how move or rename the "app" folder to "backend"
