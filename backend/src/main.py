@@ -48,6 +48,9 @@ async def auth_middleware(request: Request, call_next):
             (f"{settings.API_V1_STR}/users/token", "POST"),  # Login
             (f"{settings.API_V1_STR}/users/register", "POST"),  # Register
             (f"{settings.API_V1_STR}/recipes", "GET"),  # Public recipes list
+            (f"{settings.API_V1_STR}/tags", "GET"),  # Public tags list
+            (f"{settings.API_V1_STR}/tags/search", "GET"),  # Public tags search
+            (f"{settings.API_V1_STR}/tags/popular", "GET"),  # Public popular tags
         ]
         
         # Skip auth for public endpoints (path + method)
@@ -118,11 +121,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # Import and include routers
-from src.api.v1.endpoints import users, recipes, admin
+from src.api.v1.endpoints import users, recipes, admin, tags
 
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(recipes.router, prefix=settings.API_V1_STR)
 app.include_router(admin.router, prefix=settings.API_V1_STR)
+app.include_router(tags.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 async def root():

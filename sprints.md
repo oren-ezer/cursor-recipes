@@ -47,8 +47,6 @@ Focus: Basic recipe management functionality
 
 ### Frontend (P0)
 - #49 Implement basic layout components - DONE
-- #109 Implement Tag service - DONE
-- #110 Add the Tag endpoints (with sparation to recipe endpoint and admin endpoint)
 - #51 Configure API client with authentication - DONE
 - #52 Create login page component - DONE
 - #53 Create registration page component - DONE
@@ -67,6 +65,8 @@ Focus: Recipe sharing and tags
 
 ### Backend (P0)
 - #9 Create database migration for Tag and RecipeTag models - DONE
+- #109 Implement Tag service - DONE
+- #110 Add the Tag endpoints (with sparation to recipe endpoint and admin endpoint) - DONE
 - #30 Implement share recipe endpoint - 
 - #31 Implement unshare recipe endpoint - 
 - #32 Create shared recipes listing endpoint - 

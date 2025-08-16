@@ -7,6 +7,7 @@ from src.core.config import settings
 from src.utils.database_session import engine
 from src.services.user_service import UserService
 from src.services.recipes_service import RecipeService
+from src.services.tag_service import TagService
 from typing import Annotated
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/users/token")
@@ -66,6 +67,24 @@ def get_recipe_service(db: Annotated[Session, Depends(get_database_session)]) ->
             pass
     """
     return RecipeService(db)
+
+def get_tag_service(db: Annotated[Session, Depends(get_database_session)]) -> TagService:
+    """
+    FastAPI dependency to get TagService instance with database session.
+    
+    Args:
+        db: Database session from FastAPI dependency
+        
+    Returns:
+        TagService: TagService instance with database session
+        
+    Usage:
+        @app.get("/tags/{tag_id}")
+        def get_tag(tag_service: TagService = Depends(get_tag_service)):
+            # Use tag_service here
+            pass
+    """
+    return TagService(db)
 # this method is designed to be used by FastAPI during dependency injection.
 # currently it is not being used.
 async def get_current_user(

@@ -1,8 +1,12 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from src.core.config import settings
-from src.utils.dependencies import get_database_session
+from src.utils.dependencies import get_database_session, get_tag_service
+from src.services.tag_service import TagService
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Annotated
 import logging
 
 logger = logging.getLogger(__name__)
@@ -85,3 +89,234 @@ async def test_db_connection(
             "error": str(e),
             "error_type": type(e).__name__
         }
+
+# Admin tag endpoints
+
+class TagResponse(BaseModel):
+    id: int
+    uuid: str
+    name: str
+    recipe_counter: int
+    created_at: datetime
+    updated_at: datetime
+
+class TagCreate(BaseModel):
+    name: str
+
+class TagUpdate(BaseModel):
+    name: str
+
+@router.get("/tags/{tag_id}", response_model=TagResponse)
+async def get_tag(
+    tag_id: int,
+    tag_service: Annotated[TagService, Depends(get_tag_service)]
+):
+    """
+    Get a specific tag by ID (admin only).
+    
+    Args:
+        tag_id: The ID of the tag to retrieve
+        tag_service: TagService instance with database session
+        
+    Returns:
+        Tag data
+        
+    Raises:
+        HTTPException: If tag not found or there's an error retrieving it
+    """
+    try:
+        tag = tag_service.get_tag(tag_id)
+        
+        if not tag:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tag with ID {tag_id} not found"
+            )
+        
+        return tag
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving tag {tag_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve tag: {str(e)}"
+        )
+
+@router.get("/tags/uuid/{tag_uuid}", response_model=TagResponse)
+async def get_tag_by_uuid(
+    tag_uuid: str,
+    tag_service: Annotated[TagService, Depends(get_tag_service)]
+):
+    """
+    Get a specific tag by UUID (admin only).
+    
+    Args:
+        tag_uuid: The UUID of the tag to retrieve
+        tag_service: TagService instance with database session
+        
+    Returns:
+        Tag data
+        
+    Raises:
+        HTTPException: If tag not found or there's an error retrieving it
+    """
+    try:
+        tag = tag_service.get_tag_by_uuid(tag_uuid)
+        
+        if not tag:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tag with UUID {tag_uuid} not found"
+            )
+        
+        return tag
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving tag by UUID {tag_uuid}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve tag: {str(e)}"
+        )
+
+@router.get("/tags/name/{tag_name}", response_model=TagResponse)
+async def get_tag_by_name(
+    tag_name: str,
+    tag_service: Annotated[TagService, Depends(get_tag_service)]
+):
+    """
+    Get a specific tag by name (admin only).
+    
+    Args:
+        tag_name: The name of the tag to retrieve
+        tag_service: TagService instance with database session
+        
+    Returns:
+        Tag data
+        
+    Raises:
+        HTTPException: If tag not found or there's an error retrieving it
+    """
+    try:
+        tag = tag_service.get_tag_by_name(tag_name)
+        
+        if not tag:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tag with name '{tag_name}' not found"
+            )
+        
+        return tag
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving tag by name {tag_name}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve tag: {str(e)}"
+        )
+
+@router.post("/tags/", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
+async def create_tag(
+    tag_data: TagCreate,
+    tag_service: Annotated[TagService, Depends(get_tag_service)]
+):
+    """
+    Create a new tag (admin only).
+    
+    Args:
+        tag_data: The tag data to create
+        tag_service: TagService instance with database session
+        
+    Returns:
+        Created tag data
+        
+    Raises:
+        HTTPException: If creation fails or tag name already exists
+    """
+    try:
+        created_tag = tag_service.create_tag(tag_data.name)
+        return created_tag
+        
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating tag: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create tag: {str(e)}"
+        )
+
+@router.put("/tags/{tag_id}", response_model=TagResponse)
+async def update_tag(
+    tag_id: int,
+    tag_data: TagUpdate,
+    tag_service: Annotated[TagService, Depends(get_tag_service)]
+):
+    """
+    Update a tag by ID (admin only).
+    
+    Args:
+        tag_id: The ID of the tag to update
+        tag_data: The tag data to update
+        tag_service: TagService instance with database session
+        
+    Returns:
+        Updated tag data
+        
+    Raises:
+        HTTPException: If tag not found, update fails, or name already exists
+    """
+    try:
+        updated_tag = tag_service.update_tag(tag_id, tag_data.name)
+        return updated_tag
+        
+    except ValueError as e:
+        if "Tag not found" in str(e):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating tag {tag_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update tag: {str(e)}"
+        )
+
+@router.delete("/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tag(
+    tag_id: int,
+    tag_service: Annotated[TagService, Depends(get_tag_service)]
+):
+    """
+    Delete a tag by ID (admin only).
+    
+    Args:
+        tag_id: The ID of the tag to delete
+        tag_service: TagService instance with database session
+        
+    Returns:
+        None (204 No Content)
+        
+    Raises:
+        HTTPException: If tag not found, has associations, or deletion fails
+    """
+    try:
+        tag_service.delete_tag(tag_id)
+        return None  # 204 No Content
+        
+    except ValueError as e:
+        if "Tag not found" in str(e):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error deleting tag {tag_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete tag: {str(e)}"
+        )

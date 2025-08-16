@@ -250,9 +250,9 @@ class TagService:
         statement = select(Tag).join(RecipeTag).where(RecipeTag.recipe_id == recipe_id)
         return self.db.exec(statement).all()
     
-    def add_tag_to_recipe(self, recipe_id: int, tag_id: int) -> RecipeTag:
+    def _add_tag_to_recipe_internal(self, recipe_id: int, tag_id: int) -> RecipeTag:
         """
-        Add a tag to a recipe.
+        Internal method to add a tag to a recipe without committing.
         
         Args:
             recipe_id: The ID of the recipe
@@ -264,9 +264,6 @@ class TagService:
         Raises:
             ValueError: If recipe or tag not found, or association already exists
         """
-        # Check if recipe exists (basic check - could be enhanced with Recipe model)
-        # For now, we'll assume the recipe exists and let the foreign key constraint handle it
-        
         # Check if tag exists
         tag = self.get_tag(tag_id)
         if not tag:
@@ -301,81 +298,14 @@ class TagService:
         tag.updated_at = current_time_utc
         
         self.db.flush()
-        self.db.commit()
-        self.db.refresh(recipe_tag)
         
         return recipe_tag
     
-    def add_tags_to_recipe(self, recipe_id: int, tag_ids: List[int]) -> List[RecipeTag]:
-        """
-        Add multiple tags to a recipe.
-        
-        Args:
-            recipe_id: The ID of the recipe
-            tag_ids: List of tag IDs to add
-            
-        Returns:
-            List of created RecipeTag objects
-            
-        Raises:
-            ValueError: If any tag not found, or any association already exists
-        """
-        if not tag_ids:
-            return []
-        
-        # Validate all tags exist and get them
-        tags = []
-        for tag_id in tag_ids:
-            tag = self.get_tag(tag_id)
-            if not tag:
-                raise ValueError(f"Tag with ID {tag_id} not found")
-            tags.append(tag)
-        
-        # Check for existing associations
-        existing_associations = self.db.exec(
-            select(RecipeTag).where(
-                and_(
-                    RecipeTag.recipe_id == recipe_id,
-                    RecipeTag.tag_id.in_(tag_ids)
-                )
-            )
-        ).all()
-        
-        if existing_associations:
-            existing_tag_ids = [rt.tag_id for rt in existing_associations]
-            raise ValueError(f"Tags with IDs {existing_tag_ids} are already associated with this recipe")
-        
-        # Create all associations
-        current_time_utc = datetime.now(timezone.utc)
-        recipe_tags = []
-        
-        for tag_id in tag_ids:
-            recipe_tag = RecipeTag(
-                recipe_id=recipe_id,
-                tag_id=tag_id,
-                created_at=current_time_utc,
-                updated_at=current_time_utc
-            )
-            recipe_tags.append(recipe_tag)
-            self.db.add(recipe_tag)
-        
-        # Increment recipe counters for all tags
-        for tag in tags:
-            tag.recipe_counter += 1
-            tag.updated_at = current_time_utc
-        
-        self.db.flush()
-        self.db.commit()
-        
-        # Refresh all created objects
-        for recipe_tag in recipe_tags:
-            self.db.refresh(recipe_tag)
-        
-        return recipe_tags
+
     
-    def remove_tag_from_recipe(self, recipe_id: int, tag_id: int) -> None:
+    def _remove_tag_from_recipe_internal(self, recipe_id: int, tag_id: int) -> None:
         """
-        Remove a tag from a recipe.
+        Internal method to remove a tag from a recipe without committing.
         
         Args:
             recipe_id: The ID of the recipe
@@ -407,7 +337,6 @@ class TagService:
         # Delete the association
         self.db.delete(association)
         self.db.flush()
-        self.db.commit()
     
     def get_popular_tags(self, limit: int = 10) -> List[dict]:
         """
@@ -424,3 +353,116 @@ class TagService:
         tags = self.db.exec(statement).all()
         
         return [{"tag": tag, "usage_count": tag.recipe_counter} for tag in tags]
+
+    def update_recipe_tags(
+        self, 
+        recipe_id: int, 
+        add_tag_ids: List[int] = None, 
+        remove_tag_ids: List[int] = None
+    ) -> dict:
+        """
+        Update tags for a recipe by adding and/or removing tags in a single atomic operation.
+        
+        Args:
+            recipe_id: The ID of the recipe
+            add_tag_ids: List of tag IDs to add (optional)
+            remove_tag_ids: List of tag IDs to remove (optional)
+            
+        Returns:
+            Dictionary with operation results:
+            - added_tags: List of tags that were successfully added
+            - removed_tags: List of tags that were successfully removed
+            - current_tags: List of all tags currently associated with the recipe
+            - warnings: List of warning messages for skipped operations (e.g., tag already associated)
+            - errors: List of error messages (e.g., tag not found, conflicts, database errors)
+            
+        Note:
+            - Duplicate tag IDs in input lists are automatically removed
+            - If a tag ID appears in both add and remove lists, an error is added
+            - If a tag to add is already associated, it's skipped with a warning
+            - If a tag to remove is not associated, it's skipped with a warning
+            - All operations are atomic - either all succeed or all fail
+            - No exceptions are raised; errors are returned in the result dictionary and the operation is aborted
+        """
+        # Initialize result structure
+        result = {
+            "added_tags": [],
+            "removed_tags": [],
+            "current_tags": [],
+            "warnings": [],
+            "errors": []
+        }
+        
+        # Normalize and deduplicate input lists
+        add_tag_ids_set=set(add_tag_ids or [])
+        remove_tag_ids_set=set(remove_tag_ids or [])
+
+        add_tag_ids = list(add_tag_ids_set)
+        remove_tag_ids = list(remove_tag_ids_set)
+        
+        # Check for conflicts between add and remove lists
+        conflicts = remove_tag_ids_set & add_tag_ids_set
+        if conflicts:
+            result["errors"].append(f"Tag IDs {list(conflicts)} appear in both add and remove lists")
+            return result
+        
+        # Get current tags for the recipe
+        current_tags = self.get_tags_for_recipe(recipe_id)
+        current_tag_ids = {tag.id for tag in current_tags}
+        
+        # Calculate what actually needs to be done
+        tags_to_add = [tid for tid in add_tag_ids if tid not in current_tag_ids]
+        tags_to_remove = [tid for tid in remove_tag_ids if tid in current_tag_ids]
+        
+        # Validate all tags exist
+        all_tag_ids = add_tag_ids_set | remove_tag_ids_set
+        for tag_id in all_tag_ids:
+            tag = self.get_tag(tag_id)
+            if not tag:
+                result["errors"].append(f"Tag with ID {tag_id} not found")
+        
+        if result["errors"]:
+            return result
+        
+        # Add warnings for no-op operations
+        for tag_id in add_tag_ids:
+            if tag_id in current_tag_ids:
+                result["warnings"].append(f"Adding tag {tag_id} was skipped because it is already associated with recipe {recipe_id}")
+        
+        for tag_id in remove_tag_ids:
+            if tag_id not in current_tag_ids:
+                result["warnings"].append(f"Removing tag {tag_id} was skipped because it is not associated with recipe {recipe_id}")
+        
+        try:
+            # Process removes first
+            for tag_id in tags_to_remove:
+                self._remove_tag_from_recipe_internal(recipe_id, tag_id)
+                tag = self.get_tag(tag_id)
+                if tag:
+                    result["removed_tags"].append(tag)
+            
+            # Process adds
+            for tag_id in tags_to_add:
+                self._add_tag_to_recipe_internal(recipe_id, tag_id)
+                tag = self.get_tag(tag_id)
+                if tag:
+                    result["added_tags"].append(tag)
+            
+            # Flush and commit the transaction
+            self.db.flush()
+            self.db.commit()
+            
+            # Refresh all modified tags to get updated data
+            for tag in result["added_tags"] + result["removed_tags"]:
+                self.db.refresh(tag)
+            
+            # Get updated current tags
+            result["current_tags"] = self.get_tags_for_recipe(recipe_id)
+            
+        except Exception as e:
+            # Rollback on any error
+            self.db.rollback()
+            result["errors"].append(f"Failed to update recipe tags: {str(e)}")
+            return result
+        
+        return result
