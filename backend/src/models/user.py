@@ -18,7 +18,7 @@ class User(BaseModel, table=True):
     full_name: Optional[str] = None
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
-    uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True, index=True)
 
     def __repr__(self):
         return f"<User email={self.email} full_name={self.full_name} is_active={self.is_active} is_superuser={self.is_superuser} uuid={self.uuid}>"
@@ -45,15 +45,6 @@ class User(BaseModel, table=True):
         Raises:
             ValueError: If password doesn't meet requirements
         """
-        print("===========================validating password===========================")
-        print("===========================validating password===========================")
-        print("===========================validating password===========================")
-        print("===========================validating password===========================")
-        print("===========================validating password===========================")
-        print("===========================validating password===========================")
-        print("===========================validating password===========================")
-        print("===========================validating password===========================")
-        print("===========================validating password===========================")
         
         # Check if password is a string
         # Check not empty
