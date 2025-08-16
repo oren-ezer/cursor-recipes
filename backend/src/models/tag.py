@@ -15,9 +15,10 @@ class Tag(BaseModel, table=True):
     
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True, index=True)
     name: str = Field(unique=True, index=True, nullable=False)
+    recipe_counter: int = Field(default=0, nullable=False)
 
     def __repr__(self):
-        return f"<Tag name={self.name} id={self.id}>"
+        return f"<Tag name={self.name} id={self.id} recipe_counter={self.recipe_counter}>"
 
     def __str__(self):
         return f"<Tag name={self.name}>"
