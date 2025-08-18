@@ -11,6 +11,7 @@ import MyRecipesPage from './pages/MyRecipesPage'
 import RecipeDetailPage from './pages/RecipeDetailPage'
 import RecipeCreatePage from './pages/RecipeCreatePage'
 import RecipeEditPage from './pages/RecipeEditPage'
+import TagSelectorDemo from './pages/TagSelectorDemo'
 import PageContainer from './components/layout/PageContainer'
 
 // Placeholder Page Components
@@ -56,6 +57,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/recipes/:recipeId" element={<RecipeDetailPage />} />
           <Route path="/recipes/:recipeId/edit" element={<RecipeEditPage />} />
           <Route path="/my-recipes" element={<MainLayout><MyRecipesPage /></MainLayout>} />
+          <Route path="/tag-selector-demo" element={<MainLayout><TagSelectorDemo /></MainLayout>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
         </Routes>

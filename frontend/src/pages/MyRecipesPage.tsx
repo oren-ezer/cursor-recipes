@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+// import { useAuth } from '../contexts/AuthContext'; // Not used yet
 import { apiClient, ApiError } from '../lib/api-client';
 import type { Recipe } from '../lib/api-client';
 import PageContainer from '../components/layout/PageContainer';
@@ -9,7 +9,7 @@ import { Input } from '../components/ui/input';
 import RecipeCard from '../components/RecipeCard';
 
 const MyRecipesPage: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  // const { isAuthenticated } = useAuth(); // Not used yet
   const navigate = useNavigate();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);

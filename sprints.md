@@ -68,11 +68,11 @@ Focus: Recipe sharing and tags
 - #109 Implement Tag service - DONE
 - #110 Add the Tag endpoints (with sparation to recipe endpoint and admin endpoint) - DONE
 - #30 Implement share recipe endpoint - 
-- #31 Implement unshare recipe endpoint - 
+- #31 Implement unshare recipe endpoint -  
 - #32 Create shared recipes listing endpoint - 
-- #35 Implement create tag endpoint - 
-- #36 Implement get all tags endpoint -
-- #37 Implement add tags to recipe endpoint -
+- #35 Implement create tag endpoint - DONE
+- #36 Implement get all tags endpoint - DONE
+- #37 Implement add tags to recipe endpoint - DONE
 
 ### Frontend (P0)
 - #59 Create recipe detail page component - DONE
@@ -85,6 +85,22 @@ Focus: Recipe sharing and tags
 - #89 Add CSRF protection
 - #90 Configure secure headers - DONE
 - #91 Implement input sanitization
+
+## Sprint AI - Special AI Sprint
+Focus: Add AI based capabilities
+
+### Backend (P1)
+- #1001 Design how to add AI related endpoint/s (as a separate endpoint/service or within existing ones?)
+- #1002 Spike on connecting to AI model capabilities - authentication? changing the model, data aggregation for prompt, data parsing from response, etc.
+- #1003 Add AI based Tag suggestions for specific recipes
+- #1004 Add recipe search based on AI prompt coming from semi-structured user input
+- #1005 Add Recipe from pic/document based on AI capabilities (with/without OCR, with/withoput translation)
+
+### Frontend (P1)
+- #1010 Enhance Tag capabilities for AI suggestions on what to add/remove
+- #1011 Enhance Recipe search capabilities based on AI prompt
+- #1012 Add pic based recipe addition using AI model for understanding the recipe
+
 
 ## Sprint 4 - User Experience (Weeks 7-8)
 Focus: Search, filters, and user profile

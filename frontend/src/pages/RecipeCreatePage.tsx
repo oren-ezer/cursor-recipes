@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+
 import { apiClient, ApiError } from '../lib/api-client';
-import type { Recipe } from '../lib/api-client';
+// import type { Recipe } from '../lib/api-client'; // Not used yet
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
