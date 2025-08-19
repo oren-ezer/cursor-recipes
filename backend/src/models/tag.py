@@ -4,6 +4,17 @@ from src.models.base import BaseModel
 from pydantic import field_validator, ConfigDict
 import re
 import uuid
+from enum import Enum
+
+class TagCategory(str, Enum):
+    """Tag categories enum"""
+    MEAL_TYPES = "Meal Types"
+    SPECIAL_DIETARY = "Special Dietary"
+    COURSE_TYPES = "Course Types"
+    CUISINE_TYPES = "Cuisine Types"
+    MAIN_INGREDIENTS = "Main Ingredients"
+    COOKING_METHODS = "Cooking Methods"
+    SPECIAL_CATEGORIES = "Special Categories"
 
 class Tag(BaseModel, table=True):
     """
@@ -16,9 +27,10 @@ class Tag(BaseModel, table=True):
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True, index=True)
     name: str = Field(unique=True, index=True, nullable=False)
     recipe_counter: int = Field(default=0, nullable=False)
+    category: TagCategory = Field(nullable=False)
 
     def __repr__(self):
-        return f"<Tag name={self.name} id={self.id} recipe_counter={self.recipe_counter}>"
+        return f"<Tag name={self.name} id={self.id} recipe_counter={self.recipe_counter} category={self.category}>"
 
     def __str__(self):
         return f"<Tag name={self.name}>"

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from typing import List, Dict, Any, Optional, Annotated
 from src.utils.dependencies import get_tag_service
 from src.services.tag_service import TagService
+from src.models.tag import TagCategory
 from pydantic import BaseModel
 from datetime import datetime
 import logging
@@ -15,11 +16,19 @@ class TagResponse(BaseModel):
     uuid: str
     name: str
     recipe_counter: int
+    category: str
     created_at: datetime
     updated_at: datetime
 
 class TagsResponse(BaseModel):
     tags: List[TagResponse]
+    total: int
+    limit: int
+    offset: int
+
+class GroupedTagsResponse(BaseModel):
+    tags: List[TagResponse]
+    grouped_tags: Dict[str, List[TagResponse]]
     total: int
     limit: int
     offset: int
@@ -33,9 +42,11 @@ class PopularTagsResponse(BaseModel):
 
 class TagCreate(BaseModel):
     name: str
+    category: TagCategory
 
 class TagUpdate(BaseModel):
     name: str
+    category: TagCategory
 
 class TagAssociationRequest(BaseModel):
     tag_id: int
@@ -55,14 +66,14 @@ class TagUpdateResponse(BaseModel):
 
 # User endpoints
 
-@router.get("/", response_model=TagsResponse)
+@router.get("/", response_model=GroupedTagsResponse)
 async def get_all_tags(
     tag_service: Annotated[TagService, Depends(get_tag_service)],
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
     """
-    Get all tags with pagination using limit/offset.
+    Get all tags with pagination using limit/offset, including category grouping.
     
     Args:
         limit: Maximum number of records to return (1-1000)
@@ -70,13 +81,13 @@ async def get_all_tags(
         tag_service: TagService instance with database session
         
     Returns:
-        List of tags with pagination info
+        List of tags with pagination info and grouped by category
         
     Raises:
         HTTPException: If there's an error retrieving tags
     """
     try:
-        result = tag_service.get_all_tags(limit=limit, offset=offset)
+        result = tag_service.get_tags_with_category_info(limit=limit, offset=offset)
         return result
         
     except Exception as e:
@@ -84,6 +95,37 @@ async def get_all_tags(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve tags: {str(e)}"
+        )
+
+@router.get("/grouped", response_model=Dict[str, List[TagResponse]])
+async def get_tags_grouped_by_category(
+    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    offset: int = Query(0, ge=0, description="Number of records to skip")
+):
+    """
+    Get all tags grouped by their categories.
+    
+    Args:
+        limit: Maximum number of records to return (1-1000)
+        offset: Number of records to skip
+        tag_service: TagService instance with database session
+        
+    Returns:
+        Dictionary with category names as keys and lists of tags as values
+        
+    Raises:
+        HTTPException: If there's an error retrieving grouped tags
+    """
+    try:
+        result = tag_service.get_tags_by_category(limit=limit, offset=offset)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error retrieving grouped tags: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve grouped tags: {str(e)}"
         )
 
 @router.get("/search", response_model=TagsResponse)

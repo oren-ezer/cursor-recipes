@@ -18,17 +18,7 @@ export interface TagSelectorProps {
   onLoadTags?: () => Promise<Tag[]>;
 }
 
-// Tag categories for organization
-const TAG_CATEGORIES = {
-  'Meal Types': ['breakfast', 'lunch', 'dinner', 'late-night', 'snack', 'finger-food', 'brunch'],
-  'Dietary': ['vegetarian', 'vegan', 'gluten-free', 'dairy-free', 'nut-free', 'sugar-free', 'low-carb', 'keto', 'paleo', 'high-protein', 'low-fat', 'high-fiber', 'heart-healthy', 'low-sodium', 'diabetic-friendly', 'high-sugar'],
-  'Course Types': ['appetizer', 'first-course', 'main-course', 'side-dish', 'dessert', 'beverage'],
-  'Cuisines': ['italian', 'mexican', 'indian', 'chinese', 'japanese', 'thai', 'french', 'mediterranean'],
-  'Protein Sources': ['chicken', 'beef', 'pork', 'fish', 'seafood-or-shellfish', 'tofu', 'eggs'],
-  'Ingredients': ['beans-legumes', 'rice', 'pasta', 'vegetables', 'fruit'],
-  'Cooking Methods': ['grilling', 'baking', 'roasting', 'frying', 'steaming', 'raw'],
-  'Special Categories': ['kid-friendly', 'comfort-food', 'holiday', 'romantic-dinner', 'budget-friendly', 'one-pot', 'super-food']
-};
+// No hardcoded categories needed - we use backend data
 
 const TagSelector: React.FC<TagSelectorProps> = ({
   value = [],
@@ -137,7 +127,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
     return filtered;
   }, [allTags, value, searchQuery]);
 
-  // Group tags by category
+  // Group tags by category using backend data
   const groupedTags = useCallback(() => {
     if (!showCategories) {
       return { 'All Tags': filteredTags() };
@@ -147,13 +137,8 @@ const TagSelector: React.FC<TagSelectorProps> = ({
     const filtered = filteredTags();
 
     filtered.forEach(tag => {
-      let category = 'Other';
-      for (const [catName, catTags] of Object.entries(TAG_CATEGORIES)) {
-        if (catTags.includes(tag.name)) {
-          category = catName;
-          break;
-        }
-      }
+      // Use the category from the backend
+      const category = tag.category;
       
       if (!grouped[category]) {
         grouped[category] = [];

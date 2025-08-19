@@ -1,8 +1,8 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
 from sqlmodel import select
 from sqlalchemy import and_
-from src.models.tag import Tag
+from src.models.tag import Tag, TagCategory
 from src.models.recipe_tag import RecipeTag
 from datetime import datetime, timezone
 import uuid
@@ -133,12 +133,13 @@ class TagService:
             "offset": offset
         }
     
-    def create_tag(self, name: str) -> Tag:
+    def create_tag(self, name: str, category: TagCategory) -> Tag:
         """
         Create a new tag with name uniqueness check.
         
         Args:
             name: Tag name (will be normalized)
+            category: Optional category for the tag
             
         Returns:
             Created Tag object
@@ -158,6 +159,7 @@ class TagService:
         current_time_utc = datetime.now(timezone.utc)
         new_tag = Tag(
             name=normalized_name,
+            category=category,
             created_at=current_time_utc,
             updated_at=current_time_utc,
             uuid=str(uuid.uuid4())
@@ -171,13 +173,14 @@ class TagService:
         
         return new_tag
     
-    def update_tag(self, tag_id: int, name: str) -> Tag:
+    def update_tag(self, tag_id: int, name: str, category: TagCategory) -> Tag:
         """
-        Update a tag's name.
+        Update a tag's name and/or category.
         
         Args:
             tag_id: The ID of the tag to update
             name: New tag name (will be normalized)
+            category: New category for the tag (optional)
             
         Returns:
             Updated Tag object
@@ -200,6 +203,7 @@ class TagService:
         
         # Update the tag
         existing_tag.name = normalized_name
+        existing_tag.category = category
         existing_tag.updated_at = datetime.now(timezone.utc)
         
         # Flush to persist changes and commit
@@ -353,6 +357,109 @@ class TagService:
         tags = self.db.exec(statement).all()
         
         return [{"tag": tag, "usage_count": tag.recipe_counter} for tag in tags]
+
+    def get_tags_by_category(self, limit: int = 100, offset: int = 0) -> Dict[str, List[Tag]]:
+        """
+        Get all tags grouped by their categories.
+        
+        Args:
+            limit: Maximum number of tags to return per category
+            offset: Number of records to skip
+            
+        Returns:
+            Dictionary with category names as keys and lists of tags as values
+        """
+        # Use raw SQL to avoid enum validation issues
+        from sqlalchemy import text
+        
+        # Get all tags with categories
+        query = text("""
+            SELECT id, uuid, name, recipe_counter, category, created_at, updated_at 
+            FROM tags 
+            ORDER BY category, name 
+            LIMIT :limit OFFSET :offset
+        """)
+        result = self.db.exec(query, params={"limit": limit, "offset": offset})
+        tags_data = result.all()
+        
+        # Group tags by category
+        grouped_tags = {}
+        for row in tags_data:
+            # Create Tag object manually to avoid enum validation
+            tag = Tag(
+                id=row[0],
+                uuid=row[1],
+                name=row[2],
+                recipe_counter=row[3],
+                category=row[4],  # This will be a string, not enum
+                created_at=row[5],
+                updated_at=row[6]
+            )
+            
+            if row[4] not in grouped_tags:
+                grouped_tags[row[4]] = []
+            grouped_tags[row[4]].append(tag)
+        
+        return grouped_tags
+
+    def get_tags_with_category_info(self, limit: int = 100, offset: int = 0) -> dict:
+        """
+        Get all tags with category information and grouped structure.
+        
+        Args:
+            limit: Maximum number of records to return
+            offset: Number of records to skip
+            
+        Returns:
+            Dictionary with tags, total count, limit, offset, and grouped structure
+        """
+        # Use raw SQL to avoid enum validation issues
+        from sqlalchemy import text
+        
+        # Get tags for current page
+        query = text("""
+            SELECT id, uuid, name, recipe_counter, category, created_at, updated_at 
+            FROM tags 
+            ORDER BY category, name 
+            LIMIT :limit OFFSET :offset
+        """)
+        result = self.db.exec(query, params={"limit": limit, "offset": offset})
+        tags_data = result.all()
+        
+        # Get total count
+        count_query = text("SELECT COUNT(*) FROM tags")
+        total = self.db.exec(count_query).first()[0]
+        
+        # Convert to Tag objects (without category validation)
+        tags = []
+        grouped_tags = {}
+        
+        for row in tags_data:
+            # Create Tag object manually to avoid enum validation
+            tag = Tag(
+                id=row[0],
+                uuid=row[1],
+                name=row[2],
+                recipe_counter=row[3],
+                category=row[4],  # This will be a string, not enum
+                created_at=row[5],
+                updated_at=row[6]
+            )
+            tags.append(tag)
+            
+            # Group by category
+            category = row[4]  # No fallback needed since category is non-nullable
+            if category not in grouped_tags:
+                grouped_tags[category] = []
+            grouped_tags[category].append(tag)
+        
+        return {
+            "tags": tags,
+            "grouped_tags": grouped_tags,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
 
     def update_recipe_tags(
         self, 
