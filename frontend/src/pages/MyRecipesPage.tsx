@@ -7,6 +7,7 @@ import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import RecipeCard from '../components/RecipeCard';
+import ConfirmationModal from '../components/ui/confirmation-modal';
 
 const MyRecipesPage: React.FC = () => {
   // const { isAuthenticated } = useAuth(); // Not used yet
@@ -15,6 +16,9 @@ const MyRecipesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchMyRecipes = async () => {
@@ -36,15 +40,30 @@ const MyRecipesPage: React.FC = () => {
     fetchMyRecipes();
   }, []);
 
-  const handleDeleteRecipe = async (recipe: Recipe) => {
-    if (window.confirm(`Are you sure you want to delete "${recipe.title}"?`)) {
-      try {
-        await apiClient.deleteRecipe(recipe.id);
-        setRecipes(recipes.filter(r => r.id !== recipe.id));
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Failed to delete recipe');
-      }
+  const handleDeleteRecipe = (recipe: Recipe) => {
+    setRecipeToDelete(recipe);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!recipeToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await apiClient.deleteRecipe(recipeToDelete.id);
+      setRecipes(recipes.filter(r => r.id !== recipeToDelete.id));
+      setShowDeleteModal(false);
+      setRecipeToDelete(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to delete recipe');
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setRecipeToDelete(null);
   };
 
   const filteredRecipes = recipes.filter(recipe =>
@@ -108,6 +127,19 @@ const MyRecipesPage: React.FC = () => {
             </div>
           )}
       </div>
+      
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Recipe"
+        message={`Are you sure you want to delete "${recipeToDelete?.title}"? This action cannot be undone.`}
+        confirmText="Delete Recipe"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isDeleting}
+      />
     </PageContainer>
   );
 };

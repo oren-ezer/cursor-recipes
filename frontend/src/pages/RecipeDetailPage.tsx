@@ -8,6 +8,7 @@ import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import RecipeCard from '../components/RecipeCard';
+import ConfirmationModal from '../components/ui/confirmation-modal';
 
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
@@ -16,8 +17,14 @@ const RecipeDetailPage: React.FC = () => {
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
 
   useEffect(() => {
+    // Don't fetch if recipe was deleted
+    if (isDeleted) return;
+
     const fetchRecipe = async () => {
       if (!recipeId) {
         setError('Recipe ID is required');
@@ -48,25 +55,35 @@ const RecipeDetailPage: React.FC = () => {
     };
 
     fetchRecipe();
-  }, [recipeId]);
+  }, [recipeId, isDeleted]);
 
   const handleEdit = () => {
     navigate(`/recipes/${recipeId}/edit`);
   };
 
-  const handleDelete = async () => {
-    if (!recipe || !window.confirm(`Are you sure you want to delete "${recipe.title}"?`)) {
-      return;
-    }
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!recipe) return;
+
+    setIsDeleting(true);
     try {
       await apiClient.deleteRecipe(recipe.id);
+      setIsDeleted(true); // Mark as deleted to prevent useEffect from running
       navigate('/recipes/my', {
         state: { message: 'Recipe deleted successfully' }
       });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to delete recipe');
+      setIsDeleting(false);
+      setShowDeleteModal(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
   };
 
   const formatTime = (minutes: number): string => {
@@ -97,6 +114,18 @@ const RecipeDetailPage: React.FC = () => {
         <PageContainer>
           <div className="text-center">
             <p className="text-lg text-gray-600 dark:text-gray-300">Loading recipe...</p>
+          </div>
+        </PageContainer>
+      </MainLayout>
+    );
+  }
+
+  if (isDeleting) {
+    return (
+      <MainLayout>
+        <PageContainer>
+          <div className="text-center">
+            <p className="text-lg text-gray-600 dark:text-gray-300">Deleting recipe...</p>
           </div>
         </PageContainer>
       </MainLayout>
@@ -150,7 +179,7 @@ const RecipeDetailPage: React.FC = () => {
               </Button>
               <Button 
                 variant="destructive" 
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
               >
                 Delete Recipe
               </Button>
@@ -273,6 +302,19 @@ const RecipeDetailPage: React.FC = () => {
           </div>
         </div>
       </PageContainer>
+      
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Recipe"
+        message={`Are you sure you want to delete "${recipe?.title}"? This action cannot be undone.`}
+        confirmText="Delete Recipe"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isDeleting}
+      />
     </MainLayout>
   );
 };
