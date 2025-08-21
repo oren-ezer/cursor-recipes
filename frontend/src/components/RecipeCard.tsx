@@ -183,6 +183,24 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               {recipe.difficulty_level}
             </span>
           </div>
+          {/* Tags for compact view */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {recipe.tags.slice(0, 3).map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                >
+                  {tag.name}
+                </span>
+              ))}
+              {recipe.tags.length > 3 && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  +{recipe.tags.length - 3} more
+                </span>
+              )}
+            </div>
+          )}
         </CardContent>
       );
     }
@@ -206,6 +224,19 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               <span className="text-blue-600 dark:text-blue-400">Has image</span>
             )}
           </div>
+          {/* Tags for default view */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {recipe.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </CardContent>
     );

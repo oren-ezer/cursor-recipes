@@ -25,8 +25,16 @@ const RecipeDetailPage: React.FC = () => {
         return;
       }
 
+      // Validate recipeId is a valid number
+      const parsedId = parseInt(recipeId);
+      if (isNaN(parsedId) || parsedId <= 0) {
+        setError('Invalid recipe ID');
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const data = await apiClient.getRecipe(parseInt(recipeId));
+        const data = await apiClient.getRecipe(parsedId);
         setRecipe(data);
       } catch (err) {
         if (err instanceof ApiError) {
@@ -185,6 +193,27 @@ const RecipeDetailPage: React.FC = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Tags */}
+            {recipe.tags && recipe.tags.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tags</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {recipe.tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Ingredients */}
             <Card>

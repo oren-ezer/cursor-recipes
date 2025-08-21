@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-import { apiClient, ApiError } from '../lib/api-client';
+import { apiClient, ApiError, type Tag } from '../lib/api-client';
 // import type { Recipe } from '../lib/api-client'; // Not used yet
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
@@ -12,6 +12,7 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import TagSelector from '../components/ui/tag-selector';
 
 interface Ingredient {
   name: string;
@@ -29,6 +30,7 @@ interface RecipeFormData {
   difficulty_level: string;
   is_public: boolean;
   image_url: string;
+  selectedTags: Tag[];
 }
 
 const RecipeCreatePage: React.FC = () => {
@@ -47,6 +49,7 @@ const RecipeCreatePage: React.FC = () => {
     difficulty_level: 'Easy',
     is_public: true,
     image_url: '',
+    selectedTags: [],
   });
 
   // Redirect if not authenticated
@@ -61,6 +64,25 @@ const RecipeCreatePage: React.FC = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleTagsChange = (tags: Tag[]) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedTags: tags
+    }));
+  };
+
+  const loadTagsWithLogging = async () => {
+    console.log('loadTagsWithLogging called');
+    try {
+      const tags = await apiClient.getAllTags();
+      console.log('Tags loaded successfully:', tags);
+      return tags;
+    } catch (error) {
+      console.error('Error loading tags:', error);
+      throw error;
+    }
   };
 
   const handleIngredientChange = (index: number, field: 'name' | 'amount', value: string) => {
@@ -152,6 +174,7 @@ const RecipeCreatePage: React.FC = () => {
         ingredients: cleanIngredients,
         instructions: cleanInstructions,
         image_url: formData.image_url || undefined,
+        tag_ids: formData.selectedTags.map(tag => tag.id),
       };
 
       const createdRecipe = await apiClient.createRecipe(recipeData);
@@ -278,6 +301,30 @@ const RecipeCreatePage: React.FC = () => {
                     disabled={isLoading}
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tags */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tags</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label>Recipe Tags</Label>
+                <TagSelector
+                  value={formData.selectedTags}
+                  onChange={handleTagsChange}
+                  placeholder="Select tags for your recipe..."
+                  disabled={isLoading}
+                  onLoadTags={loadTagsWithLogging}
+                  showSearch={true}
+                  showCategories={true}
+                />
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Add tags to help others discover your recipe. You can search by name or browse by category.
+                </p>
               </div>
             </CardContent>
           </Card>

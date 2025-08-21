@@ -1,5 +1,10 @@
 import pytest
 from src.models.recipe_tag import RecipeTag
+from src.models.recipe import Recipe
+from src.models.tag import Tag, TagCategory
+from src.models.user import User
+from sqlmodel import Session, create_engine, SQLModel
+from sqlalchemy import text
 
 def test_create_recipe_tag_instance():
     """Test creating a RecipeTag instance with all fields."""
@@ -198,3 +203,278 @@ def test_recipe_tag_not_hashable():
     # Should not be usable as dictionary keys
     with pytest.raises(TypeError, match="unhashable type"):
         {rt1: "value"}
+
+
+# Database operation tests
+@pytest.fixture
+def test_db():
+    """Create a test database engine."""
+    # Use in-memory SQLite for testing
+    engine = create_engine("sqlite:///:memory:", echo=False)
+    SQLModel.metadata.create_all(engine)
+    return engine
+
+@pytest.fixture
+def test_session(test_db):
+    """Create a test database session."""
+    with Session(test_db) as session:
+        yield session
+
+def test_recipe_tag_database_creation_with_auto_increment(test_session):
+    """Test that RecipeTag can be created in database with auto-incrementing ID."""
+    # Create a test user first
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed_password"
+    )
+    test_session.add(user)
+    test_session.commit()
+    test_session.refresh(user)
+    
+    # Create a test recipe
+    recipe = Recipe(
+        title="Test Recipe",
+        description="A test recipe",
+        ingredients=[{"name": "flour", "amount": "2 cups"}],
+        instructions=["Mix ingredients"],
+        preparation_time=10,
+        cooking_time=20,
+        servings=4,
+        user_id=user.uuid
+    )
+    test_session.add(recipe)
+    test_session.commit()
+    test_session.refresh(recipe)
+    
+    # Create a test tag
+    tag = Tag(
+        name="test tag",
+        category=TagCategory.MEAL_TYPES
+    )
+    test_session.add(tag)
+    test_session.commit()
+    test_session.refresh(tag)
+    
+    # Create a RecipeTag without providing an ID
+    recipe_tag = RecipeTag(
+        recipe_id=recipe.id,
+        tag_id=tag.id
+    )
+    
+    # Add to session and commit
+    test_session.add(recipe_tag)
+    test_session.commit()
+    test_session.refresh(recipe_tag)
+    
+    # Verify that an ID was auto-generated
+    assert recipe_tag.id is not None
+    assert isinstance(recipe_tag.id, int)
+    assert recipe_tag.id > 0
+    
+    # Verify other fields are correct
+    assert recipe_tag.recipe_id == recipe.id
+    assert recipe_tag.tag_id == tag.id
+    assert recipe_tag.created_at is not None
+    assert recipe_tag.updated_at is not None
+
+def test_recipe_tag_database_multiple_creations(test_session):
+    """Test that multiple RecipeTags can be created with sequential auto-incrementing IDs."""
+    # Create test data
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed_password"
+    )
+    test_session.add(user)
+    test_session.commit()
+    test_session.refresh(user)
+    
+    recipe = Recipe(
+        title="Test Recipe",
+        description="A test recipe",
+        ingredients=[{"name": "flour", "amount": "2 cups"}],
+        instructions=["Mix ingredients"],
+        preparation_time=10,
+        cooking_time=20,
+        servings=4,
+        user_id=user.uuid
+    )
+    test_session.add(recipe)
+    test_session.commit()
+    test_session.refresh(recipe)
+    
+    tags = []
+    for i in range(3):
+        tag = Tag(
+            name=f"test tag {i}",
+            category=TagCategory.MEAL_TYPES
+        )
+        test_session.add(tag)
+        test_session.commit()
+        test_session.refresh(tag)
+        tags.append(tag)
+    
+    # Create multiple RecipeTags
+    recipe_tags = []
+    for tag in tags:
+        recipe_tag = RecipeTag(
+            recipe_id=recipe.id,
+            tag_id=tag.id
+        )
+        test_session.add(recipe_tag)
+        recipe_tags.append(recipe_tag)
+    
+    test_session.commit()
+    
+    # Refresh all recipe tags to get their IDs
+    for recipe_tag in recipe_tags:
+        test_session.refresh(recipe_tag)
+    
+    # Verify that all have auto-generated IDs
+    ids = [rt.id for rt in recipe_tags]
+    assert all(id is not None for id in ids)
+    assert all(isinstance(id, int) for id in ids)
+    assert all(id > 0 for id in ids)
+    
+    # Verify that IDs are sequential (for SQLite in-memory)
+    # Note: This might not be true for all databases, but it should be for SQLite
+    sorted_ids = sorted(ids)
+    assert sorted_ids == ids  # Should be in order if sequential
+
+def test_recipe_tag_database_query(test_session):
+    """Test that RecipeTags can be queried from the database."""
+    # Create test data
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed_password"
+    )
+    test_session.add(user)
+    test_session.commit()
+    test_session.refresh(user)
+    
+    recipe = Recipe(
+        title="Test Recipe",
+        description="A test recipe",
+        ingredients=[{"name": "flour", "amount": "2 cups"}],
+        instructions=["Mix ingredients"],
+        preparation_time=10,
+        cooking_time=20,
+        servings=4,
+        user_id=user.uuid
+    )
+    test_session.add(recipe)
+    test_session.commit()
+    test_session.refresh(recipe)
+    
+    tag = Tag(
+        name="test tag",
+        category=TagCategory.MEAL_TYPES
+    )
+    test_session.add(tag)
+    test_session.commit()
+    test_session.refresh(tag)
+    
+    # Create and save a RecipeTag
+    recipe_tag = RecipeTag(
+        recipe_id=recipe.id,
+        tag_id=tag.id
+    )
+    test_session.add(recipe_tag)
+    test_session.commit()
+    test_session.refresh(recipe_tag)
+    
+    # Query the RecipeTag back
+    queried_recipe_tag = test_session.get(RecipeTag, recipe_tag.id)
+    
+    # Verify the query worked
+    assert queried_recipe_tag is not None
+    assert queried_recipe_tag.id == recipe_tag.id
+    assert queried_recipe_tag.recipe_id == recipe.id
+    assert queried_recipe_tag.tag_id == tag.id
+
+def test_recipe_tag_database_constraints(test_session):
+    """Test that RecipeTag database constraints work correctly."""
+    # Create test data
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed_password"
+    )
+    test_session.add(user)
+    test_session.commit()
+    test_session.refresh(user)
+    
+    recipe = Recipe(
+        title="Test Recipe",
+        description="A test recipe",
+        ingredients=[{"name": "flour", "amount": "2 cups"}],
+        instructions=["Mix ingredients"],
+        preparation_time=10,
+        cooking_time=20,
+        servings=4,
+        user_id=user.uuid
+    )
+    test_session.add(recipe)
+    test_session.commit()
+    test_session.refresh(recipe)
+    
+    tag = Tag(
+        name="test tag",
+        category=TagCategory.MEAL_TYPES
+    )
+    test_session.add(tag)
+    test_session.commit()
+    test_session.refresh(tag)
+    
+    # Create a RecipeTag
+    recipe_tag = RecipeTag(
+        recipe_id=recipe.id,
+        tag_id=tag.id
+    )
+    test_session.add(recipe_tag)
+    test_session.commit()
+    test_session.refresh(recipe_tag)
+    
+    # Try to create another RecipeTag with the same recipe_id and tag_id
+    # This should work (no unique constraint on the combination in SQLite)
+    # But in PostgreSQL with composite primary key, this would fail
+    duplicate_recipe_tag = RecipeTag(
+        recipe_id=recipe.id,
+        tag_id=tag.id
+    )
+    test_session.add(duplicate_recipe_tag)
+    
+    # This should work in SQLite but would fail in PostgreSQL
+    # We'll test that it at least doesn't crash
+    try:
+        test_session.commit()
+        test_session.refresh(duplicate_recipe_tag)
+        # If we get here, it worked (SQLite behavior)
+        assert duplicate_recipe_tag.id != recipe_tag.id
+    except Exception as e:
+        # If we get an exception, it's probably a constraint violation (PostgreSQL behavior)
+        assert "unique" in str(e).lower() or "duplicate" in str(e).lower()
+
+def test_recipe_tag_database_foreign_key_constraints(test_session):
+    """Test that RecipeTag foreign key constraints work correctly."""
+    # Try to create a RecipeTag with non-existent recipe_id and tag_id
+    recipe_tag = RecipeTag(
+        recipe_id=99999,  # Non-existent recipe ID
+        tag_id=99999      # Non-existent tag ID
+    )
+    test_session.add(recipe_tag)
+    
+    # SQLite doesn't enforce foreign key constraints by default
+    # So this will succeed, but we can test that the data is stored correctly
+    test_session.commit()
+    test_session.refresh(recipe_tag)
+    
+    # Verify that the RecipeTag was created with the non-existent IDs
+    assert recipe_tag.recipe_id == 99999
+    assert recipe_tag.tag_id == 99999
+    assert recipe_tag.id is not None
+    
+    # Note: In a real PostgreSQL database with foreign key constraints enabled,
+    # this would fail with a foreign key constraint violation

@@ -9,8 +9,8 @@ class RecipeTag(BaseModel, table=True):
     """
     __tablename__ = "recipe_tags"
     
-    recipe_id: int = Field(foreign_key="recipes.id", primary_key=True)
-    tag_id: int = Field(foreign_key="tags.id", primary_key=True)
+    recipe_id: int = Field(foreign_key="recipes.id")
+    tag_id: int = Field(foreign_key="tags.id")
 
     def __repr__(self):
         return f"<RecipeTag recipe_id={self.recipe_id} tag_id={self.tag_id}>"

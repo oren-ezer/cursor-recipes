@@ -31,7 +31,7 @@ def test_tag_string_representation():
     }
     tag = Tag(**tag_data)
     
-    expected_repr = f"<Tag name={tag.name} id={tag.id} recipe_counter={tag.recipe_counter}>"
+    expected_repr = f"<Tag name={tag.name} id={tag.id} recipe_counter={tag.recipe_counter} category={tag.category}>"
     assert str(tag) == f"<Tag name={tag.name}>"
     assert repr(tag) == expected_repr
 
