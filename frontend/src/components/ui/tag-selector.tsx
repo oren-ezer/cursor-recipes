@@ -31,12 +31,12 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   showCategories = true,
   error,
   className,
-  availableTags = [],
+  availableTags,
   onLoadTags
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [allTags, setAllTags] = useState<Tag[]>(Array.isArray(availableTags) ? availableTags : []);
+  const [allTags, setAllTags] = useState<Tag[]>(availableTags && Array.isArray(availableTags) ? availableTags : []);
   const [loading, setLoading] = useState(false);
   const [recentTags, setRecentTags] = useState<Tag[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +44,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
 
   // Load tags when input is focused for the first time
   const handleInputFocus = () => {
-    console.log('Input focused. allTags length:', allTags.length, 'availableTags length:', availableTags.length);
+    console.log('Input focused. allTags length:', allTags.length, 'availableTags length:', availableTags?.length || 0);
     if (onLoadTags && allTags.length === 0) {
       console.log('Loading tags...');
       loadTags();
@@ -54,10 +54,8 @@ const TagSelector: React.FC<TagSelectorProps> = ({
 
   // Update allTags when availableTags prop changes
   useEffect(() => {
-    console.log('availableTags prop changed:', availableTags);
-    console.log('availableTags type:', typeof availableTags, 'Is array:', Array.isArray(availableTags));
-    if (Array.isArray(availableTags) && availableTags.length > 0) {
-      console.log('Setting allTags from availableTags:', availableTags);
+    // Only update if availableTags is a non-empty array
+    if (availableTags && Array.isArray(availableTags) && availableTags.length > 0) {
       setAllTags(availableTags);
     }
   }, [availableTags]);
