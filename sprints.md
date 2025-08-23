@@ -66,7 +66,7 @@ Focus: Recipe sharing and tags
 ### Backend (P0)
 - #9 Create database migration for Tag and RecipeTag models - DONE
 - #109 Implement Tag service - DONE
-- #110 Add the Tag endpoints (with sparation to recipe endpoint and admin endpoint) - DONE
+- #110 Add the Tag endpoints (with separation to recipe endpoint and admin endpoint) - DONE
 - #30 Implement share recipe endpoint - 
 - #31 Implement unshare recipe endpoint -  
 - #32 Create shared recipes listing endpoint - 
@@ -78,13 +78,14 @@ Focus: Recipe sharing and tags
 - #59 Create recipe detail page component - DONE
 - #60 Implement recipe creation form - DONE
 - #61 Create recipe edit form component - DONE
-- #63 Create tag selection component -
+- #63 Create tag selection component - DONE
 - #65 Create shared recipes view - 
 
 ### Security (P1)
 - #89 Add CSRF protection
 - #90 Configure secure headers - DONE
 - #91 Implement input sanitization
+- #
 
 ## Sprint AI - Special AI Sprint
 Focus: Add AI based capabilities
@@ -162,8 +163,11 @@ Focus: i18n support and documentation
 
 ## Backlog (P3)
 Nice to have features that can be implemented as needed:
-- #16 enhance login handling: password reset, password invalidation after n days, token expiration, redirect to login on error after timeout 
-- #19 Add email verification system - send email and wait for confirmation
+- #11 enhance login handling: session/token expiration and redirect to login or home on error after timeout 
+- #12 enhance login handling: password reset and session/token invalidation (by admin)
+- #13 enhance login handling: password invalidation after n days + warning email
+- #16 enhance login handling: forgot-my-password using user's email
+- #19 on registration send confirmation email and wait for approval 
 - #28 Implement ingredient search functionality - DONE
 - #29 Add recipe image upload to Supabase Storage 
 - #72 Implement advanced search filters

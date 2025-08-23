@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import RecipeCard from '../components/RecipeCard';
 import ConfirmationModal from '../components/ui/confirmation-modal';
+import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
 
 const MyRecipesPage: React.FC = () => {
   // const { isAuthenticated } = useAuth(); // Not used yet
@@ -16,9 +17,24 @@ const MyRecipesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Use the consistent deletion hook
+  const {
+    isDeleting,
+    showDeleteModal,
+    recipeToDelete,
+    handleDeleteClick,
+    handleDeleteConfirm,
+    handleDeleteCancel
+  } = useRecipeDeletion({
+    onSuccess: (deletedRecipe) => {
+      // Update local state by removing the deleted recipe
+      setRecipes(recipes.filter(r => r.id !== deletedRecipe.id));
+    },
+    onError: (errorMessage) => {
+      setError(errorMessage);
+    }
+  });
 
   useEffect(() => {
     const fetchMyRecipes = async () => {
@@ -40,31 +56,7 @@ const MyRecipesPage: React.FC = () => {
     fetchMyRecipes();
   }, []);
 
-  const handleDeleteRecipe = (recipe: Recipe) => {
-    setRecipeToDelete(recipe);
-    setShowDeleteModal(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!recipeToDelete) return;
-
-    setIsDeleting(true);
-    try {
-      await apiClient.deleteRecipe(recipeToDelete.id);
-      setRecipes(recipes.filter(r => r.id !== recipeToDelete.id));
-      setShowDeleteModal(false);
-      setRecipeToDelete(null);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to delete recipe');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteModal(false);
-    setRecipeToDelete(null);
-  };
+  const handleDeleteRecipe = handleDeleteClick;
 
   const filteredRecipes = recipes.filter(recipe =>
     recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -54,6 +54,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/about" element={<MainLayout><AboutPage /></MainLayout>} />
           <Route path="/recipes" element={<RecipeListPage />} />
           <Route path="/recipes/new" element={<RecipeCreatePage />} />
+          <Route path="/recipes/my" element={<MainLayout><MyRecipesPage /></MainLayout>} />
           <Route path="/recipes/:recipeId" element={<RecipeDetailPage />} />
           <Route path="/recipes/:recipeId/edit" element={<RecipeEditPage />} />
           <Route path="/my-recipes" element={<MainLayout><MyRecipesPage /></MainLayout>} />

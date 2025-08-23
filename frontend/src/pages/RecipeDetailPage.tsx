@@ -9,81 +9,146 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import RecipeCard from '../components/RecipeCard';
 import ConfirmationModal from '../components/ui/confirmation-modal';
+import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
 
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const navigate = useNavigate();
+  
+
+  
   const { isAuthenticated } = useAuth();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isDeleted, setIsDeleted] = useState(false);
+  const [hasNavigated, setHasNavigated] = useState(false);
+
+  // Use the consistent deletion hook
+  const {
+    isDeleting,
+    showDeleteModal,
+    showSuccessModal,
+    recipeToDelete,
+    deletedRecipe,
+    handleDeleteClick,
+    handleDeleteConfirm,
+    handleDeleteCancel,
+    handleSuccessModalClose
+  } = useRecipeDeletion({
+    onSuccess: () => {
+      // Clear any existing errors when deletion succeeds
+      setError(null);
+    },
+    onError: (errorMessage) => {
+      setError(errorMessage);
+    },
+    onNavigate: () => {
+      setHasNavigated(true); // Mark that we're navigating
+    },
+    navigateAfterDelete: true,
+    navigateTo: '/recipes/my',
+    showSuccessModal: true // Enable success modal
+  });
 
   useEffect(() => {
-    // Don't fetch if recipe was deleted
-    if (isDeleted) return;
+    // Don't fetch if we're in the process of deleting
+    if (isDeleting) {
+      return;
+    }
+
+    // Don't fetch if we don't have a valid recipeId
+    if (!recipeId) {
+      return;
+    }
+
+    // Don't fetch if recipeId is invalid (likely due to navigation)
+    const parsedId = parseInt(recipeId);
+    if (isNaN(parsedId) || parsedId <= 0) {
+      // Reset loading state since we're not fetching
+      setIsLoading(false);
+      return;
+    }
+
+    // Don't fetch if we have an error (to prevent repeated failed requests)
+    if (error) {
+      return;
+    }
+
+    // Don't fetch if the delete modal is open (user is in the process of deleting)
+    if (showDeleteModal) {
+      return;
+    }
+
+    // Don't fetch if the success modal is open (deletion completed, waiting for user action)
+    if (showSuccessModal) {
+      return;
+    }
+
+    // Don't fetch if we've already navigated away
+    if (hasNavigated) {
+      return;
+    }
+
+    let isCancelled = false;
 
     const fetchRecipe = async () => {
-      if (!recipeId) {
-        setError('Recipe ID is required');
-        setIsLoading(false);
-        return;
-      }
-
-      // Validate recipeId is a valid number
-      const parsedId = parseInt(recipeId);
-      if (isNaN(parsedId) || parsedId <= 0) {
-        setError('Invalid recipe ID');
-        setIsLoading(false);
-        return;
-      }
+      // recipeId validation is already done at the useEffect level
+      const parsedId = parseInt(recipeId!); // We know recipeId is valid here
 
       try {
         const data = await apiClient.getRecipe(parsedId);
-        setRecipe(data);
+        if (!isCancelled) {
+          setRecipe(data);
+          setError(null); // Clear any previous errors
+        }
       } catch (err) {
-        if (err instanceof ApiError) {
-          setError(err.message);
-        } else {
-          setError('Failed to fetch recipe');
+        if (!isCancelled) {
+          if (err instanceof ApiError) {
+            setError(err.message);
+          } else {
+            setError('Failed to fetch recipe');
+          }
         }
       } finally {
-        setIsLoading(false);
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
+    // Only set loading to true if we're actually going to fetch
+    setIsLoading(true);
     fetchRecipe();
-  }, [recipeId, isDeleted]);
+
+    // Cleanup function to cancel the fetch if component unmounts or dependencies change
+    return () => {
+      console.log('Cleaning up useEffect - cancelling fetch');
+      isCancelled = true;
+    };
+  }, [recipeId, isDeleting, error, showDeleteModal, showSuccessModal, hasNavigated]);
+
+  // Reset navigation flag when recipeId changes (navigating to different recipe)
+  useEffect(() => {
+    setHasNavigated(false);
+  }, [recipeId]);
+
+      // Cleanup effect when component unmounts
+    useEffect(() => {
+      return () => {
+        setIsLoading(false);
+        setError(null);
+        setHasNavigated(false);
+      };
+    }, []);
 
   const handleEdit = () => {
     navigate(`/recipes/${recipeId}/edit`);
   };
 
-  const handleDeleteClick = () => {
-    setShowDeleteModal(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!recipe) return;
-
-    setIsDeleting(true);
-    try {
-      await apiClient.deleteRecipe(recipe.id);
-      setIsDeleted(true); // Mark as deleted to prevent useEffect from running
-      navigate('/recipes/my', {
-        state: { message: 'Recipe deleted successfully' }
-      });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to delete recipe');
-      setIsDeleting(false);
-      setShowDeleteModal(false);
+  const handleDeleteButtonClick = () => {
+    if (recipe) {
+      handleDeleteClick(recipe);
     }
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteModal(false);
   };
 
   const formatTime = (minutes: number): string => {
@@ -179,7 +244,7 @@ const RecipeDetailPage: React.FC = () => {
               </Button>
               <Button 
                 variant="destructive" 
-                onClick={handleDeleteClick}
+                onClick={handleDeleteButtonClick}
               >
                 Delete Recipe
               </Button>
@@ -303,17 +368,30 @@ const RecipeDetailPage: React.FC = () => {
         </div>
       </PageContainer>
       
-      {/* Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={showDeleteModal}
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
         title="Delete Recipe"
-        message={`Are you sure you want to delete "${recipe?.title}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete "${recipeToDelete?.title}"? This action cannot be undone.`}
         confirmText="Delete Recipe"
         cancelText="Cancel"
         variant="destructive"
         isLoading={isDeleting}
+      />
+
+      {/* Success Modal */}
+      <ConfirmationModal
+        isOpen={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        onConfirm={handleSuccessModalClose}
+        title="Recipe Deleted Successfully"
+        message={`The recipe "${deletedRecipe?.title}" has been deleted successfully.`}
+        confirmText="Continue"
+        cancelText="Cancel"
+        variant="default"
+        isLoading={false}
       />
     </MainLayout>
   );
