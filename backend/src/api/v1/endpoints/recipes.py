@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from typing import List, Dict, Any, Optional, Annotated
-from src.utils.dependencies import get_recipe_service, get_tag_service
+from src.utils.dependencies import get_recipe_service_with_tags, get_current_user
 from src.services.recipes_service import RecipeService
 from src.services.tag_service import TagService
 from src.models.tag import TagCategory
@@ -73,8 +73,7 @@ class RecipesResponse(BaseModel):
 
 @router.get("/", response_model=RecipesResponse)
 async def read_recipes(
-    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)],
-    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
@@ -93,9 +92,6 @@ async def read_recipes(
         HTTPException: If there's an error retrieving recipes
     """
     try:
-        # Set tag_service in recipe_service for this operation
-        recipe_service.tag_service = tag_service
-        
         # Get only public recipes with tags from service with pagination
         result = recipe_service.get_all_public_recipes_with_tags(limit=limit, offset=offset)
         
@@ -113,8 +109,7 @@ async def read_recipes(
 @router.get("/my", response_model=RecipesResponse)
 async def read_my_recipes(
     request: Request,
-    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)],
-    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
     limit: int = Query(10, ge=1, le=100, description="Maximum number of records to return"),
     offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
@@ -142,9 +137,6 @@ async def read_my_recipes(
                 detail="Not authenticated"
             )
         
-        # Set tag_service in recipe_service for this operation
-        recipe_service.tag_service = tag_service
-        
         # Get user's recipes with tags from service
         result = recipe_service.get_all_my_recipes_with_tags(
             limit=limit, 
@@ -166,8 +158,7 @@ async def read_my_recipes(
 @router.get("/{recipe_id}", response_model=RecipeResponse)
 async def read_recipe(
     recipe_id: int, 
-    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)],
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)]
 ):
     """
     Get a specific recipe by ID.
@@ -183,9 +174,6 @@ async def read_recipe(
         HTTPException: If recipe not found or there's an error retrieving it
     """
     try:
-        # Set tag_service in recipe_service for this operation
-        recipe_service.tag_service = tag_service
-        
         recipe_with_tags = recipe_service.get_recipe_with_tags(recipe_id)
         
         if not recipe_with_tags:
@@ -209,8 +197,7 @@ async def read_recipe(
 async def create_recipe(
     request: Request,
     recipe_data: RecipeCreate,
-    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)],
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)]
 ):
     """
     Create a new recipe.
@@ -219,7 +206,6 @@ async def create_recipe(
         request: The request object (for accessing app state)
         recipe_data: The recipe data to create
         recipe_service: RecipeService instance with database session
-        tag_service: TagService instance with database session
         
     Returns:
         Created recipe data
@@ -234,9 +220,6 @@ async def create_recipe(
         
         recipe_dict = recipe_data.model_dump()
         recipe_dict["ingredients"] = [ingredient.model_dump() for ingredient in recipe_data.ingredients]
-        
-        # Set tag_service in recipe_service for this operation
-        recipe_service.tag_service = tag_service
         
         # Create recipe with tags
         recipe_with_tags = recipe_service.create_recipe_with_tags(recipe_dict, user["uuid"])
@@ -253,8 +236,7 @@ async def update_recipe(
     recipe_id: int,
     recipe_data: RecipeUpdate,
     request: Request,
-    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)],
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)]
 ):
     """
     Update a recipe by ID.
@@ -278,9 +260,6 @@ async def update_recipe(
         
         update_dict = recipe_data.model_dump(exclude_unset=True)
         
-        # Set tag_service in recipe_service for this operation
-        recipe_service.tag_service = tag_service
-        
         # Update recipe with tags
         recipe_with_tags = recipe_service.update_recipe_with_tags(recipe_id, update_dict, user["uuid"])
         return recipe_with_tags
@@ -300,8 +279,7 @@ async def update_recipe(
 async def delete_recipe(
     recipe_id: int,
     request: Request,
-    recipe_service: Annotated[RecipeService, Depends(get_recipe_service)],
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)]
 ):
     """
     Delete a recipe by ID.
@@ -321,9 +299,6 @@ async def delete_recipe(
         user = request.state.user
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-        
-        # Set tag_service in recipe_service for this operation
-        recipe_service.tag_service = tag_service
         
         recipe_service.delete_recipe_with_tags(recipe_id, user["uuid"])
         return None  # 204 No Content

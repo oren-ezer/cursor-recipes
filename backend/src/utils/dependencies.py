@@ -68,6 +68,28 @@ def get_recipe_service(db: Annotated[Session, Depends(get_database_session)]) ->
     """
     return RecipeService(db)
 
+def get_recipe_service_with_tags(
+    db: Annotated[Session, Depends(get_database_session)]
+) -> RecipeService:
+    """
+    FastAPI dependency to get RecipeService instance with TagService already injected.
+    
+    Args:
+        db: Database session from FastAPI dependency
+        
+    Returns:
+        RecipeService: RecipeService instance with TagService injected
+        
+    Usage:
+        @app.get("/recipes/{recipe_id}")
+        def get_recipe(recipe_service: RecipeService = Depends(get_recipe_service_with_tags)):
+            # Use recipe_service with tag functionality here
+            pass
+    """
+    tag_service = TagService(db)
+    recipe_service = RecipeService(db, tag_service)
+    return recipe_service
+
 def get_tag_service(db: Annotated[Session, Depends(get_database_session)]) -> TagService:
     """
     FastAPI dependency to get TagService instance with database session.
