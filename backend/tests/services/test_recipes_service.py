@@ -688,17 +688,14 @@ class TestRecipeServiceWithTags:
             user_id="test-user-uuid"
         )
         
-        mock_tags = [
-            Mock(id=1, name="Italian", category=Mock(value="Cuisines")),
-            Mock(id=2, name="Vegetarian", category=Mock(value="Special Dietary"))
-        ]
-        # Configure the mock to return the actual values
+        # Mock tags
+        mock_tags = [Mock(), Mock()]
         mock_tags[0].id = 1
         mock_tags[0].name = "Italian"
-        mock_tags[0].category.value = "Cuisines"
+        mock_tags[0].category = "Cuisines"
         mock_tags[1].id = 2
         mock_tags[1].name = "Vegetarian"
-        mock_tags[1].category.value = "Special Dietary"
+        mock_tags[1].category = "Special Dietary"
         mock_tag_service.get_tags_for_recipe.return_value = mock_tags
         
         # Act

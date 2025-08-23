@@ -92,10 +92,12 @@ Focus: Add AI based capabilities
 
 ### Backend (P1)
 - #1001 Design how to add AI related endpoint/s (as a separate endpoint/service or within existing ones?)
-- #1002 Spike on connecting to AI model capabilities - authentication? changing the model, data aggregation for prompt, data parsing from response, etc.
-- #1003 Add AI based Tag suggestions for specific recipes
-- #1004 Add recipe search based on AI prompt coming from semi-structured user input
-- #1005 Add Recipe from pic/document based on AI capabilities (with/without OCR, with/withoput translation)
+- #1002 detailed planning for connecting to LLM capabilities - authentication? switching between models, data aggregation for prompt, data parsing from response, etc.
+- #1003 - spike on AI capabilities with separate code base for the backend
+- #1004 Add AI based Tag suggestions for specific recipes
+- #1005 Add recipe search based on AI prompt coming from semi-structured user input
+- #1006 Add Recipe from pic/document based on AI capabilities (with/without OCR, with/withoput translation)
+- #1007 add AI based Nutrition facts for recipes
 
 ### Frontend (P1)
 - #1010 Enhance Tag capabilities for AI suggestions on what to add/remove

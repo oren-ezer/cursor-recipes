@@ -7,6 +7,7 @@ from src.models.recipe_tag import RecipeTag
 from sqlmodel import select
 from datetime import datetime
 from sqlalchemy import and_
+from src.models.tag import TagCategory
 
 
 class TestTagService:
@@ -237,10 +238,11 @@ class TestTagService:
         tag_service = TagService(mock_db)
         
         # Act
-        result = tag_service.create_tag("Breakfast")
+        result = tag_service.create_tag("Breakfast", TagCategory.MEAL_TYPES)
         
         # Assert
         assert result.name == "breakfast"  # Normalized
+        assert result.category == TagCategory.MEAL_TYPES.value  # String value
         assert result.uuid is not None
         mock_db.add.assert_called_once()
         mock_db.flush.assert_called_once()
@@ -251,7 +253,7 @@ class TestTagService:
         """Test creating a tag that already exists."""
         # Arrange
         mock_db = Mock()
-        existing_tag = Tag(id=1, uuid="existing-uuid", name="breakfast", recipe_counter=0)
+        existing_tag = Tag(id=1, uuid="existing-uuid", name="breakfast", recipe_counter=0, category=TagCategory.MEAL_TYPES.value)
         
         # Mock get_tag_by_name to return existing tag
         mock_exec = Mock()
@@ -262,13 +264,13 @@ class TestTagService:
         
         # Act & Assert
         with pytest.raises(ValueError, match="Tag 'breakfast' already exists"):
-            tag_service.create_tag("Breakfast")
+            tag_service.create_tag("Breakfast", TagCategory.MEAL_TYPES)
     
     def test_update_tag_success(self):
         """Test updating a tag successfully."""
         # Arrange
         mock_db = Mock()
-        existing_tag = Tag(id=1, uuid="test-uuid", name="old-name", recipe_counter=0)
+        existing_tag = Tag(id=1, uuid="test-uuid", name="old-name", recipe_counter=0, category=TagCategory.MEAL_TYPES.value)
         
         # Mock get_tag to return existing tag
         mock_exec_get = Mock()
@@ -288,10 +290,11 @@ class TestTagService:
         tag_service = TagService(mock_db)
         
         # Act
-        result = tag_service.update_tag(1, "New Name")
+        result = tag_service.update_tag(1, "New Name", TagCategory.COURSE_TYPES)
         
         # Assert
         assert result.name == "new name"  # Normalized
+        assert result.category == TagCategory.COURSE_TYPES.value  # String value
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once()
@@ -310,14 +313,14 @@ class TestTagService:
         
         # Act & Assert
         with pytest.raises(ValueError, match="Tag not found"):
-            tag_service.update_tag(999, "New Name")
+            tag_service.update_tag(999, "New Name", TagCategory.MEAL_TYPES)
     
     def test_update_tag_name_already_exists(self):
         """Test updating a tag with a name that already exists."""
         # Arrange
         mock_db = Mock()
-        existing_tag = Tag(id=1, uuid="test-uuid", name="old-name", recipe_counter=0)
-        conflicting_tag = Tag(id=2, uuid="conflict-uuid", name="new-name", recipe_counter=0)
+        existing_tag = Tag(id=1, uuid="test-uuid", name="old-name", recipe_counter=0, category=TagCategory.MEAL_TYPES.value)
+        conflicting_tag = Tag(id=2, uuid="conflict-uuid", name="new-name", recipe_counter=0, category=TagCategory.COURSE_TYPES.value)
         
         # Mock get_tag to return existing tag
         mock_exec_get = Mock()
@@ -333,7 +336,7 @@ class TestTagService:
         
         # Act & Assert
         with pytest.raises(ValueError, match="Tag name 'new name' already exists"):
-            tag_service.update_tag(1, "New Name")
+            tag_service.update_tag(1, "New Name", TagCategory.MEAL_TYPES)
     
     def test_delete_tag_success(self):
         """Test deleting a tag successfully."""
@@ -855,10 +858,11 @@ class TestTagService:
         tag_service = TagService(mock_db)
         
         # Act
-        result = tag_service.create_tag("  BREAKFAST  ")
+        result = tag_service.create_tag("  BREAKFAST  ", TagCategory.MEAL_TYPES)
         
         # Assert
         assert result.name == "breakfast"  # Should be normalized
+        assert result.category == TagCategory.MEAL_TYPES.value  # String value
         mock_db.add.assert_called_once()
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_called_once()
@@ -868,7 +872,7 @@ class TestTagService:
         """Test that tag names are properly normalized when updated."""
         # Arrange
         mock_db = Mock()
-        existing_tag = Tag(id=1, uuid="test-uuid", name="old-name", recipe_counter=0)
+        existing_tag = Tag(id=1, uuid="test-uuid", name="old-name", recipe_counter=0, category=TagCategory.MEAL_TYPES.value)
         
         # Mock get_tag to return existing tag
         mock_exec_get = Mock()
@@ -888,10 +892,11 @@ class TestTagService:
         tag_service = TagService(mock_db)
         
         # Act
-        result = tag_service.update_tag(1, "  NEW NAME  ")
+        result = tag_service.update_tag(1, "  NEW NAME  ", TagCategory.COURSE_TYPES)
         
         # Assert
         assert result.name == "new name"  # Should be normalized
+        assert result.category == TagCategory.COURSE_TYPES.value  # String value
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once()

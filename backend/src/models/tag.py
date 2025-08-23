@@ -27,7 +27,7 @@ class Tag(BaseModel, table=True):
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True, index=True)
     name: str = Field(unique=True, index=True, nullable=False)
     recipe_counter: int = Field(default=0, nullable=False)
-    category: TagCategory = Field(nullable=False)
+    category: str = Field(nullable=False)
 
     def __repr__(self):
         return f"<Tag name={self.name} id={self.id} recipe_counter={self.recipe_counter} category={self.category}>"
@@ -78,6 +78,26 @@ class Tag(BaseModel, table=True):
         
         # Normalize the name (trim whitespace and convert to lowercase)
         return v.strip().lower()
+
+    @field_validator('category')
+    @classmethod
+    def validate_category(cls, v):
+        """
+        Validate tag category.
+        
+        Args:
+            v: Category value to validate
+            
+        Returns:
+            The category value if valid
+            
+        Raises:
+            ValueError: If category is not a valid TagCategory value
+        """
+        valid_categories = [cat.value for cat in TagCategory]
+        if v not in valid_categories:
+            raise ValueError(f'Category must be one of: {valid_categories}')
+        return v
 
     @classmethod
     def normalize_name(cls, name: str) -> str:

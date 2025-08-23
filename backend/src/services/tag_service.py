@@ -35,38 +35,9 @@ class TagService:
         Returns:
             Tag object if found, None otherwise
         """
-        # Use raw SQL to avoid enum validation issues
-        from sqlalchemy import text
-        
-        query = text("""
-            SELECT id, uuid, name, recipe_counter, category, created_at, updated_at 
-            FROM tags 
-            WHERE id = :tag_id
-        """)
-        result = self.db.exec(query, params={"tag_id": tag_id})
-        row = result.first()
-        
-        if not row:
-            return None
-        
-        # Convert string category to TagCategory enum
-        from src.models.tag import TagCategory
-        category_enum = TagCategory(row[4])  # Convert string to enum
-        
-        # Create Tag object manually to avoid enum validation
-        tag = Tag(
-            id=row[0],
-            uuid=row[1],
-            name=row[2],
-            recipe_counter=row[3],
-            category=category_enum,  # Use the enum
-            created_at=row[5],
-            updated_at=row[6]
-        )
-        
-
-        
-        return tag
+        statement = select(Tag).where(Tag.id == tag_id)
+        result = self.db.exec(statement)
+        return result.first()
     
     def get_tag_by_uuid(self, tag_uuid: str) -> Optional[Tag]:
         """
@@ -78,36 +49,9 @@ class TagService:
         Returns:
             Tag object if found, None otherwise
         """
-        # Use raw SQL to avoid enum validation issues
-        from sqlalchemy import text
-        
-        query = text("""
-            SELECT id, uuid, name, recipe_counter, category, created_at, updated_at 
-            FROM tags 
-            WHERE uuid = :tag_uuid
-        """)
-        result = self.db.exec(query, params={"tag_uuid": tag_uuid})
-        row = result.first()
-        
-        if not row:
-            return None
-        
-        # Convert string category to TagCategory enum
-        from src.models.tag import TagCategory
-        category_enum = TagCategory(row[4])  # Convert string to enum
-        
-        # Create Tag object manually to avoid enum validation
-        tag = Tag(
-            id=row[0],
-            uuid=row[1],
-            name=row[2],
-            recipe_counter=row[3],
-            category=category_enum,  # Use the enum
-            created_at=row[5],
-            updated_at=row[6]
-        )
-        
-        return tag
+        statement = select(Tag).where(Tag.uuid == tag_uuid)
+        result = self.db.exec(statement)
+        return result.first()
     
     def get_tag_by_name(self, name: str) -> Optional[Tag]:
         """
@@ -119,37 +63,10 @@ class TagService:
         Returns:
             Tag object if found, None otherwise
         """
-        # Use raw SQL to avoid enum validation issues
-        from sqlalchemy import text
-        
         normalized_name = Tag.normalize_name(name)
-        query = text("""
-            SELECT id, uuid, name, recipe_counter, category, created_at, updated_at 
-            FROM tags 
-            WHERE name = :name
-        """)
-        result = self.db.exec(query, params={"name": normalized_name})
-        row = result.first()
-        
-        if not row:
-            return None
-        
-        # Convert string category to TagCategory enum
-        from src.models.tag import TagCategory
-        category_enum = TagCategory(row[4])  # Convert string to enum
-        
-        # Create Tag object manually to avoid enum validation
-        tag = Tag(
-            id=row[0],
-            uuid=row[1],
-            name=row[2],
-            recipe_counter=row[3],
-            category=category_enum,  # Use the enum
-            created_at=row[5],
-            updated_at=row[6]
-        )
-        
-        return tag
+        statement = select(Tag).where(Tag.name == normalized_name)
+        result = self.db.exec(statement)
+        return result.first()
     
     def get_all_tags(self, limit: int = 100, offset: int = 0) -> dict:
         """
@@ -162,41 +79,14 @@ class TagService:
         Returns:
             Dictionary with tags, total count, limit, and offset
         """
-        # Use raw SQL to avoid enum validation issues
-        from sqlalchemy import text
-        
         # Get tags for current page
-        query = text("""
-            SELECT id, uuid, name, recipe_counter, category, created_at, updated_at 
-            FROM tags 
-            ORDER BY name 
-            LIMIT :limit OFFSET :offset
-        """)
-        result = self.db.exec(query, params={"limit": limit, "offset": offset})
-        tags_data = result.all()
+        statement = select(Tag).order_by(Tag.name).offset(offset).limit(limit)
+        result = self.db.exec(statement)
+        tags = result.all()
         
         # Get total count
-        count_query = text("SELECT COUNT(*) FROM tags")
-        total = self.db.exec(count_query).first()[0]
-        
-        # Convert to Tag objects with proper enum handling
-        tags = []
-        for row in tags_data:
-            # Convert string category to TagCategory enum
-            from src.models.tag import TagCategory
-            category_enum = TagCategory(row[4])  # Convert string to enum
-            
-            # Create Tag object manually to avoid enum validation
-            tag = Tag(
-                id=row[0],
-                uuid=row[1],
-                name=row[2],
-                recipe_counter=row[3],
-                category=category_enum,  # Use the enum
-                created_at=row[5],
-                updated_at=row[6]
-            )
-            tags.append(tag)
+        count_statement = select(Tag)
+        total = len(self.db.exec(count_statement).all())
         
         return {
             "tags": tags,
@@ -217,58 +107,23 @@ class TagService:
         Returns:
             Dictionary with tags, total count, limit, and offset
         """
-        # Use raw SQL to avoid enum validation issues
-        from sqlalchemy import text
-        
         # Build base query
-        base_query = "SELECT id, uuid, name, recipe_counter, category, created_at, updated_at FROM tags"
-        count_query = "SELECT COUNT(*) FROM tags"
+        statement = select(Tag)
         
-        # Build filters
-        filters = []
-        params = {}
-        
+        # Add filters
         if name:
             normalized_name = Tag.normalize_name(name)
-            filters.append("name ILIKE :name")
-            params["name"] = f"%{normalized_name}%"
+            statement = statement.where(Tag.name.ilike(f"%{normalized_name}%"))
         
-        # Apply filters if any
-        if filters:
-            where_clause = " WHERE " + " AND ".join(filters)
-            base_query += where_clause
-            count_query += where_clause
+        # Get total count first
+        count_statement = statement
+        total_tags = self.db.exec(count_statement).all()
+        total = len(total_tags)
         
         # Add pagination and ordering
-        base_query += " ORDER BY name LIMIT :limit OFFSET :offset"
-        params["limit"] = limit
-        params["offset"] = offset
-        
-        # Execute queries
-        result = self.db.exec(text(base_query), params=params)
-        tags_data = result.all()
-        
-        total_result = self.db.exec(text(count_query), params={k: v for k, v in params.items() if k != "limit" and k != "offset"})
-        total = total_result.first()[0]
-        
-        # Convert to Tag objects with proper enum handling
-        tags = []
-        for row in tags_data:
-            # Convert string category to TagCategory enum
-            from src.models.tag import TagCategory
-            category_enum = TagCategory(row[4])  # Convert string to enum
-            
-            # Create Tag object manually to avoid enum validation
-            tag = Tag(
-                id=row[0],
-                uuid=row[1],
-                name=row[2],
-                recipe_counter=row[3],
-                category=category_enum,  # Use the enum
-                created_at=row[5],
-                updated_at=row[6]
-            )
-            tags.append(tag)
+        statement = statement.order_by(Tag.name).offset(offset).limit(limit)
+        result = self.db.exec(statement)
+        tags = result.all()
         
         return {
             "tags": tags,
@@ -283,7 +138,7 @@ class TagService:
         
         Args:
             name: Tag name (will be normalized)
-            category: Optional category for the tag
+            category: Category for the tag (will be converted to string value)
             
         Returns:
             Created Tag object
@@ -299,11 +154,11 @@ class TagService:
         if existing_tag:
             raise ValueError(f"Tag '{normalized_name}' already exists")
         
-        # Create new tag
+        # Create new tag with string category value
         current_time_utc = datetime.now(timezone.utc)
         new_tag = Tag(
             name=normalized_name,
-            category=category,
+            category=category.value,  # Use the string value
             created_at=current_time_utc,
             updated_at=current_time_utc,
             uuid=str(uuid.uuid4())
@@ -324,7 +179,7 @@ class TagService:
         Args:
             tag_id: The ID of the tag to update
             name: New tag name (will be normalized)
-            category: New category for the tag (optional)
+            category: New category for the tag
             
         Returns:
             Updated Tag object
@@ -345,9 +200,9 @@ class TagService:
         if name_check and name_check.id != tag_id:
             raise ValueError(f"Tag name '{normalized_name}' already exists")
         
-        # Update the tag
+        # Update the tag with string category value
         existing_tag.name = normalized_name
-        existing_tag.category = category
+        existing_tag.category = category.value  # Use the string value
         existing_tag.updated_at = datetime.now(timezone.utc)
         
         # Flush to persist changes and commit
@@ -395,39 +250,9 @@ class TagService:
         Returns:
             List of Tag objects associated with the recipe
         """
-        # Use raw SQL to avoid enum validation issues
-        from sqlalchemy import text
-        
-        query = text("""
-            SELECT t.id, t.uuid, t.name, t.recipe_counter, t.category, t.created_at, t.updated_at 
-            FROM tags t
-            JOIN recipe_tags rt ON t.id = rt.tag_id
-            WHERE rt.recipe_id = :recipe_id
-            ORDER BY t.name
-        """)
-        result = self.db.exec(query, params={"recipe_id": recipe_id})
-        tags_data = result.all()
-        
-        # Convert to Tag objects with proper enum handling
-        tags = []
-        for row in tags_data:
-            # Convert string category to TagCategory enum
-            from src.models.tag import TagCategory
-            category_enum = TagCategory(row[4])  # Convert string to enum
-            
-            # Create Tag object manually to avoid enum validation
-            tag = Tag(
-                id=row[0],
-                uuid=row[1],
-                name=row[2],
-                recipe_counter=row[3],
-                category=category_enum,  # Use the enum
-                created_at=row[5],
-                updated_at=row[6]
-            )
-            tags.append(tag)
-        
-        return tags
+        statement = select(Tag).join(RecipeTag).where(RecipeTag.recipe_id == recipe_id).order_by(Tag.name)
+        result = self.db.exec(statement)
+        return result.all()
     
     def _add_tag_to_recipe_internal(self, recipe_id: int, tag_id: int) -> RecipeTag:
         """
@@ -472,20 +297,13 @@ class TagService:
         
         self.db.add(recipe_tag)
         
-        # Increment the tag's recipe counter directly in the database
-        from sqlalchemy import text
-        update_query = text("""
-            UPDATE tags 
-            SET recipe_counter = recipe_counter + 1, updated_at = :updated_at 
-            WHERE id = :tag_id
-        """)
-        self.db.exec(update_query, params={"tag_id": tag_id, "updated_at": current_time_utc})
+        # Increment the tag's recipe counter
+        tag.recipe_counter += 1
+        tag.updated_at = current_time_utc
         
         self.db.flush()
         
         return recipe_tag
-    
-
     
     def _remove_tag_from_recipe_internal(self, recipe_id: int, tag_id: int) -> None:
         """
@@ -511,14 +329,11 @@ class TagService:
         if not association:
             raise ValueError("Tag is not associated with this recipe")
         
-        # Decrement the tag's recipe counter directly in the database
-        from sqlalchemy import text
-        update_query = text("""
-            UPDATE tags 
-            SET recipe_counter = GREATEST(recipe_counter - 1, 0), updated_at = :updated_at 
-            WHERE id = :tag_id
-        """)
-        self.db.exec(update_query, params={"tag_id": tag_id, "updated_at": datetime.now(timezone.utc)})
+        # Get the tag and decrement its counter
+        tag = self.get_tag(tag_id)
+        if tag:
+            tag.recipe_counter = max(0, tag.recipe_counter - 1)
+            tag.updated_at = datetime.now(timezone.utc)
         
         # Delete the association
         self.db.delete(association)
@@ -534,37 +349,9 @@ class TagService:
         Returns:
             List of dictionaries with tag info and usage count
         """
-        # Use raw SQL to avoid enum validation issues
-        from sqlalchemy import text
-        
-        # Get tags ordered by recipe_counter (descending) and then by name
-        query = text("""
-            SELECT id, uuid, name, recipe_counter, category, created_at, updated_at 
-            FROM tags 
-            ORDER BY recipe_counter DESC, name 
-            LIMIT :limit
-        """)
-        result = self.db.exec(query, params={"limit": limit})
-        tags_data = result.all()
-        
-        # Convert to Tag objects with proper enum handling
-        tags = []
-        for row in tags_data:
-            # Convert string category to TagCategory enum
-            from src.models.tag import TagCategory
-            category_enum = TagCategory(row[4])  # Convert string to enum
-            
-            # Create Tag object manually to avoid enum validation
-            tag = Tag(
-                id=row[0],
-                uuid=row[1],
-                name=row[2],
-                recipe_counter=row[3],
-                category=category_enum,  # Use the enum
-                created_at=row[5],
-                updated_at=row[6]
-            )
-            tags.append(tag)
+        statement = select(Tag).order_by(Tag.recipe_counter.desc(), Tag.name).limit(limit)
+        result = self.db.exec(statement)
+        tags = result.all()
         
         return [{"tag": tag, "usage_count": tag.recipe_counter} for tag in tags]
 
@@ -579,40 +366,17 @@ class TagService:
         Returns:
             Dictionary with category names as keys and lists of tags as values
         """
-        # Use raw SQL to avoid enum validation issues
-        from sqlalchemy import text
-        
-        # Get all tags with categories
-        query = text("""
-            SELECT id, uuid, name, recipe_counter, category, created_at, updated_at 
-            FROM tags 
-            ORDER BY category, name 
-            LIMIT :limit OFFSET :offset
-        """)
-        result = self.db.exec(query, params={"limit": limit, "offset": offset})
-        tags_data = result.all()
+        statement = select(Tag).order_by(Tag.category, Tag.name).limit(limit).offset(offset)
+        result = self.db.exec(statement)
+        tags = result.all()
         
         # Group tags by category
         grouped_tags = {}
-        for row in tags_data:
-            # Convert string category to TagCategory enum
-            from src.models.tag import TagCategory
-            category_enum = TagCategory(row[4])  # Convert string to enum
-            
-            # Create Tag object manually to avoid enum validation
-            tag = Tag(
-                id=row[0],
-                uuid=row[1],
-                name=row[2],
-                recipe_counter=row[3],
-                category=category_enum,  # Use the enum
-                created_at=row[5],
-                updated_at=row[6]
-            )
-            
-            if row[4] not in grouped_tags:
-                grouped_tags[row[4]] = []
-            grouped_tags[row[4]].append(tag)
+        for tag in tags:
+            category = tag.category  # Already a string value
+            if category not in grouped_tags:
+                grouped_tags[category] = []
+            grouped_tags[category].append(tag)
         
         return grouped_tags
 
@@ -627,46 +391,19 @@ class TagService:
         Returns:
             Dictionary with tags, total count, limit, offset, and grouped structure
         """
-        # Use raw SQL to avoid enum validation issues
-        from sqlalchemy import text
-        
         # Get tags for current page
-        query = text("""
-            SELECT id, uuid, name, recipe_counter, category, created_at, updated_at 
-            FROM tags 
-            ORDER BY category, name 
-            LIMIT :limit OFFSET :offset
-        """)
-        result = self.db.exec(query, params={"limit": limit, "offset": offset})
-        tags_data = result.all()
+        statement = select(Tag).order_by(Tag.category, Tag.name).limit(limit).offset(offset)
+        result = self.db.exec(statement)
+        tags = result.all()
         
         # Get total count
-        count_query = text("SELECT COUNT(*) FROM tags")
-        total = self.db.exec(count_query).first()[0]
+        count_statement = select(Tag)
+        total = len(self.db.exec(count_statement).all())
         
-        # Convert to Tag objects (without category validation)
-        tags = []
+        # Group tags by category
         grouped_tags = {}
-        
-        for row in tags_data:
-            # Convert string category to TagCategory enum
-            from src.models.tag import TagCategory
-            category_enum = TagCategory(row[4])  # Convert string to enum
-            
-            # Create Tag object manually to avoid enum validation
-            tag = Tag(
-                id=row[0],
-                uuid=row[1],
-                name=row[2],
-                recipe_counter=row[3],
-                category=category_enum,  # Use the enum
-                created_at=row[5],
-                updated_at=row[6]
-            )
-            tags.append(tag)
-            
-            # Group by category
-            category = row[4]  # Use string for grouping
+        for tag in tags:
+            category = tag.category  # Already a string value
             if category not in grouped_tags:
                 grouped_tags[category] = []
             grouped_tags[category].append(tag)
@@ -719,8 +456,8 @@ class TagService:
         }
         
         # Normalize and deduplicate input lists
-        add_tag_ids_set=set(add_tag_ids or [])
-        remove_tag_ids_set=set(remove_tag_ids or [])
+        add_tag_ids_set = set(add_tag_ids or [])
+        remove_tag_ids_set = set(remove_tag_ids or [])
 
         add_tag_ids = list(add_tag_ids_set)
         remove_tag_ids = list(remove_tag_ids_set)
@@ -776,9 +513,6 @@ class TagService:
             # Flush and commit the transaction
             self.db.flush()
             self.db.commit()
-            
-            # Note: We don't refresh the tags since they're not persistent in the session
-            # The tags are created from raw SQL and don't need to be refreshed
             
             # Get updated current tags
             result["current_tags"] = self.get_tags_for_recipe(recipe_id)

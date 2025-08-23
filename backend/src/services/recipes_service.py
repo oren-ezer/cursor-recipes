@@ -45,7 +45,7 @@ class RecipeService:
             tags = self.tag_service.get_tags_for_recipe(recipe.id)
         
         recipe_dict["tags"] = [
-            {"id": tag.id, "name": tag.name, "category": tag.category.value}
+            {"id": tag.id, "name": tag.name, "category": tag.category}
             for tag in tags
         ]
         
