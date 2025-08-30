@@ -1,0 +1,461 @@
+[
+  {
+    "created_at": "2025-08-08T21:12:08.149371",
+    "updated_at": "2025-08-08T21:12:08.149381",
+    "title": "Classic Margherita Pizza",
+    "ingredients": [
+      {
+        "name": "Pizza dough",
+        "amount": "1 ball"
+      },
+      {
+        "name": "Fresh mozzarella",
+        "amount": "200g"
+      },
+      {
+        "name": "Fresh basil leaves",
+        "amount": "1 bunch"
+      },
+      {
+        "name": "Tomato sauce",
+        "amount": "1 cup"
+      },
+      {
+        "name": "Olive oil",
+        "amount": "2 tbsp"
+      }
+    ],
+    "preparation_time": 20,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "f14089a8-30d3-4523-8800-e95796c24589",
+    "uuid": "d48d236e-fd3e-4c80-a7a7-dab295dd0e2f",
+    "id": 1,
+    "description": "A simple and delicious traditional Italian pizza",
+    "instructions": [
+      "Preheat oven to 450\u00b0F (230\u00b0C)",
+      "Roll out the pizza dough",
+      "Spread tomato sauce evenly",
+      "Add torn mozzarella pieces",
+      "Bake for 12-15 minutes",
+      "Add fresh basil leaves and drizzle with olive oil"
+    ],
+    "cooking_time": 15,
+    "difficulty_level": "Easy",
+    "image_url": null
+  },
+  {
+    "created_at": "2025-08-08T21:12:08.150077",
+    "updated_at": "2025-08-08T21:12:08.150082",
+    "title": "Spaghetti Carbonara",
+    "ingredients": [
+      {
+        "name": "Spaghetti",
+        "amount": "400g"
+      },
+      {
+        "name": "Pancetta",
+        "amount": "150g"
+      },
+      {
+        "name": "Eggs",
+        "amount": "4"
+      },
+      {
+        "name": "Pecorino Romano",
+        "amount": "100g"
+      },
+      {
+        "name": "Black pepper",
+        "amount": "2 tsp"
+      }
+    ],
+    "preparation_time": 15,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "46f8cf35-2c0d-4f15-b9d7-6423c285acc0",
+    "uuid": "f4f46517-1ffd-454c-8e74-a3c3ad6ef0f2",
+    "id": 2,
+    "description": "Classic Roman pasta dish with eggs, cheese, pancetta, and black pepper",
+    "instructions": [
+      "Cook pasta in salted water",
+      "Fry pancetta until crispy",
+      "Mix eggs, cheese, and pepper",
+      "Combine hot pasta with egg mixture",
+      "Add pancetta and serve immediately"
+    ],
+    "cooking_time": 15,
+    "difficulty_level": "Medium",
+    "image_url": null
+  },
+  {
+    "created_at": "2025-08-08T21:12:08.150934",
+    "updated_at": "2025-08-08T21:12:08.150938",
+    "title": "Risotto ai Funghi",
+    "ingredients": [
+      {
+        "name": "Arborio rice",
+        "amount": "300g"
+      },
+      {
+        "name": "Mixed mushrooms",
+        "amount": "400g"
+      },
+      {
+        "name": "White wine",
+        "amount": "150ml"
+      },
+      {
+        "name": "Parmesan",
+        "amount": "100g"
+      },
+      {
+        "name": "Butter",
+        "amount": "50g"
+      }
+    ],
+    "preparation_time": 20,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "67e330a3-77cf-42e9-bd80-09984f5698f4",
+    "uuid": "b193cfd6-0857-4edc-b35c-57577c570aaf",
+    "id": 3,
+    "description": "Creamy Italian mushroom risotto",
+    "instructions": [
+      "Saut\u00e9 mushrooms",
+      "Toast rice with onions",
+      "Add wine and stir",
+      "Gradually add hot stock",
+      "Finish with butter and cheese"
+    ],
+    "cooking_time": 25,
+    "difficulty_level": "Hard",
+    "image_url": null
+  },
+  {
+    "created_at": "2025-08-08T21:12:08.150996",
+    "updated_at": "2025-08-08T21:12:08.150999",
+    "title": "Vegetable Stir Fry",
+    "ingredients": [
+      {
+        "name": "Broccoli",
+        "amount": "2 cups"
+      },
+      {
+        "name": "Carrots",
+        "amount": "2 medium"
+      },
+      {
+        "name": "Bell peppers",
+        "amount": "2"
+      },
+      {
+        "name": "Soy sauce",
+        "amount": "1/4 cup"
+      },
+      {
+        "name": "Ginger",
+        "amount": "1 tbsp"
+      },
+      {
+        "name": "Garlic",
+        "amount": "3 cloves"
+      }
+    ],
+    "preparation_time": 15,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "f14089a8-30d3-4523-8800-e95796c24589",
+    "uuid": "1772aefe-8f3d-48fa-8b7c-62ca6776e6b6",
+    "id": 4,
+    "description": "Quick and healthy vegetable stir fry",
+    "instructions": [
+      "Cut all vegetables into bite-sized pieces",
+      "Heat oil in a large wok or pan",
+      "Add garlic and ginger, stir for 30 seconds",
+      "Add vegetables, stir-fry for 5-7 minutes",
+      "Add soy sauce and cook for 1 more minute"
+    ],
+    "cooking_time": 10,
+    "difficulty_level": "Easy",
+    "image_url": null
+  },
+  {
+    "created_at": "2025-08-08T21:12:08.151108",
+    "updated_at": "2025-08-08T21:12:08.151112",
+    "title": "Sushi Roll",
+    "ingredients": [
+      {
+        "name": "Sushi rice",
+        "amount": "2 cups"
+      },
+      {
+        "name": "Nori sheets",
+        "amount": "4"
+      },
+      {
+        "name": "Crab meat",
+        "amount": "200g"
+      },
+      {
+        "name": "Avocado",
+        "amount": "1"
+      },
+      {
+        "name": "Cucumber",
+        "amount": "1"
+      }
+    ],
+    "preparation_time": 30,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "67e330a3-77cf-42e9-bd80-09984f5698f4",
+    "uuid": "b7074a96-053c-4c91-98e1-fb9447cce959",
+    "id": 6,
+    "description": "Basic California roll",
+    "instructions": [
+      "Cook and season rice",
+      "Place nori on bamboo mat",
+      "Spread rice evenly",
+      "Add fillings",
+      "Roll tightly and slice"
+    ],
+    "cooking_time": 20,
+    "difficulty_level": "Hard",
+    "image_url": null
+  },
+  {
+    "created_at": "2025-08-08T21:12:08.151161",
+    "updated_at": "2025-08-08T21:12:08.151164",
+    "title": "Chicken Enchiladas",
+    "ingredients": [
+      {
+        "name": "Corn tortillas",
+        "amount": "12"
+      },
+      {
+        "name": "Chicken breast",
+        "amount": "500g"
+      },
+      {
+        "name": "Enchilada sauce",
+        "amount": "2 cups"
+      },
+      {
+        "name": "Cheese",
+        "amount": "200g"
+      },
+      {
+        "name": "Onion",
+        "amount": "1"
+      }
+    ],
+    "preparation_time": 25,
+    "servings": 6,
+    "is_public": true,
+    "user_id": "f14089a8-30d3-4523-8800-e95796c24589",
+    "uuid": "f98be3c3-baef-4064-ace0-f9702ee1cfdb",
+    "id": 7,
+    "description": "Traditional Mexican enchiladas with red sauce",
+    "instructions": [
+      "Cook and shred chicken",
+      "Dip tortillas in sauce",
+      "Fill with chicken and cheese",
+      "Roll and place in dish",
+      "Top with sauce and bake"
+    ],
+    "cooking_time": 30,
+    "difficulty_level": "Medium",
+    "image_url": null
+  },
+  {
+    "created_at": "2025-08-08T21:12:08.151260",
+    "updated_at": "2025-08-08T21:12:08.151263",
+    "title": "Chiles Rellenos",
+    "ingredients": [
+      {
+        "name": "Poblano peppers",
+        "amount": "6"
+      },
+      {
+        "name": "Cheese",
+        "amount": "300g"
+      },
+      {
+        "name": "Eggs",
+        "amount": "4"
+      },
+      {
+        "name": "Flour",
+        "amount": "1 cup"
+      },
+      {
+        "name": "Tomato sauce",
+        "amount": "2 cups"
+      }
+    ],
+    "preparation_time": 30,
+    "servings": 6,
+    "is_public": true,
+    "user_id": "67e330a3-77cf-42e9-bd80-09984f5698f4",
+    "uuid": "f0629fc9-ba3e-42ba-ae1f-c34b89c89d1f",
+    "id": 9,
+    "description": "Stuffed poblano peppers",
+    "instructions": [
+      "Roast and peel peppers",
+      "Stuff with cheese",
+      "Batter with egg mixture",
+      "Fry until golden",
+      "Serve with tomato sauce"
+    ],
+    "cooking_time": 20,
+    "difficulty_level": "Hard",
+    "image_url": null
+  },
+  {
+    "created_at": "2025-08-08T21:12:08.151309",
+    "updated_at": "2025-08-08T21:12:08.151312",
+    "title": "Chocolate Chip Cookies",
+    "ingredients": [
+      {
+        "name": "Butter",
+        "amount": "1 cup"
+      },
+      {
+        "name": "Sugar",
+        "amount": "3/4 cup"
+      },
+      {
+        "name": "Brown sugar",
+        "amount": "3/4 cup"
+      },
+      {
+        "name": "Eggs",
+        "amount": "2"
+      },
+      {
+        "name": "Vanilla extract",
+        "amount": "1 tsp"
+      },
+      {
+        "name": "Flour",
+        "amount": "2 1/4 cups"
+      },
+      {
+        "name": "Chocolate chips",
+        "amount": "2 cups"
+      }
+    ],
+    "preparation_time": 15,
+    "servings": 24,
+    "is_public": true,
+    "user_id": "f14089a8-30d3-4523-8800-e95796c24589",
+    "uuid": "6e4a7e07-6b0a-4d2e-9e71-5359e4b2cb58",
+    "id": 10,
+    "description": "Classic homemade chocolate chip cookies",
+    "instructions": [
+      "Preheat oven to 375\u00b0F (190\u00b0C)",
+      "Cream butter and sugars",
+      "Add eggs and vanilla",
+      "Mix in flour and chocolate chips",
+      "Drop rounded tablespoons onto baking sheet",
+      "Bake for 9-11 minutes"
+    ],
+    "cooking_time": 10,
+    "difficulty_level": "Easy",
+    "image_url": null
+  },
+  {
+    "created_at": "2025-08-08T21:12:08.151358",
+    "updated_at": "2025-08-08T21:12:08.151362",
+    "title": "Mac and Cheese",
+    "ingredients": [
+      {
+        "name": "Macaroni",
+        "amount": "500g"
+      },
+      {
+        "name": "Cheddar cheese",
+        "amount": "300g"
+      },
+      {
+        "name": "Milk",
+        "amount": "2 cups"
+      },
+      {
+        "name": "Butter",
+        "amount": "4 tbsp"
+      },
+      {
+        "name": "Flour",
+        "amount": "4 tbsp"
+      }
+    ],
+    "preparation_time": 20,
+    "servings": 6,
+    "is_public": true,
+    "user_id": "46f8cf35-2c0d-4f15-b9d7-6423c285acc0",
+    "uuid": "95cfd019-9b97-47f8-a154-e6b5add072f4",
+    "id": 11,
+    "description": "Creamy homemade macaroni and cheese",
+    "instructions": [
+      "Cook macaroni",
+      "Make cheese sauce",
+      "Combine with pasta",
+      "Top with breadcrumbs",
+      "Bake until golden"
+    ],
+    "cooking_time": 30,
+    "difficulty_level": "Medium",
+    "image_url": null
+  },
+  {
+    "created_at": "2025-08-08T21:12:08.151408",
+    "updated_at": "2025-08-25T22:53:12.170339",
+    "title": "Apple Pie with cream",
+    "ingredients": [
+      {
+        "name": "Pie crust",
+        "amount": "2"
+      },
+      {
+        "name": "Apples",
+        "amount": "6 large"
+      },
+      {
+        "name": "Sugar",
+        "amount": "3/4 cup"
+      },
+      {
+        "name": "Cinnamon",
+        "amount": "2 tsp"
+      },
+      {
+        "name": "Butter",
+        "amount": "2 tbsp"
+      },
+      {
+        "name": "cream",
+        "amount": "1 cup"
+      }
+    ],
+    "preparation_time": 45,
+    "servings": 9,
+    "is_public": true,
+    "user_id": "0ce8963e-65e1-4ee2-9ac6-2eeb31df9620",
+    "uuid": "75a4caf6-a3a1-403b-bce8-92b7f915b15a",
+    "id": 12,
+    "description": "Classic American apple pie",
+    "instructions": [
+      "Prepare pie crust",
+      "Slice and season apples",
+      "Fill pie shell",
+      "Add top crust",
+      "Bake until golden",
+      "cool down and serve warm with whiped cream"
+    ],
+    "cooking_time": 60,
+    "difficulty_level": "Medium",
+    "image_url": null
+  }
+]

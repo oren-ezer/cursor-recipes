@@ -1,0 +1,68 @@
+[
+  {
+    "hashed_password": "$2b$12$2xuVZFS6NjhX9KbxXspR3ehsqJDu6zaAXu8OC6iAUbWOv6187ykw.",
+    "created_at": "2025-08-13T06:43:47.632970",
+    "updated_at": "2025-08-13T10:05:34.340243",
+    "is_active": true,
+    "uuid": "e89fb6aa-3ce1-4030-a114-777aa25da167",
+    "id": 59,
+    "email": "michaledree@gmail.com",
+    "full_name": "Michal Edree Jacobson",
+    "is_superuser": false
+  },
+  {
+    "hashed_password": "$2b$12$/0qgngnCkzSE51dDJsosM.7IR/Kmddw8Ia6QeJaj.TkyhZN6jagaC",
+    "created_at": "2025-08-08T15:02:02.382898",
+    "updated_at": "2025-08-08T15:02:02.382898",
+    "is_active": true,
+    "uuid": "0ce8963e-65e1-4ee2-9ac6-2eeb31df9620",
+    "id": 5,
+    "email": "orenezer@gmail.com",
+    "full_name": "oren ezer",
+    "is_superuser": false
+  },
+  {
+    "hashed_password": "$2b$12$bAvUy8.gG44mh24YGEu/O.eurBnyMcIYOQzWP3v8d33L9VUtCPWDC",
+    "created_at": "2025-08-08T15:12:56.832400",
+    "updated_at": "2025-08-08T15:12:56.832400",
+    "is_active": true,
+    "uuid": "f14089a8-30d3-4523-8800-e95796c24589",
+    "id": 6,
+    "email": "test0@example.com",
+    "full_name": "testuser0",
+    "is_superuser": false
+  },
+  {
+    "hashed_password": "$2b$12$zeGzuk9oVbxHHzJ2WLAUoOk5jel2sKHGiQ92ytWXqsCD4L8HJ2dTC",
+    "created_at": "2025-08-08T15:12:57.061959",
+    "updated_at": "2025-08-08T15:12:57.061959",
+    "is_active": true,
+    "uuid": "46f8cf35-2c0d-4f15-b9d7-6423c285acc0",
+    "id": 7,
+    "email": "test1@example.com",
+    "full_name": "testuser1",
+    "is_superuser": false
+  },
+  {
+    "hashed_password": "$2b$12$S0YcB5yXOuPgQkrVqKqS4u3YdH7PAId3QrMw1f9VVP6hPzk1W6bma",
+    "created_at": "2025-08-08T15:12:57.269686",
+    "updated_at": "2025-08-08T15:12:57.269686",
+    "is_active": true,
+    "uuid": "67e330a3-77cf-42e9-bd80-09984f5698f4",
+    "id": 8,
+    "email": "test2@example.com",
+    "full_name": "testuser2",
+    "is_superuser": false
+  },
+  {
+    "hashed_password": "$2b$12$Dif4pr8ST.Dc2.vvq7.9z.c6X0Sut.btIW9i319z.iiV8Xje1Isf6",
+    "created_at": "2025-08-22T18:14:08.150678",
+    "updated_at": "2025-08-22T18:14:08.150678",
+    "is_active": true,
+    "uuid": "d6a0170a-377f-4add-b5b7-ec2501f4b0ba",
+    "id": 220,
+    "email": "yanivezer1@gmail.com",
+    "full_name": "Yaniv Ezer",
+    "is_superuser": false
+  }
+]
