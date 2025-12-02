@@ -181,4 +181,4 @@ cython_debug/
 .DS_Store
 
 # Backend scripts
-backend/scripts/
+#backend/scripts/

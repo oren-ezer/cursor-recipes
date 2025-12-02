@@ -91,6 +91,7 @@ Focus: Recipe sharing and tags
 Focus: Add AI based capabilities
 
 ### Backend (P1)
+- #1000 refactor openai lib upgrade (1.101.0 → 2.8.1 , major version - **BREAKING CHANGES**)
 - #1001 Design how to add AI related endpoint/s (as a separate endpoint/service or within existing ones?)
 - #1002 detailed planning for connecting to LLM capabilities - authentication? switching between models, data aggregation for prompt, data parsing from response, etc.
 - #1003 - spike on AI capabilities with separate code base for the backend
