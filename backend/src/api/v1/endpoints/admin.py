@@ -97,6 +97,7 @@ class TagResponse(BaseModel):
     uuid: str
     name: str
     recipe_counter: int
+    category: str
     created_at: datetime
     updated_at: datetime
 

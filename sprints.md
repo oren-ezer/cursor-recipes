@@ -66,6 +66,7 @@ Focus: Recipe sharing and tags
 ### Backend (P0)
 - #9 Create database migration for Tag and RecipeTag models - DONE
 - #109 Implement Tag service - DONE
+- #110 add admin UI?
 - #110 Add the Tag endpoints (with separation to recipe endpoint and admin endpoint) - DONE
 - #30 Implement share recipe endpoint - 
 - #31 Implement unshare recipe endpoint -  
@@ -271,3 +272,7 @@ Nice to have features that can be implemented as needed:
 - Optional features frontend depends on optional features backend
 - Testing should be implemented alongside feature development
 - Security measures should be implemented before deployment
+
+## Bugs
+- Dont show Edit/Delete buttons if the recipe is not mine
+- DB down or not connectivity doesn't reflect well on the UI
