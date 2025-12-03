@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient, ApiError } from '../lib/api-client';
-import type { Recipe } from '../lib/api-client';
+import type { Recipe, Tag } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import RecipeCard from '../components/RecipeCard';
+import TagSelector from '../components/ui/tag-selector';
 
 const RecipeListPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -16,6 +17,7 @@ const RecipeListPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
 
   useEffect(() => {
     const fetchRecipes = async () => {
@@ -37,10 +39,20 @@ const RecipeListPage: React.FC = () => {
     fetchRecipes();
   }, []);
 
-  const filteredRecipes = recipes.filter(recipe =>
-    recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    recipe.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleLoadTags = async () => {
+    return await apiClient.getAllTags();
+  };
+
+  const filteredRecipes = recipes.filter(recipe => {
+    const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesTags = selectedTags.length === 0 || selectedTags.every(tag => 
+      recipe.tags && recipe.tags.some(recipeTag => recipeTag.id === tag.id)
+    );
+
+    return matchesSearch && matchesTags;
+  });
 
   if (isLoading) {
     return (
@@ -61,18 +73,28 @@ const RecipeListPage: React.FC = () => {
         description="Discover and explore delicious recipes from our community."
       >
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div className="flex-1 max-w-sm">
-              <Input
-                type="search"
-                placeholder="Search recipes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full"
-              />
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
+              <div className="w-full sm:w-72">
+                <Input
+                  type="search"
+                  placeholder="Search recipes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <TagSelector
+                  value={selectedTags}
+                  onChange={setSelectedTags}
+                  placeholder="Filter by tags..."
+                  onLoadTags={handleLoadTags}
+                />
+              </div>
             </div>
             {isAuthenticated && (
-              <Button onClick={() => navigate('/recipes/new')}>
+              <Button onClick={() => navigate('/recipes/new')} className="shrink-0">
                 Create Recipe
               </Button>
             )}

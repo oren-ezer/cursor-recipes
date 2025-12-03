@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // import { useAuth } from '../contexts/AuthContext'; // Not used yet
 import { apiClient, ApiError } from '../lib/api-client';
-import type { Recipe } from '../lib/api-client';
+import type { Recipe, Tag } from '../lib/api-client';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import RecipeCard from '../components/RecipeCard';
 import ConfirmationModal from '../components/ui/confirmation-modal';
 import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
+import TagSelector from '../components/ui/tag-selector';
 
 const MyRecipesPage: React.FC = () => {
   // const { isAuthenticated } = useAuth(); // Not used yet
@@ -17,6 +18,7 @@ const MyRecipesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
 
   // Use the consistent deletion hook
   const {
@@ -56,12 +58,22 @@ const MyRecipesPage: React.FC = () => {
     fetchMyRecipes();
   }, []);
 
+  const handleLoadTags = async () => {
+    return await apiClient.getAllTags();
+  };
+
   const handleDeleteRecipe = handleDeleteClick;
 
-  const filteredRecipes = recipes.filter(recipe =>
-    recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    recipe.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRecipes = recipes.filter(recipe => {
+    const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesTags = selectedTags.length === 0 || selectedTags.every(tag => 
+      recipe.tags && recipe.tags.some(recipeTag => recipeTag.id === tag.id)
+    );
+
+    return matchesSearch && matchesTags;
+  });
 
   if (isLoading) {
     return (
@@ -79,17 +91,27 @@ const MyRecipesPage: React.FC = () => {
       description="Manage and organize your personal recipe collection."
     >
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="flex-1 max-w-sm">
-            <Input
-              type="search"
-              placeholder="Search your recipes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
-            />
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
+          <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
+            <div className="w-full sm:w-72">
+              <Input
+                type="search"
+                placeholder="Search your recipes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <TagSelector
+                value={selectedTags}
+                onChange={setSelectedTags}
+                placeholder="Filter by tags..."
+                onLoadTags={handleLoadTags}
+              />
+            </div>
           </div>
-          <Button onClick={() => navigate('/recipes/new')}>
+          <Button onClick={() => navigate('/recipes/new')} className="shrink-0">
             Create Recipe
           </Button>
         </div>
