@@ -33,7 +33,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 About
               </Link>
               <Link to="/recipes" className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-md text-sm font-medium">
-                Recipes
+                View all recipes
               </Link>
               {isAuthenticated ? (
                 <>
