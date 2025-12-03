@@ -15,9 +15,7 @@ const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const navigate = useNavigate();
   
-
-  
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -218,7 +216,7 @@ const RecipeDetailPage: React.FC = () => {
     );
   }
 
-  const isOwner = isAuthenticated && recipe.user_id; // In a real app, you'd compare with current user ID
+  const isOwner = isAuthenticated && user && recipe.user_id && String(user.id) === String(recipe.user_id);
 
   return (
     <MainLayout>
