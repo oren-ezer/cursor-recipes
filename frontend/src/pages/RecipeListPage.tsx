@@ -76,13 +76,13 @@ const RecipeListPage: React.FC = () => {
           <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
             <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
               <div className="w-full sm:w-72">
-                <Input
-                  type="search"
-                  placeholder="Search recipes..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full"
-                />
+              <Input
+                type="search"
+                placeholder="Search recipes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
+              />
               </div>
               <div className="flex-1 min-w-[200px]">
                 <TagSelector

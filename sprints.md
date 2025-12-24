@@ -39,7 +39,7 @@ Focus: Basic infrastructure and core backend setup
 Focus: Basic recipe management functionality
 
 ### Backend (P0)
-- #8 Create database migration for Recipe model - PARTIALLY DONE
+- #8 Create database migration for Recipe model - DONE
 - #21 Implement create recipe endpoint - DONE
 - #22 Implement get single recipe endpoint - DONE
 - #23 Implement update recipe endpoint - DONE
@@ -61,16 +61,12 @@ Focus: Basic recipe management functionality
 - #102 Write tests for user registration endpoint - DONE
 
 ## Sprint 3 - Recipe Enhancement (Weeks 5-6)
-Focus: Recipe sharing and tags
+Focus: Recipe and tags
 
 ### Backend (P0)
 - #9 Create database migration for Tag and RecipeTag models - DONE
 - #109 Implement Tag service - DONE
-- #110 add admin UI?
 - #110 Add the Tag endpoints (with separation to recipe endpoint and admin endpoint) - DONE
-- #30 Implement share recipe endpoint - 
-- #31 Implement unshare recipe endpoint -  
-- #32 Create shared recipes listing endpoint - 
 - #35 Implement create tag endpoint - DONE
 - #36 Implement get all tags endpoint - DONE
 - #37 Implement add tags to recipe endpoint - DONE
@@ -80,13 +76,28 @@ Focus: Recipe sharing and tags
 - #60 Implement recipe creation form - DONE
 - #61 Create recipe edit form component - DONE
 - #63 Create tag selection component - DONE
-- #65 Create shared recipes view - 
 
 ### Security (P1)
 - #89 Add CSRF protection
 - #90 Configure secure headers - DONE
 - #91 Implement input sanitization
-- #
+
+## Sprint 4 - User Experience (Weeks 7-8)
+Focus: Search, filters, and user profile
+
+### Backend (P1)
+- #25 Implement list recipes endpoint with pagination - DONE
+- #26 Add recipe search functionality by title - DONE
+- #27 Add recipe filtering by tags - DONE
+
+### Frontend (P1)
+- #69 Create search bar component - DONE 
+- #70 Implement tag filter component - DONE
+- #71 Create search results page - DONE
+
+### Testing (P1)
+- #85 Write frontend component unit tests - DONE
+- #86 Create end-to-end testing suite - DONE
 
 ## Sprint AI - Special AI Sprint
 Focus: Add AI based capabilities
@@ -100,34 +111,15 @@ Focus: Add AI based capabilities
 - #1005 Add recipe search based on AI prompt coming from semi-structured user input
 - #1006 Add Recipe from pic/document based on AI capabilities (with/without OCR, with/withoput translation)
 - #1007 add AI based Nutrition facts for recipes
+- #110 add admin UI for AI and other endpoints
 
 ### Frontend (P1)
 - #1010 Enhance Tag capabilities for AI suggestions on what to add/remove
 - #1011 Enhance Recipe search capabilities based on AI prompt
 - #1012 Add pic based recipe addition using AI model for understanding the recipe
+- #1013 Render the recipe's pic if added
 
 
-## Sprint 4 - User Experience (Weeks 7-8)
-Focus: Search, filters, and user profile
-
-### Backend (P1)
-- #25 Implement list recipes endpoint with pagination - DONE
-- #26 Add recipe search functionality by title - DONE
-- #27 Add recipe filtering by tags
-- #17 Implement user profile retrieval endpoint
-- #18 Implement user profile update endpoint
-
-### Frontend (P1)
-- #69 Create search bar component 
-- #70 Implement tag filter component
-- #71 Create search results page
-- #73 Add pagination controls
-- #55 Create user profile page component
-- #56 Implement profile editing functionality
-
-### Testing (P1)
-- #85 Write frontend component unit tests
-- #86 Create end-to-end testing suite
 
 ## Sprint 5 - Optional Features (Weeks 9-10)
 Focus: Ratings, comments, and favorites
@@ -164,6 +156,25 @@ Focus: i18n support and documentation
 - #97 Create database schema documentation
 - #99 Create user guide
 - #100 Write developer onboarding guide
+
+## Sprint 7 - Enhancements (Weeks 13-14)
+Focus: Recipe and tags
+
+### Backend (P0)
+- #30 Implement share recipe endpoint - 
+- #31 Implement unshare recipe endpoint -  
+- #32 Create shared recipes listing endpoint - 
+- #17 Implement user profile retrieval endpoint
+- #18 Implement user profile update endpoint
+
+
+### Frontend (P0)
+- #65 Create shared recipes view - 
+- #73 Add pagination controls
+- #55 Create user profile page component
+- #56 Implement profile editing functionality
+
+
 
 ## Backlog (P3)
 Nice to have features that can be implemented as needed:
@@ -274,5 +285,6 @@ Nice to have features that can be implemented as needed:
 - Security measures should be implemented before deployment
 
 ## Bugs
-- Dont show Edit/Delete buttons if the recipe is not mine
-- DB down or not connectivity doesn't reflect well on the UI
+- Dont show Edit/Delete buttons if the recipe is not mine - DONE
+- DB down or not accesible or any other connectivity issue - doesn't reflect well on the UI
+- 
