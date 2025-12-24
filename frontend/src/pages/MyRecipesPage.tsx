@@ -10,9 +10,11 @@ import RecipeCard from '../components/RecipeCard';
 import ConfirmationModal from '../components/ui/confirmation-modal';
 import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
 import TagSelector from '../components/ui/tag-selector';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const MyRecipesPage: React.FC = () => {
   // const { isAuthenticated } = useAuth(); // Not used yet
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +58,7 @@ const MyRecipesPage: React.FC = () => {
     };
 
     fetchMyRecipes();
-  }, []);
+  }, [t]);
 
   const handleLoadTags = async () => {
     return await apiClient.getAllTags();
@@ -79,7 +81,7 @@ const MyRecipesPage: React.FC = () => {
     return (
       <PageContainer>
         <div className="text-center">
-          <p className="text-lg text-gray-600 dark:text-gray-300">Loading your recipes...</p>
+          <p className="text-lg text-gray-600 dark:text-gray-300">{t('my_recipes.loading')}</p>
         </div>
       </PageContainer>
     );
@@ -87,8 +89,8 @@ const MyRecipesPage: React.FC = () => {
 
   return (
     <PageContainer
-      title="My Recipes"
-      description="Manage and organize your personal recipe collection."
+      title={t('my_recipes.title')}
+      description={t('my_recipes.description')}
     >
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
@@ -96,7 +98,7 @@ const MyRecipesPage: React.FC = () => {
             <div className="w-full sm:w-72">
             <Input
               type="search"
-              placeholder="Search your recipes..."
+              placeholder={t('my_recipes.search.placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full"
@@ -106,13 +108,13 @@ const MyRecipesPage: React.FC = () => {
               <TagSelector
                 value={selectedTags}
                 onChange={setSelectedTags}
-                placeholder="Filter by tags..."
+                placeholder={t('recipe.filter.tags')}
                 onLoadTags={handleLoadTags}
               />
             </div>
           </div>
           <Button onClick={() => navigate('/recipes/new')} className="shrink-0">
-            Create Recipe
+            {t('recipe.create.button')}
           </Button>
         </div>
 
@@ -123,9 +125,9 @@ const MyRecipesPage: React.FC = () => {
         ) : filteredRecipes.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-lg text-gray-600 dark:text-gray-300">
-              {searchQuery
-                ? 'No recipes match your search.'
-                : 'You haven\'t created any recipes yet. Start by creating your first recipe!'}
+              {searchQuery || selectedTags.length > 0
+                ? t('recipe.list.no_matches')
+                : t('my_recipes.empty')}
             </p>
           </div>
                   ) : (
@@ -147,10 +149,10 @@ const MyRecipesPage: React.FC = () => {
         isOpen={showDeleteModal}
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
-        title="Delete Recipe"
-        message={`Are you sure you want to delete "${recipeToDelete?.title}"? This action cannot be undone.`}
-        confirmText="Delete Recipe"
-        cancelText="Cancel"
+        title={t('recipe.detail.delete_confirm_title')}
+        message={t('recipe.detail.delete_confirm_message').replace('{title}', recipeToDelete?.title || '')}
+        confirmText={t('recipe.detail.delete_button')}
+        cancelText={t('modal.cancel')}
         variant="destructive"
         isLoading={isDeleting}
       />

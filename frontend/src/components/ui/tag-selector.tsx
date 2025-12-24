@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Search, Plus } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { Tag } from '../../lib/api-client';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export interface TagSelectorProps {
   value: Tag[];
@@ -23,7 +24,7 @@ export interface TagSelectorProps {
 const TagSelector: React.FC<TagSelectorProps> = ({
   value = [],
   onChange,
-  placeholder = "Select tags...",
+  placeholder,
   disabled = false,
   // required = false, // Unused parameter
   maxTags,
@@ -34,6 +35,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   availableTags,
   onLoadTags
 }) => {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [allTags, setAllTags] = useState<Tag[]>(availableTags && Array.isArray(availableTags) ? availableTags : []);
@@ -219,7 +221,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
             <input
               ref={searchInputRef}
               type="text"
-              placeholder={value.length === 0 ? placeholder : "Add more tags..."}
+              placeholder={value.length === 0 ? (placeholder || t('tag_selector.select')) : t('tag_selector.add_more')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={handleInputFocus}
@@ -246,7 +248,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                 <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search tags..."
+                  placeholder={t('tag_selector.search')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
@@ -273,7 +275,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                 {recentTags.length > 0 && searchQuery === '' && (
                   <div className="mb-3">
                     <h4 className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Recent
+                      {t('tag_selector.recent')}
                     </h4>
                     <div className="flex flex-wrap gap-1">
                       {recentTags
@@ -296,7 +298,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                 {searchQuery === '' && (
                   <div className="mb-3">
                     <h4 className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Popular
+                      {t('tag_selector.popular')}
                     </h4>
                     <div className="flex flex-wrap gap-1">
                       {Array.isArray(allTags) ? allTags
@@ -343,7 +345,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                 {/* No Results */}
                 {filteredTags().length === 0 && searchQuery && (
                   <div className="py-4 text-center text-sm text-muted-foreground">
-                    No tags found matching "{searchQuery}"
+                    {t('tag_selector.no_matches')} "{searchQuery}"
                   </div>
                 )}
               </div>
@@ -352,8 +354,8 @@ const TagSelector: React.FC<TagSelectorProps> = ({
             {/* Actions */}
             <div className="mt-2 flex items-center justify-between border-t pt-2">
               <span className="text-xs text-muted-foreground">
-                {value.length} selected
-                {maxTags && ` / ${maxTags} max`}
+                {value.length} {t('tag_selector.selected')}
+                {maxTags && ` / ${maxTags} ${t('tag_selector.max')}`}
               </span>
               {value.length > 0 && (
                 <button
@@ -361,7 +363,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                   onClick={handleClearAll}
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
-                  Clear all
+                  {t('tag_selector.clear')}
                 </button>
               )}
             </div>

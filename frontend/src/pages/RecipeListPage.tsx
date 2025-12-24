@@ -9,9 +9,11 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import RecipeCard from '../components/RecipeCard';
 import TagSelector from '../components/ui/tag-selector';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const RecipeListPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +39,7 @@ const RecipeListPage: React.FC = () => {
     };
 
     fetchRecipes();
-  }, []);
+  }, [t]);
 
   const handleLoadTags = async () => {
     return await apiClient.getAllTags();
@@ -59,7 +61,7 @@ const RecipeListPage: React.FC = () => {
       <MainLayout>
         <PageContainer>
           <div className="text-center">
-            <p className="text-lg text-gray-600 dark:text-gray-300">Loading recipes...</p>
+            <p className="text-lg text-gray-600 dark:text-gray-300">{t('recipe.list.loading')}</p>
           </div>
         </PageContainer>
       </MainLayout>
@@ -69,8 +71,8 @@ const RecipeListPage: React.FC = () => {
   return (
     <MainLayout>
       <PageContainer
-        title="Recipes"
-        description="Discover and explore delicious recipes from our community."
+        title={t('recipe.list.title')}
+        description={t('recipe.list.description')}
       >
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row gap-4 justify-between items-start">
@@ -78,7 +80,7 @@ const RecipeListPage: React.FC = () => {
               <div className="w-full sm:w-72">
               <Input
                 type="search"
-                placeholder="Search recipes..."
+                placeholder={t('recipe.search.placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full"
@@ -88,14 +90,14 @@ const RecipeListPage: React.FC = () => {
                 <TagSelector
                   value={selectedTags}
                   onChange={setSelectedTags}
-                  placeholder="Filter by tags..."
+                  placeholder={t('recipe.filter.tags')}
                   onLoadTags={handleLoadTags}
                 />
               </div>
             </div>
             {isAuthenticated && (
               <Button onClick={() => navigate('/recipes/new')} className="shrink-0">
-                Create Recipe
+                {t('recipe.create.button')}
               </Button>
             )}
           </div>
@@ -107,9 +109,9 @@ const RecipeListPage: React.FC = () => {
           ) : filteredRecipes.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-lg text-gray-600 dark:text-gray-300">
-                {searchQuery
-                  ? 'No recipes match your search.'
-                  : 'No recipes available yet. Be the first to create one!'}
+                {searchQuery || selectedTags.length > 0
+                  ? t('recipe.list.no_matches')
+                  : t('recipe.list.empty')}
               </p>
             </div>
           ) : (

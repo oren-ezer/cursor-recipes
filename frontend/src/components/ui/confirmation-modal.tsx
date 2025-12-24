@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from './button';
 import { Card, CardContent, CardHeader, CardTitle } from './card';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -20,11 +21,13 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText,
+  cancelText,
   variant = 'default',
   isLoading = false,
 }) => {
+  const { t } = useLanguage();
+
   if (!isOpen) return null;
 
   const handleConfirm = () => {
@@ -61,14 +64,14 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               onClick={handleClose}
               disabled={isLoading}
             >
-              {cancelText}
+              {cancelText || t('modal.cancel')}
             </Button>
             <Button
               variant={variant}
               onClick={handleConfirm}
               disabled={isLoading}
             >
-              {isLoading ? 'Loading...' : confirmText}
+              {isLoading ? t('modal.loading') : (confirmText || t('modal.confirm'))}
             </Button>
           </div>
         </CardContent>

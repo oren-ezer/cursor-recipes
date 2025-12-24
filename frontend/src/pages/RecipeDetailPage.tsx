@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, ApiError } from '../lib/api-client';
 import type { Recipe } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
@@ -14,6 +15,7 @@ import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   
   const { isAuthenticated, user } = useAuth();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
@@ -104,7 +106,7 @@ const RecipeDetailPage: React.FC = () => {
           if (err instanceof ApiError) {
             setError(err.message);
           } else {
-            setError('Failed to fetch recipe');
+            setError(t('recipe.list.error'));
           }
         }
       } finally {
@@ -123,7 +125,7 @@ const RecipeDetailPage: React.FC = () => {
       console.log('Cleaning up useEffect - cancelling fetch');
       isCancelled = true;
     };
-  }, [recipeId, isDeleting, error, showDeleteModal, showSuccessModal, hasNavigated]);
+  }, [recipeId, isDeleting, error, showDeleteModal, showSuccessModal, hasNavigated, t]);
 
   // Reset navigation flag when recipeId changes (navigating to different recipe)
   useEffect(() => {
@@ -151,11 +153,12 @@ const RecipeDetailPage: React.FC = () => {
 
   const formatTime = (minutes: number): string => {
     if (minutes < 60) {
-      return `${minutes} minutes`;
+      return `${minutes} ${t('time.minutes')}`;
     }
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-    return remainingMinutes > 0 ? `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minutes` : `${hours} hour${hours > 1 ? 's' : ''}`;
+    const hourKey = hours > 1 ? 'time.hours' : 'time.hour';
+    return remainingMinutes > 0 ? `${hours} ${t(hourKey)} ${remainingMinutes} ${t('time.minutes')}` : `${hours} ${t(hourKey)}`;
   };
 
   const getDifficultyColor = (difficulty: string): string => {
@@ -176,7 +179,7 @@ const RecipeDetailPage: React.FC = () => {
       <MainLayout>
         <PageContainer>
           <div className="text-center">
-            <p className="text-lg text-gray-600 dark:text-gray-300">Loading recipe...</p>
+            <p className="text-lg text-gray-600 dark:text-gray-300">{t('recipe.list.loading')}</p>
           </div>
         </PageContainer>
       </MainLayout>
@@ -188,7 +191,7 @@ const RecipeDetailPage: React.FC = () => {
       <MainLayout>
         <PageContainer>
           <div className="text-center">
-            <p className="text-lg text-gray-600 dark:text-gray-300">Deleting recipe...</p>
+            <p className="text-lg text-gray-600 dark:text-gray-300">{t('recipe.detail.deleting')}</p>
           </div>
         </PageContainer>
       </MainLayout>
@@ -208,7 +211,7 @@ const RecipeDetailPage: React.FC = () => {
               className="mt-4"
               onClick={() => navigate('/recipes')}
             >
-              Back to Recipes
+              {t('recipe.detail.back')}
             </Button>
           </div>
         </PageContainer>
@@ -238,13 +241,13 @@ const RecipeDetailPage: React.FC = () => {
           {isOwner && (
             <div className="flex justify-center gap-4">
               <Button onClick={handleEdit}>
-                Edit Recipe
+                {t('recipe.card.edit')}
               </Button>
               <Button 
                 variant="destructive" 
                 onClick={handleDeleteButtonClick}
               >
-                Delete Recipe
+                {t('recipe.card.delete')}
               </Button>
             </div>
           )}
@@ -254,24 +257,24 @@ const RecipeDetailPage: React.FC = () => {
             {/* Recipe Information */}
             <Card>
               <CardHeader>
-                <CardTitle>Recipe Information</CardTitle>
+                <CardTitle>{t('recipe.detail.info')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Preparation Time:</span>
+                    <span className="font-medium">{t('recipe.form.prep_time')}:</span>
                     <p>{formatTime(recipe.preparation_time)}</p>
                   </div>
                   <div>
-                    <span className="font-medium">Cooking Time:</span>
+                    <span className="font-medium">{t('recipe.form.cook_time')}:</span>
                     <p>{formatTime(recipe.cooking_time)}</p>
                   </div>
                   <div>
-                    <span className="font-medium">Servings:</span>
+                    <span className="font-medium">{t('recipe.form.servings')}:</span>
                     <p>{recipe.servings} people</p>
                   </div>
                   <div>
-                    <span className="font-medium">Difficulty:</span>
+                    <span className="font-medium">{t('recipe.form.difficulty')}:</span>
                     <p className={getDifficultyColor(recipe.difficulty_level)}>
                       {recipe.difficulty_level}
                     </p>
@@ -279,8 +282,8 @@ const RecipeDetailPage: React.FC = () => {
                 </div>
                 {recipe.image_url && (
                   <div>
-                    <span className="font-medium">Image:</span>
-                    <p className="text-blue-600 dark:text-blue-400">Available</p>
+                    <span className="font-medium">{t('recipe.detail.image')}:</span>
+                    <p className="text-blue-600 dark:text-blue-400">{t('recipe.detail.available')}</p>
                   </div>
                 )}
               </CardContent>
@@ -290,7 +293,7 @@ const RecipeDetailPage: React.FC = () => {
             {recipe.tags && recipe.tags.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Tags</CardTitle>
+                  <CardTitle>{t('recipe.form.tags')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
@@ -310,7 +313,7 @@ const RecipeDetailPage: React.FC = () => {
             {/* Ingredients */}
             <Card>
               <CardHeader>
-                <CardTitle>Ingredients</CardTitle>
+                <CardTitle>{t('recipe.form.ingredients')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
@@ -330,7 +333,7 @@ const RecipeDetailPage: React.FC = () => {
           {/* Instructions */}
           <Card>
             <CardHeader>
-              <CardTitle>Instructions</CardTitle>
+              <CardTitle>{t('recipe.form.instructions')}</CardTitle>
             </CardHeader>
             <CardContent>
               <ol className="space-y-4">
@@ -352,14 +355,14 @@ const RecipeDetailPage: React.FC = () => {
               variant="outline" 
               onClick={() => navigate('/recipes')}
             >
-              Back to Recipes
+              {t('recipe.detail.back')}
             </Button>
             {isAuthenticated && (
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/recipes/my')}
               >
-                My Recipes
+                {t('recipe.detail.back_my')}
               </Button>
             )}
           </div>
@@ -371,10 +374,10 @@ const RecipeDetailPage: React.FC = () => {
         isOpen={showDeleteModal}
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
-        title="Delete Recipe"
-        message={`Are you sure you want to delete "${recipeToDelete?.title}"? This action cannot be undone.`}
-        confirmText="Delete Recipe"
-        cancelText="Cancel"
+        title={t('recipe.detail.delete_confirm_title')}
+        message={t('recipe.detail.delete_confirm_message').replace('{title}', recipeToDelete?.title || '')}
+        confirmText={t('recipe.detail.delete_button')}
+        cancelText={t('modal.cancel')}
         variant="destructive"
         isLoading={isDeleting}
       />
@@ -384,10 +387,10 @@ const RecipeDetailPage: React.FC = () => {
         isOpen={showSuccessModal}
         onClose={handleSuccessModalClose}
         onConfirm={handleSuccessModalClose}
-        title="Recipe Deleted Successfully"
-        message={`The recipe "${deletedRecipe?.title}" has been deleted successfully.`}
-        confirmText="Continue"
-        cancelText="Cancel"
+        title={t('recipe.detail.deleted_title')}
+        message={t('recipe.detail.deleted_message').replace('{title}', deletedRecipe?.title || '')}
+        confirmText={t('recipe.detail.continue')}
+        cancelText={t('modal.cancel')}
         variant="default"
         isLoading={false}
       />

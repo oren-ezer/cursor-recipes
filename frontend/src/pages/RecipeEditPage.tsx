@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, ApiError } from '../lib/api-client';
 import type { Recipe, Tag } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
@@ -36,6 +37,7 @@ const RecipeEditPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,9 +59,9 @@ const RecipeEditPage: React.FC = () => {
   // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('/login', { state: { message: 'Please log in to edit a recipe' } });
+      navigate('/login', { state: { message: t('recipe.form.edit_login_required') } });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, t]);
 
   // Fetch recipe data
   useEffect(() => {
@@ -94,7 +96,7 @@ const RecipeEditPage: React.FC = () => {
         if (err instanceof ApiError) {
           setError(err.message);
         } else {
-          setError('Failed to fetch recipe');
+          setError(t('recipe.list.error'));
         }
       } finally {
         setIsLoading(false);
@@ -102,7 +104,7 @@ const RecipeEditPage: React.FC = () => {
     };
 
     fetchRecipe();
-  }, [recipeId, isAuthenticated]);
+  }, [recipeId, isAuthenticated, t]);
 
   const handleInputChange = (field: keyof RecipeFormData, value: any) => {
     setFormData(prev => ({
@@ -263,7 +265,7 @@ const RecipeEditPage: React.FC = () => {
               className="mt-4"
               onClick={() => navigate('/recipes/my')}
             >
-              Back to My Recipes
+              {t('recipe.detail.back_my')}
             </Button>
           </div>
         </PageContainer>
@@ -274,35 +276,35 @@ const RecipeEditPage: React.FC = () => {
   return (
     <MainLayout>
       <PageContainer
-        title="Edit Recipe"
-        description="Update your recipe details and share with the community."
+        title={t('recipe.edit.title')}
+        description={t('recipe.edit.description')}
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
+              <CardTitle>{t('recipe.form.basic_info')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Recipe Title *</Label>
+                <Label htmlFor="title">{t('recipe.form.title')} *</Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
-                  placeholder="e.g., Classic Margherita Pizza"
+                  placeholder={t('recipe.form.title_placeholder')}
                   required
                   disabled={isSaving}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t('recipe.form.description')}</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="A brief description of your recipe..."
+                  placeholder={t('recipe.form.description_placeholder')}
                   rows={3}
                   disabled={isSaving}
                 />
@@ -310,7 +312,7 @@ const RecipeEditPage: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="preparation_time">Preparation Time (minutes) *</Label>
+                  <Label htmlFor="preparation_time">{t('recipe.form.prep_time')} *</Label>
                   <Input
                     id="preparation_time"
                     type="number"
@@ -323,7 +325,7 @@ const RecipeEditPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cooking_time">Cooking Time (minutes) *</Label>
+                  <Label htmlFor="cooking_time">{t('recipe.form.cook_time')} *</Label>
                   <Input
                     id="cooking_time"
                     type="number"
@@ -336,7 +338,7 @@ const RecipeEditPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="servings">Servings *</Label>
+                  <Label htmlFor="servings">{t('recipe.form.servings')} *</Label>
                   <Input
                     id="servings"
                     type="number"
@@ -351,7 +353,7 @@ const RecipeEditPage: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="difficulty">Difficulty Level</Label>
+                  <Label htmlFor="difficulty">{t('recipe.form.difficulty')}</Label>
                   <Select
                     value={formData.difficulty_level}
                     onValueChange={(value) => handleInputChange('difficulty_level', value)}
@@ -361,15 +363,15 @@ const RecipeEditPage: React.FC = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Easy">Easy</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Hard">Hard</SelectItem>
+                      <SelectItem value="Easy">{t('difficulty.easy')}</SelectItem>
+                      <SelectItem value="Medium">{t('difficulty.medium')}</SelectItem>
+                      <SelectItem value="Hard">{t('difficulty.hard')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="image_url">Image URL (optional)</Label>
+                  <Label htmlFor="image_url">{t('recipe.form.image_url')}</Label>
                   <Input
                     id="image_url"
                     type="url"
@@ -386,22 +388,22 @@ const RecipeEditPage: React.FC = () => {
           {/* Tags */}
           <Card>
             <CardHeader>
-              <CardTitle>Tags</CardTitle>
+              <CardTitle>{t('recipe.form.tags')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <Label>Recipe Tags</Label>
+                <Label>{t('recipe.form.recipe_tags')}</Label>
                 <TagSelector
                   value={formData.selectedTags}
                   onChange={handleTagsChange}
-                  placeholder="Select tags for your recipe..."
+                  placeholder={t('recipe.form.tags_placeholder')}
                   disabled={isSaving}
                   onLoadTags={loadTagsWithLogging}
                   showSearch={true}
                   showCategories={true}
                 />
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Add tags to help others discover your recipe. You can search by name or browse by category.
+                  {t('recipe.form.tags_help')}
                 </p>
               </div>
             </CardContent>
@@ -410,29 +412,29 @@ const RecipeEditPage: React.FC = () => {
           {/* Ingredients */}
           <Card>
             <CardHeader>
-              <CardTitle>Ingredients *</CardTitle>
+              <CardTitle>{t('recipe.form.ingredients')} *</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {formData.ingredients.map((ingredient, index) => (
                 <div key={index} className="flex gap-4 items-end">
                   <div className="flex-1 space-y-2">
-                    <Label htmlFor={`ingredient-name-${index}`}>Ingredient Name</Label>
+                    <Label htmlFor={`ingredient-name-${index}`}>{t('recipe.form.ingredient_name')}</Label>
                     <Input
                       id={`ingredient-name-${index}`}
                       value={ingredient.name}
                       onChange={(e) => handleIngredientChange(index, 'name', e.target.value)}
-                      placeholder="e.g., Flour"
+                      placeholder={t('recipe.form.ingredient_placeholder')}
                       required
                       disabled={isSaving}
                     />
                   </div>
                   <div className="flex-1 space-y-2">
-                    <Label htmlFor={`ingredient-amount-${index}`}>Amount</Label>
+                    <Label htmlFor={`ingredient-amount-${index}`}>{t('recipe.form.amount')}</Label>
                     <Input
                       id={`ingredient-amount-${index}`}
                       value={ingredient.amount}
                       onChange={(e) => handleIngredientChange(index, 'amount', e.target.value)}
-                      placeholder="e.g., 2 cups"
+                      placeholder={t('recipe.form.amount_placeholder')}
                       required
                       disabled={isSaving}
                     />
@@ -445,7 +447,7 @@ const RecipeEditPage: React.FC = () => {
                       onClick={() => removeIngredient(index)}
                       disabled={isSaving}
                     >
-                      Remove
+                      {t('recipe.form.remove')}
                     </Button>
                   )}
                 </div>
@@ -456,7 +458,7 @@ const RecipeEditPage: React.FC = () => {
                 onClick={addIngredient}
                 disabled={isSaving}
               >
-                Add Ingredient
+                {t('recipe.form.add_ingredient')}
               </Button>
             </CardContent>
           </Card>
@@ -464,18 +466,18 @@ const RecipeEditPage: React.FC = () => {
           {/* Instructions */}
           <Card>
             <CardHeader>
-              <CardTitle>Instructions *</CardTitle>
+              <CardTitle>{t('recipe.form.instructions')} *</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {formData.instructions.map((instruction, index) => (
                 <div key={index} className="flex gap-4">
                   <div className="flex-1 space-y-2">
-                    <Label htmlFor={`instruction-${index}`}>Step {index + 1}</Label>
+                    <Label htmlFor={`instruction-${index}`}>{t('recipe.form.step')} {index + 1}</Label>
                     <Textarea
                       id={`instruction-${index}`}
                       value={instruction}
                       onChange={(e) => handleInstructionChange(index, e.target.value)}
-                      placeholder={`Step ${index + 1}...`}
+                      placeholder={`${t('recipe.form.step')} ${index + 1}...`}
                       rows={2}
                       required
                       disabled={isSaving}
@@ -490,7 +492,7 @@ const RecipeEditPage: React.FC = () => {
                       disabled={isSaving}
                       className="self-end"
                     >
-                      Remove
+                      {t('recipe.form.remove')}
                     </Button>
                   )}
                 </div>
@@ -501,7 +503,7 @@ const RecipeEditPage: React.FC = () => {
                 onClick={addInstruction}
                 disabled={isSaving}
               >
-                Add Step
+                {t('recipe.form.add_step')}
               </Button>
             </CardContent>
           </Card>
@@ -509,7 +511,7 @@ const RecipeEditPage: React.FC = () => {
           {/* Visibility */}
           <Card>
             <CardHeader>
-              <CardTitle>Visibility</CardTitle>
+              <CardTitle>{t('recipe.form.visibility')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-2">
@@ -521,10 +523,10 @@ const RecipeEditPage: React.FC = () => {
                   disabled={isSaving}
                   className="rounded"
                 />
-                <Label htmlFor="is_public">Make this recipe public</Label>
+                <Label htmlFor="is_public">{t('recipe.form.make_public')}</Label>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Public recipes can be viewed by anyone. Private recipes are only visible to you.
+                {t('recipe.form.public_help')}
               </p>
             </CardContent>
           </Card>
@@ -544,10 +546,10 @@ const RecipeEditPage: React.FC = () => {
               onClick={() => navigate(`/recipes/${recipeId}`)}
               disabled={isSaving}
             >
-              Cancel
+              {t('recipe.form.cancel')}
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Updating Recipe...' : 'Update Recipe'}
+              {isSaving ? t('recipe.form.updating') : t('recipe.form.update')}
             </Button>
           </div>
         </form>

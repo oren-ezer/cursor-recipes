@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from './ui/button';
 import {
   Card,
@@ -35,6 +36,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   className = '',
 }) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const handleView = () => {
     if (onView) {
@@ -105,7 +107,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               className="flex-1"
               onClick={handleView}
             >
-              View
+              {t('recipe.card.view_short')}
             </Button>
             <Button
               variant="outline"
@@ -113,7 +115,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               className="flex-1"
               onClick={handleEdit}
             >
-              Edit
+              {t('recipe.card.edit')}
             </Button>
             {onDelete && (
               <Button
@@ -121,7 +123,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
                 size="sm"
                 onClick={handleDelete}
               >
-                Delete
+                {t('recipe.card.delete')}
               </Button>
             )}
           </div>
@@ -135,7 +137,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             className="w-full"
             onClick={handleView}
           >
-            View Recipe
+            {t('recipe.card.view')}
           </Button>
         );
       
@@ -148,7 +150,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               className="flex-1"
               onClick={handleView}
             >
-              View Recipe
+              {t('recipe.card.view')}
             </Button>
             {onShare && !recipe.is_public && (
               <Button
@@ -156,7 +158,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
                 size="sm"
                 onClick={handleShare}
               >
-                Share
+                {t('recipe.card.share')}
               </Button>
             )}
             {onUnshare && recipe.is_public && (
@@ -165,7 +167,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
                 size="sm"
                 onClick={handleUnshare}
               >
-                Unshare
+                {t('recipe.card.unshare')}
               </Button>
             )}
           </div>
@@ -178,7 +180,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       return (
         <CardContent className="p-4">
           <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
-            <span>{recipe.ingredients.length} ingredients</span>
+            <span>{recipe.ingredients.length} {t('recipe.card.ingredients')}</span>
             <span className={getDifficultyColor(recipe.difficulty_level)}>
               {recipe.difficulty_level}
             </span>
@@ -196,7 +198,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               ))}
               {recipe.tags.length > 3 && (
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  +{recipe.tags.length - 3} more
+                  +{recipe.tags.length - 3} {t('recipe.card.more_tags')}
                 </span>
               )}
             </div>
@@ -209,19 +211,19 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       <CardContent className="p-4">
         <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
           <div className="flex items-center justify-between">
-            <span>{recipe.ingredients.length} ingredients</span>
+            <span>{recipe.ingredients.length} {t('recipe.card.ingredients')}</span>
             <span className={getDifficultyColor(recipe.difficulty_level)}>
               {recipe.difficulty_level}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span>Prep: {formatTime(recipe.preparation_time)}</span>
-            <span>Cook: {formatTime(recipe.cooking_time)}</span>
+            <span>{t('recipe.card.prep')}: {formatTime(recipe.preparation_time)}</span>
+            <span>{t('recipe.card.cook')}: {formatTime(recipe.cooking_time)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span>Serves: {recipe.servings}</span>
+            <span>{t('recipe.card.serves')}: {recipe.servings}</span>
             {recipe.image_url && (
-              <span className="text-blue-600 dark:text-blue-400">Has image</span>
+              <span className="text-blue-600 dark:text-blue-400">{t('recipe.card.has_image')}</span>
             )}
           </div>
           {/* Tags for default view */}
