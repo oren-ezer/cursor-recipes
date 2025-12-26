@@ -2,6 +2,7 @@ import React, { ReactElement } from 'react'
 import { render, RenderOptions } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from '../../src/contexts/AuthProvider'
+import { LanguageProvider } from '../../src/contexts/LanguageContext'
 
 // Custom render function that includes providers
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
@@ -15,11 +16,13 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
 
 function AllTheProviders({ children, initialAuthState }: { children: React.ReactNode; initialAuthState?: any }) {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        {children}
-      </AuthProvider>
-    </BrowserRouter>
+    <LanguageProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </BrowserRouter>
+    </LanguageProvider>
   )
 }
 

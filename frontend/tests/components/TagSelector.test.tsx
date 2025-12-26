@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '../setup/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
@@ -16,11 +16,11 @@ vi.mock('../../src/lib/api-client', () => ({
 }));
 
 const mockTags: Tag[] = [
-  { id: 1, name: 'breakfast', uuid: 'uuid1', recipe_counter: 15, created_at: '2024-01-01', updated_at: '2024-01-01' },
-  { id: 2, name: 'vegetarian', uuid: 'uuid2', recipe_counter: 25, created_at: '2024-01-01', updated_at: '2024-01-01' },
-  { id: 3, name: 'italian', uuid: 'uuid3', recipe_counter: 10, created_at: '2024-01-01', updated_at: '2024-01-01' },
-  { id: 4, name: 'quick', uuid: 'uuid4', recipe_counter: 30, created_at: '2024-01-01', updated_at: '2024-01-01' },
-  { id: 5, name: 'dessert', uuid: 'uuid5', recipe_counter: 20, created_at: '2024-01-01', updated_at: '2024-01-01' },
+  { id: 1, name: 'breakfast', uuid: 'uuid1', recipe_counter: 15, category: 'Meal Types', created_at: '2024-01-01', updated_at: '2024-01-01' },
+  { id: 2, name: 'vegetarian', uuid: 'uuid2', recipe_counter: 25, category: 'Dietary', created_at: '2024-01-01', updated_at: '2024-01-01' },
+  { id: 3, name: 'italian', uuid: 'uuid3', recipe_counter: 10, category: 'Cuisines', created_at: '2024-01-01', updated_at: '2024-01-01' },
+  { id: 4, name: 'quick', uuid: 'uuid4', recipe_counter: 30, category: 'Meal Types', created_at: '2024-01-01', updated_at: '2024-01-01' },
+  { id: 5, name: 'dessert', uuid: 'uuid5', recipe_counter: 20, category: 'Meal Types', created_at: '2024-01-01', updated_at: '2024-01-01' },
 ];
 
 describe('TagSelector', () => {

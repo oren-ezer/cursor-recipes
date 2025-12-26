@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '../setup/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
@@ -7,6 +7,10 @@ import { BrowserRouter } from 'react-router-dom';
 // Mock all dependencies
 vi.mock('../../src/contexts/AuthContext', () => ({
   useAuth: vi.fn(),
+  AuthContext: {
+    Provider: ({ children }: { children: React.ReactNode }) => children,
+    Consumer: ({ children }: any) => children(vi.fn()),
+  },
 }));
 
 vi.mock('../../src/lib/api-client', () => ({
@@ -36,19 +40,8 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { apiClient } from '../../src/lib/api-client';
 import { useNavigate } from 'react-router-dom';
 
-// Mock window.confirm
-const mockConfirm = vi.fn();
-Object.defineProperty(window, 'confirm', {
-  value: mockConfirm,
-  writable: true,
-});
-
 const renderWithRouter = (component: React.ReactElement) => {
-  return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
-  );
+  return render(component);
 };
 
 // Helper function to create mock auth values
@@ -115,8 +108,6 @@ describe('MyRecipesPage', () => {
     vi.mocked(useNavigate).mockReturnValue(vi.fn());
     vi.mocked(apiClient.getMyRecipes).mockResolvedValue(mockRecipes);
     vi.mocked(apiClient.deleteRecipe).mockResolvedValue(undefined);
-    
-    mockConfirm.mockReturnValue(true);
   });
 
   describe('Authentication', () => {
@@ -327,7 +318,14 @@ describe('MyRecipesPage', () => {
       await waitFor(() => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
         fireEvent.click(deleteButtons[0]);
-        expect(mockConfirm).toHaveBeenCalledWith('Are you sure you want to delete "Test Recipe 1"?');
+      });
+      
+      // Should show confirmation modal with the confirmation message
+      await waitFor(() => {
+        expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+        // Check that recipe title appears somewhere (could be in card or modal)
+        const recipeTitles = screen.getAllByText(/Test Recipe 1/);
+        expect(recipeTitles.length).toBeGreaterThan(0);
       });
     });
 
@@ -338,6 +336,18 @@ describe('MyRecipesPage', () => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
         fireEvent.click(deleteButtons[0]);
       });
+      
+      // Wait for confirmation modal and click the Delete button
+      await waitFor(() => {
+        expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+      });
+      
+      // Find and click the Delete button in the modal (not the one in the card)
+      const modalDeleteButtons = screen.getAllByRole('button', { name: /delete/i });
+      const modalDeleteButton = modalDeleteButtons.find(btn => 
+        btn.closest('[role="dialog"]') || btn.textContent === 'Delete Recipe'
+      );
+      fireEvent.click(modalDeleteButton!);
       
       await waitFor(() => {
         expect(vi.mocked(apiClient.deleteRecipe)).toHaveBeenCalledWith(1);
@@ -351,13 +361,17 @@ describe('MyRecipesPage', () => {
     });
 
     it('should not delete recipe when confirmation is cancelled', async () => {
-      mockConfirm.mockReturnValue(false);
-      
       renderWithRouter(<MyRecipesPage />);
       
       await waitFor(() => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
         fireEvent.click(deleteButtons[0]);
+      });
+      
+      // Click cancel button in modal
+      await waitFor(() => {
+        const cancelButton = screen.getByRole('button', { name: /cancel/i });
+        fireEvent.click(cancelButton);
       });
       
       await waitFor(() => {
@@ -380,6 +394,18 @@ describe('MyRecipesPage', () => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
         fireEvent.click(deleteButtons[0]);
       });
+      
+      // Wait for confirmation modal
+      await waitFor(() => {
+        expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+      });
+      
+      // Click the Delete button in the modal
+      const modalDeleteButtons = screen.getAllByRole('button', { name: /delete/i });
+      const modalDeleteButton = modalDeleteButtons.find(btn => 
+        btn.textContent === 'Delete Recipe'
+      );
+      fireEvent.click(modalDeleteButton!);
       
       await waitFor(() => {
         expect(screen.getByText('Failed to delete recipe')).toBeInTheDocument();
@@ -444,6 +470,18 @@ describe('MyRecipesPage', () => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
         fireEvent.click(deleteButtons[0]);
       });
+      
+      // Wait for confirmation modal
+      await waitFor(() => {
+        expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+      });
+      
+      // Click the Delete button in the modal
+      const modalDeleteButtons = screen.getAllByRole('button', { name: /delete/i });
+      const modalDeleteButton = modalDeleteButtons.find(btn => 
+        btn.textContent === 'Delete Recipe'
+      );
+      fireEvent.click(modalDeleteButton!);
       
       await waitFor(() => {
         expect(screen.getByText('Failed to delete recipe')).toBeInTheDocument();

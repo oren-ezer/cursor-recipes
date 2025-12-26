@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '../../setup/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
@@ -8,17 +8,20 @@ import { AuthProvider } from '../../../src/contexts/AuthProvider';
 
 // Mock the useAuth hook
 const mockUseAuth = vi.fn();
+const mockLogout = vi.fn();
 
 vi.mock('../../../src/contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
+  AuthContext: {
+    Provider: ({ children }: { children: React.ReactNode }) => children,
+    Consumer: ({ children }: any) => children(mockUseAuth()),
+  },
 }));
 
 const renderWithRouter = (component: React.ReactElement) => {
-  return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
-  );
+  // Our custom render already includes LanguageProvider, BrowserRouter, and AuthProvider
+  // So we should just use render directly without additional BrowserRouter
+  return render(component);
 };
 
 describe('MainLayout Component', () => {

@@ -1,8 +1,7 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
+import { render, screen, fireEvent } from '../setup/test-utils'
 import RecipeCard from '../../src/components/RecipeCard'
 import { createMockRecipe } from '../setup/test-utils'
 
@@ -17,11 +16,7 @@ vi.mock('react-router-dom', async () => {
 })
 
 const renderRecipeCard = (props: any) => {
-  return render(
-    <BrowserRouter>
-      <RecipeCard {...props} />
-    </BrowserRouter>
-  )
+  return render(<RecipeCard {...props} />)
 }
 
 describe('RecipeCard', () => {
@@ -174,18 +169,10 @@ describe('RecipeCard', () => {
       const { rerender } = renderRecipeCard({ recipe: easyRecipe })
       expect(screen.getByText('Easy')).toHaveClass('text-green-600')
 
-      rerender(
-        <BrowserRouter>
-          <RecipeCard recipe={mediumRecipe} />
-        </BrowserRouter>
-      )
+      rerender(<RecipeCard recipe={mediumRecipe} />)
       expect(screen.getByText('Medium')).toHaveClass('text-yellow-600')
 
-      rerender(
-        <BrowserRouter>
-          <RecipeCard recipe={hardRecipe} />
-        </BrowserRouter>
-      )
+      rerender(<RecipeCard recipe={hardRecipe} />)
       expect(screen.getByText('Hard')).toHaveClass('text-red-600')
     })
 

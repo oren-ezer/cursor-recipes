@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '../../setup/test-utils';
 import { describe, it, expect } from 'vitest';
 import '@testing-library/jest-dom';
 import PageContainer from '../../../src/components/layout/PageContainer';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '../setup/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
@@ -7,6 +7,10 @@ import { BrowserRouter } from 'react-router-dom';
 // Mock all dependencies
 vi.mock('../../src/contexts/AuthContext', () => ({
   useAuth: vi.fn(),
+  AuthContext: {
+    Provider: ({ children }: { children: React.ReactNode }) => children,
+    Consumer: ({ children }: any) => children(vi.fn()),
+  },
 }));
 
 vi.mock('../../src/lib/api-client', () => ({
@@ -36,11 +40,7 @@ import { apiClient } from '../../src/lib/api-client';
 import { useNavigate } from 'react-router-dom';
 
 const renderWithRouter = (component: React.ReactElement) => {
-  return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
-  );
+  return render(component);
 };
 
 // Helper function to create mock auth values
@@ -439,11 +439,7 @@ describe('RecipeListPage', () => {
       // Test authenticated user
       vi.mocked(useAuth).mockReturnValue(createMockAuth(true, { id: 1, email: 'test@example.com' }));
       
-      rerender(
-        <BrowserRouter>
-          <RecipeListPage />
-        </BrowserRouter>
-      );
+      rerender(<RecipeListPage />);
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create recipe/i })).toBeInTheDocument();

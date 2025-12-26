@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '../setup/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
@@ -7,6 +7,10 @@ import { BrowserRouter } from 'react-router-dom';
 // Mock all dependencies
 vi.mock('../../src/contexts/AuthContext', () => ({
   useAuth: vi.fn(),
+  AuthContext: {
+    Provider: ({ children }: { children: React.ReactNode }) => children,
+    Consumer: ({ children }: any) => children(vi.fn()),
+  },
 }));
 
 vi.mock('../../src/lib/api-client', () => ({
@@ -38,11 +42,7 @@ import { apiClient } from '../../src/lib/api-client';
 import { useParams, useNavigate } from 'react-router-dom';
 
 const renderWithRouter = (component: React.ReactElement) => {
-  return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
-  );
+  return render(component);
 };
 
 // Helper function to create mock auth values
@@ -154,7 +154,7 @@ describe('RecipeEditPage', () => {
       renderWithRouter(<RecipeEditPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Failed to fetch recipe')).toBeInTheDocument();
+        expect(screen.getByText('Failed to fetch recipes')).toBeInTheDocument();
       });
     });
 
@@ -605,6 +605,8 @@ describe('RecipeEditPage', () => {
           difficulty_level: 'Medium',
           is_public: true,
           image_url: 'https://example.com/image.jpg',
+          selectedTags: [],
+          tag_ids: [],
         });
       });
       

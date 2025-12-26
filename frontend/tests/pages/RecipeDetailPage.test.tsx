@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '../setup/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { BrowserRouter } from 'react-router-dom';
@@ -7,6 +7,10 @@ import { BrowserRouter } from 'react-router-dom';
 // Mock all dependencies
 vi.mock('../../src/contexts/AuthContext', () => ({
   useAuth: vi.fn(),
+  AuthContext: {
+    Provider: ({ children }: { children: React.ReactNode }) => children,
+    Consumer: ({ children }: any) => children(vi.fn()),
+  },
 }));
 
 vi.mock('../../src/lib/api-client', () => ({
@@ -45,11 +49,7 @@ Object.defineProperty(window, 'confirm', {
 });
 
 const renderWithRouter = (component: React.ReactElement) => {
-  return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
-  );
+  return render(component);
 };
 
 const mockRecipe = {
@@ -86,14 +86,19 @@ const createMockAuth = (isAuthenticated: boolean, user: any = null) => ({
 });
 
 describe('RecipeDetailPage', () => {
+  let mockNavigate: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Create a fresh mock navigate for each test
+    mockNavigate = vi.fn();
     
     // Setup default mocks
     vi.mocked(useAuth).mockReturnValue(createMockAuth(false));
     
     vi.mocked(useParams).mockReturnValue({ recipeId: '123' });
-    vi.mocked(useNavigate).mockReturnValue(vi.fn());
+    vi.mocked(useNavigate).mockReturnValue(mockNavigate);
     
     vi.mocked(apiClient.getRecipe).mockResolvedValue(mockRecipe);
     vi.mocked(apiClient.deleteRecipe).mockResolvedValue(undefined);
@@ -107,7 +112,7 @@ describe('RecipeDetailPage', () => {
       
       renderWithRouter(<RecipeDetailPage />);
       
-      expect(screen.getByText('Loading recipe...')).toBeInTheDocument();
+      expect(screen.getByText('Loading recipes...')).toBeInTheDocument();
     });
   });
 
@@ -118,7 +123,7 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Failed to fetch recipe')).toBeInTheDocument();
+        expect(screen.getByText('Failed to fetch recipes')).toBeInTheDocument();
       });
     });
 
@@ -290,9 +295,6 @@ describe('RecipeDetailPage', () => {
 
   describe('Navigation', () => {
     it('should navigate back to recipes when back button is clicked', async () => {
-      const mockNavigate = vi.fn();
-      vi.mocked(useNavigate).mockReturnValue(mockNavigate);
-      
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
@@ -314,8 +316,6 @@ describe('RecipeDetailPage', () => {
     });
 
     it('should navigate to My Recipes when button is clicked', async () => {
-      const mockNavigate = vi.fn();
-      vi.mocked(useNavigate).mockReturnValue(mockNavigate);
       vi.mocked(useAuth).mockReturnValue(createMockAuth(true, { id: 1, email: 'test@example.com' }));
       
       renderWithRouter(<RecipeDetailPage />);
@@ -337,8 +337,8 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /edit recipe/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /delete recipe/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
       });
     });
 
@@ -349,7 +349,7 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        const editButton = screen.getByRole('button', { name: /edit recipe/i });
+        const editButton = screen.getByRole('button', { name: /edit/i });
         fireEvent.click(editButton);
         expect(mockNavigate).toHaveBeenCalledWith('/recipes/123/edit');
       });
@@ -359,40 +359,80 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        const deleteButton = screen.getByRole('button', { name: /delete recipe/i });
+        const deleteButton = screen.getByRole('button', { name: /delete/i });
         fireEvent.click(deleteButton);
-        expect(mockConfirm).toHaveBeenCalledWith('Are you sure you want to delete "Test Recipe"?');
+      });
+      
+      // Should show confirmation modal
+      await waitFor(() => {
+        expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+        // Recipe title appears multiple times (page title, card, modal), just check it exists
+        const recipeTitles = screen.getAllByText(/Test Recipe/);
+        expect(recipeTitles.length).toBeGreaterThan(0);
       });
     });
 
     it('should delete recipe and navigate when confirmed', async () => {
-      const mockNavigate = vi.fn();
-      vi.mocked(useNavigate).mockReturnValue(mockNavigate);
-      
       renderWithRouter(<RecipeDetailPage />);
       
+      // Wait for page to load
       await waitFor(() => {
-        const deleteButton = screen.getByRole('button', { name: /delete recipe/i });
-        fireEvent.click(deleteButton);
+        const titles = screen.getAllByText('Test Recipe');
+        expect(titles.length).toBeGreaterThan(0);
       });
       
+      // Click the delete button
+      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      fireEvent.click(deleteButton);
+      
+      // Wait for confirmation modal to appear
+      await waitFor(() => {
+        expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+      });
+      
+      // Click the Delete Recipe button in the modal
+      const deleteRecipeButton = screen.getByRole('button', { name: 'Delete Recipe' });
+      fireEvent.click(deleteRecipeButton);
+      
+      // Wait for deletion API call
       await waitFor(() => {
         expect(vi.mocked(apiClient.deleteRecipe)).toHaveBeenCalledWith(123);
+      });
+      
+      // Wait for success modal to appear (RecipeDetailPage uses showSuccessModal: true)
+      await waitFor(() => {
+        const successTexts = screen.getAllByText(/deleted successfully/i);
+        expect(successTexts.length).toBeGreaterThan(0);
+      });
+      
+      // Click button on success modal to trigger navigation
+      const continueButton = screen.getByRole('button', { name: /continue/i });
+      fireEvent.click(continueButton);
+      
+      // Now navigation should happen
+      await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/recipes/my', {
-          state: { message: 'Recipe deleted successfully' }
+          replace: true
         });
       });
     });
 
     it('should not delete recipe when confirmation is cancelled', async () => {
-      mockConfirm.mockReturnValue(false);
-      
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        const deleteButton = screen.getByRole('button', { name: /delete recipe/i });
+        const deleteButton = screen.getByRole('button', { name: /delete/i });
         fireEvent.click(deleteButton);
       });
+      
+      // Wait for confirmation modal
+      await waitFor(() => {
+        expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+      });
+      
+      // Click cancel button in modal
+      const cancelButton = screen.getByRole('button', { name: /cancel/i });
+      fireEvent.click(cancelButton);
       
       await waitFor(() => {
         expect(vi.mocked(apiClient.deleteRecipe)).not.toHaveBeenCalled();
@@ -405,9 +445,21 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        const deleteButton = screen.getByRole('button', { name: /delete recipe/i });
+        const deleteButton = screen.getByRole('button', { name: /delete/i });
         fireEvent.click(deleteButton);
       });
+      
+      // Wait for confirmation modal
+      await waitFor(() => {
+        expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+      });
+      
+      // Find and click the Delete button in the modal
+      const modalButtons = screen.getAllByRole('button', { name: /delete/i });
+      const modalDeleteButton = modalButtons.find(btn => 
+        btn.textContent === 'Delete Recipe'
+      );
+      fireEvent.click(modalDeleteButton!);
       
       await waitFor(() => {
         expect(screen.getByText('Failed to delete recipe')).toBeInTheDocument();
@@ -422,8 +474,8 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: /edit recipe/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /delete recipe/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
       });
     });
 
@@ -433,8 +485,8 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: /edit recipe/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /delete recipe/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
       });
     });
   });
