@@ -59,6 +59,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   {t('nav.my_recipes')}
                 </Link>
               )}
+              {isAuthenticated && user?.is_superuser && (
+                <Link to="/admin" className={getLinkClasses('/admin')}>
+                  {t('admin.title')}
+                </Link>
+              )}
             </div>
             <div className="flex items-center gap-4">
               {isAuthenticated ? (

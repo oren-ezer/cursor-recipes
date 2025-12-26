@@ -28,7 +28,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           apiClient.setToken(storedToken);
           // Assuming your JWT 'sub' is email and you have a 'user_id' claim
           // You might fetch full user details from an API here instead of relying solely on JWT claims
-          setUser({ id: decodedToken.user_id, email: decodedToken.sub }); 
+          setUser({ 
+            id: decodedToken.user_id, 
+            email: decodedToken.sub,
+            is_superuser: decodedToken.is_superuser 
+          }); 
         } else {
           // Token expired
           localStorage.removeItem('authToken');
@@ -57,7 +61,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // If userData is not passed directly, decode from token
       try {
         const decodedToken = jwtDecode<any>(newToken);
-        setUser({ id: decodedToken.user_id, email: decodedToken.sub });
+        setUser({ 
+          id: decodedToken.user_id, 
+          email: decodedToken.sub,
+          is_superuser: decodedToken.is_superuser 
+        });
       } catch (error) {
         console.error("Failed to decode token on login:", error);
         // Handle error, maybe clear token and user

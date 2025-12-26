@@ -4,6 +4,7 @@ import { createContext, useContext } from 'react';
 export interface AuthUser {
   id: string | number; // Or whatever your user ID type is
   email: string;
+  is_superuser?: boolean;
   // Add other relevant user fields, e.g., fullName, roles, etc.
 }
 

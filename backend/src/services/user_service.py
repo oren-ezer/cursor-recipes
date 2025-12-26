@@ -315,7 +315,12 @@ class UserService:
         # 4. Create access token
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.email, "user_id": user.id, "uuid": user.uuid}, 
+            data={
+                "sub": user.email, 
+                "user_id": user.id, 
+                "uuid": user.uuid,
+                "is_superuser": user.is_superuser
+            }, 
             expires_delta=access_token_expires
         )
         

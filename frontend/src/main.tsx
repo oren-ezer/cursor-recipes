@@ -13,6 +13,7 @@ import RecipeDetailPage from './pages/RecipeDetailPage'
 import RecipeCreatePage from './pages/RecipeCreatePage'
 import RecipeEditPage from './pages/RecipeEditPage'
 import TagSelectorDemo from './pages/TagSelectorDemo'
+import AdminPage from './pages/AdminPage'
 import PageContainer from './components/layout/PageContainer'
 import ErrorBoundary from './components/ErrorBoundary'
 
@@ -65,6 +66,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="/recipes/:recipeId/edit" element={<RecipeEditPage />} />
               <Route path="/my-recipes" element={<MainLayout><MyRecipesPage /></MainLayout>} />
               <Route path="/tag-selector-demo" element={<MainLayout><TagSelectorDemo /></MainLayout>} />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
             </Routes>
