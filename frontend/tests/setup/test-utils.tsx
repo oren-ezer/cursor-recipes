@@ -1,6 +1,7 @@
 import React, { ReactElement } from 'react'
 import { render, RenderOptions } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
+import { vi } from 'vitest'
 import { AuthProvider } from '../../src/contexts/AuthProvider'
 import { LanguageProvider } from '../../src/contexts/LanguageContext'
 
@@ -73,6 +74,7 @@ export const createMockRecipe = (overrides = {}) => ({
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
   is_public: true,
+  tags: [],
   ...overrides,
 })
 
