@@ -232,20 +232,50 @@ class UserService:
         
         return existing_user 
 
-    def delete_user(self, user_id: int) -> None:
+    def delete_user(self, user_id: int, transfer_to_admin_id: Optional[int] = None) -> None:
         """
-        Delete a user by their ID.
+        Delete a user by their ID. If the user owns recipes, they must be transferred to an admin.
         
         Args:
             user_id: The ID of the user to delete
+            transfer_to_admin_id: Optional ID of admin user to transfer recipes to
         
         Raises:
-            ValueError: If user not found
+            ValueError: If user not found or if user has recipes but no transfer admin specified
         """
+        from src.models.recipe import Recipe
+        
         # Check if user exists
         existing_user = self.db.exec(select(User).where(User.id == user_id)).first()
         if not existing_user:
             raise ValueError("User not found")
+        
+        # Check if the user owns any recipes by UUID (recipes.user_id references users.uuid)
+        user_recipes = self.db.exec(select(Recipe).where(Recipe.user_id == existing_user.uuid)).all()
+        
+        if user_recipes and len(user_recipes) > 0:
+            if not transfer_to_admin_id:
+                raise ValueError(
+                    f"User owns {len(user_recipes)} recipe(s). Cannot delete without transferring ownership. "
+                    "Please provide an admin user ID to transfer recipes to."
+                )
+            
+            # Get the admin user to transfer recipes to
+            admin_user = self.db.exec(select(User).where(User.id == transfer_to_admin_id)).first()
+            if not admin_user:
+                raise ValueError(f"Admin user with ID {transfer_to_admin_id} not found")
+            if not admin_user.is_superuser:
+                raise ValueError(f"User {transfer_to_admin_id} is not an admin (superuser)")
+            
+            # Transfer all recipes to the admin user
+            for recipe in user_recipes:
+                recipe.user_id = admin_user.uuid  # Update to admin's UUID
+                from datetime import datetime, timezone
+                recipe.updated_at = datetime.now(timezone.utc)
+                self.db.add(recipe)
+            
+            # Flush recipe updates before deleting user
+            self.db.flush()
         
         # Delete the user and commit
         self.db.delete(existing_user)

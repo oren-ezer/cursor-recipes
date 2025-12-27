@@ -288,19 +288,26 @@ async def update_user(
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
-    user_service: Annotated[UserService, Depends(get_user_service)]
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    transfer_to_admin_id: Optional[int] = Query(None, description="ID of admin user to transfer recipes to if user owns recipes")
 ):
     """
-    Delete a user by ID.
+    Delete a user by ID. If user owns recipes, transfer_to_admin_id must be provided.
     """
     try:
-        user_service.delete_user(user_id)
+        user_service.delete_user(user_id, transfer_to_admin_id)
         return None  # 204 No Content
     except ValueError as e:
-        if "User not found" in str(e):
+        error_msg = str(e)
+        if "User not found" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
+            )
+        elif "User owns" in error_msg or "Invalid admin user" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
             )
         else:
             raise HTTPException(

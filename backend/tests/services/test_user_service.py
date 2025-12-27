@@ -1480,7 +1480,12 @@ class TestUserService:
             is_superuser=False
         )
         # Mock database operations
-        mock_db.exec.return_value.first.return_value = existing_user
+        # First call returns the user, second call returns empty recipes list
+        mock_result_user = Mock()
+        mock_result_user.first.return_value = existing_user
+        mock_result_recipes = Mock()
+        mock_result_recipes.all.return_value = []  # No recipes
+        mock_db.exec.side_effect = [mock_result_user, mock_result_recipes]
         mock_db.delete = Mock()
         mock_db.flush = Mock()
         user_service = UserService(mock_db)
@@ -1525,13 +1530,172 @@ class TestUserService:
             is_active=True,
             is_superuser=False
         )
-        mock_db.exec.return_value.first.return_value = existing_user
+        # Mock database operations
+        # First call returns the user, second call returns empty recipes list
+        mock_result_user = Mock()
+        mock_result_user.first.return_value = existing_user
+        mock_result_recipes = Mock()
+        mock_result_recipes.all.return_value = []  # No recipes
+        mock_db.exec.side_effect = [mock_result_user, mock_result_recipes]
         mock_db.delete = Mock()
         mock_db.flush.side_effect = Exception("Flush failed")
         user_service = UserService(mock_db)
         # Act & Assert
         with pytest.raises(Exception, match="Flush failed"):
             user_service.delete_user(1)
+
+    def test_delete_user_with_recipes_no_transfer_fails(self):
+        """Test deleting a user with recipes without providing transfer admin ID fails."""
+        # Arrange
+        from src.models.recipe import Recipe
+        mock_db = Mock()
+        existing_user = User(
+            id=1,
+            uuid="user-uuid",
+            email="test@example.com",
+            full_name="Test User",
+            is_active=True,
+            is_superuser=False
+        )
+        mock_recipe = Recipe(
+            id=1,
+            uuid="recipe-uuid",
+            title="Test Recipe",
+            user_id="user-uuid"
+        )
+        # Mock database operations
+        mock_result_user = Mock()
+        mock_result_user.first.return_value = existing_user
+        mock_result_recipes = Mock()
+        mock_result_recipes.all.return_value = [mock_recipe]  # Has recipes
+        mock_db.exec.side_effect = [mock_result_user, mock_result_recipes]
+        user_service = UserService(mock_db)
+        # Act & Assert
+        with pytest.raises(ValueError, match="User owns .* recipe"):
+            user_service.delete_user(1)  # No transfer_to_admin_id provided
+
+    def test_delete_user_with_recipes_transfer_success(self):
+        """Test deleting a user with recipes and transferring to admin."""
+        # Arrange
+        from src.models.recipe import Recipe
+        from datetime import datetime, timezone
+        mock_db = Mock()
+        existing_user = User(
+            id=1,
+            uuid="user-uuid",
+            email="test@example.com",
+            full_name="Test User",
+            is_active=True,
+            is_superuser=False
+        )
+        admin_user = User(
+            id=2,
+            uuid="admin-uuid",
+            email="admin@example.com",
+            full_name="Admin User",
+            is_active=True,
+            is_superuser=True
+        )
+        mock_recipe = Mock()
+        mock_recipe.user_id = "user-uuid"
+        mock_recipe.updated_at = datetime.now(timezone.utc)
+        
+        # Mock database operations
+        mock_result_user = Mock()
+        mock_result_user.first.return_value = existing_user
+        mock_result_recipes = Mock()
+        mock_result_recipes.all.return_value = [mock_recipe]  # Has recipes
+        mock_result_admin = Mock()
+        mock_result_admin.first.return_value = admin_user
+        mock_db.exec.side_effect = [mock_result_user, mock_result_recipes, mock_result_admin]
+        mock_db.add = Mock()
+        mock_db.delete = Mock()
+        mock_db.flush = Mock()
+        mock_db.commit = Mock()
+        user_service = UserService(mock_db)
+        
+        # Act
+        user_service.delete_user(1, transfer_to_admin_id=2)
+        
+        # Assert
+        assert mock_recipe.user_id == "admin-uuid"  # Recipe ownership transferred
+        mock_db.add.assert_called_once_with(mock_recipe)
+        mock_db.delete.assert_called_once_with(existing_user)
+        assert mock_db.flush.call_count == 2  # Once for recipe transfer, once for user deletion
+
+    def test_delete_user_with_recipes_invalid_admin(self):
+        """Test deleting a user with recipes using invalid admin ID fails."""
+        # Arrange
+        from src.models.recipe import Recipe
+        mock_db = Mock()
+        existing_user = User(
+            id=1,
+            uuid="user-uuid",
+            email="test@example.com",
+            full_name="Test User",
+            is_active=True,
+            is_superuser=False
+        )
+        mock_recipe = Recipe(
+            id=1,
+            uuid="recipe-uuid",
+            title="Test Recipe",
+            user_id="user-uuid"
+        )
+        # Mock database operations
+        mock_result_user = Mock()
+        mock_result_user.first.return_value = existing_user
+        mock_result_recipes = Mock()
+        mock_result_recipes.all.return_value = [mock_recipe]  # Has recipes
+        mock_result_admin = Mock()
+        mock_result_admin.first.return_value = None  # Admin not found
+        mock_db.exec.side_effect = [mock_result_user, mock_result_recipes, mock_result_admin]
+        user_service = UserService(mock_db)
+        
+        # Act & Assert
+        with pytest.raises(ValueError, match="Admin user with ID 999 not found"):
+            user_service.delete_user(1, transfer_to_admin_id=999)
+
+    def test_delete_user_with_recipes_non_superuser_admin(self):
+        """Test deleting a user with recipes using non-superuser as admin fails."""
+        # Arrange
+        from src.models.recipe import Recipe
+        mock_db = Mock()
+        existing_user = User(
+            id=1,
+            uuid="user-uuid",
+            email="test@example.com",
+            full_name="Test User",
+            is_active=True,
+            is_superuser=False
+        )
+        non_admin_user = User(
+            id=2,
+            uuid="non-admin-uuid",
+            email="nonadmin@example.com",
+            full_name="Non Admin User",
+            is_active=True,
+            is_superuser=False  # Not a superuser
+        )
+        mock_recipe = Recipe(
+            id=1,
+            uuid="recipe-uuid",
+            title="Test Recipe",
+            user_id="user-uuid"
+        )
+        # Mock database operations
+        mock_result_user = Mock()
+        mock_result_user.first.return_value = existing_user
+        mock_result_recipes = Mock()
+        mock_result_recipes.all.return_value = [mock_recipe]  # Has recipes
+        mock_result_admin = Mock()
+        mock_result_admin.first.return_value = non_admin_user  # User exists but is not superuser
+        mock_db.exec.side_effect = [mock_result_user, mock_result_recipes, mock_result_admin]
+        user_service = UserService(mock_db)
+        
+        # Act & Assert
+        with pytest.raises(ValueError, match="User 2 is not an admin"):
+            user_service.delete_user(1, transfer_to_admin_id=2)
 
     def test_set_superuser_status_success(self):
         """Test setting superuser status successfully."""
