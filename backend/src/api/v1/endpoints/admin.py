@@ -4,6 +4,7 @@ from sqlalchemy import text
 from src.core.config import settings
 from src.utils.dependencies import get_database_session, get_tag_service
 from src.services.tag_service import TagService
+from src.models.tag import TagCategory
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Annotated
@@ -103,9 +104,11 @@ class TagResponse(BaseModel):
 
 class TagCreate(BaseModel):
     name: str
+    category: str
 
 class TagUpdate(BaseModel):
     name: str
+    category: str
 
 @router.get("/tags/{tag_id}", response_model=TagResponse)
 async def get_tag(
@@ -230,7 +233,7 @@ async def create_tag(
     Create a new tag (admin only).
     
     Args:
-        tag_data: The tag data to create
+        tag_data: The tag data to create (name and category)
         tag_service: TagService instance with database session
         
     Returns:
@@ -240,7 +243,14 @@ async def create_tag(
         HTTPException: If creation fails or tag name already exists
     """
     try:
-        created_tag = tag_service.create_tag(tag_data.name)
+        # Convert string category to TagCategory enum
+        try:
+            category = TagCategory(tag_data.category)
+        except ValueError:
+            valid_categories = [cat.value for cat in TagCategory]
+            raise ValueError(f"Invalid category. Must be one of: {valid_categories}")
+        
+        created_tag = tag_service.create_tag(tag_data.name, category)
         return created_tag
         
     except ValueError as e:
@@ -263,7 +273,7 @@ async def update_tag(
     
     Args:
         tag_id: The ID of the tag to update
-        tag_data: The tag data to update
+        tag_data: The tag data to update (name and category)
         tag_service: TagService instance with database session
         
     Returns:
@@ -273,7 +283,14 @@ async def update_tag(
         HTTPException: If tag not found, update fails, or name already exists
     """
     try:
-        updated_tag = tag_service.update_tag(tag_id, tag_data.name)
+        # Convert string category to TagCategory enum
+        try:
+            category = TagCategory(tag_data.category)
+        except ValueError:
+            valid_categories = [cat.value for cat in TagCategory]
+            raise ValueError(f"Invalid category. Must be one of: {valid_categories}")
+        
+        updated_tag = tag_service.update_tag(tag_id, tag_data.name, category)
         return updated_tag
         
     except ValueError as e:
@@ -288,27 +305,32 @@ async def update_tag(
             detail=f"Failed to update tag: {str(e)}"
         )
 
-@router.delete("/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+class TagDeleteResponse(BaseModel):
+    tag_name: str
+    recipes_affected: int
+
+@router.delete("/tags/{tag_id}", response_model=TagDeleteResponse)
 async def delete_tag(
     tag_id: int,
     tag_service: Annotated[TagService, Depends(get_tag_service)]
 ):
     """
-    Delete a tag by ID (admin only).
+    Delete a tag by ID (admin only). 
+    If the tag is associated with recipes, those associations will be removed first.
     
     Args:
         tag_id: The ID of the tag to delete
         tag_service: TagService instance with database session
         
     Returns:
-        None (204 No Content)
+        TagDeleteResponse with tag name and number of recipes affected
         
     Raises:
-        HTTPException: If tag not found, has associations, or deletion fails
+        HTTPException: If tag not found or deletion fails
     """
     try:
-        tag_service.delete_tag(tag_id)
-        return None  # 204 No Content
+        result = tag_service.delete_tag(tag_id)
+        return result
         
     except ValueError as e:
         if "Tag not found" in str(e):

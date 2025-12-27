@@ -212,33 +212,53 @@ class TagService:
         
         return existing_tag
     
-    def delete_tag(self, tag_id: int) -> None:
+    def delete_tag(self, tag_id: int) -> dict:
         """
-        Delete a tag by its ID.
+        Delete a tag by its ID. If the tag has recipe associations, 
+        they will be removed first.
         
         Args:
             tag_id: The ID of the tag to delete
         
+        Returns:
+            Dictionary with deletion info including number of recipes affected
+        
         Raises:
-            ValueError: If tag not found or has existing associations
+            ValueError: If tag not found
         """
         # Check if tag exists
         existing_tag = self.get_tag(tag_id)
         if not existing_tag:
             raise ValueError("Tag not found")
         
-        # Check if tag has any associations
+        # Get all recipe associations
         associations = self.db.exec(
             select(RecipeTag).where(RecipeTag.tag_id == tag_id)
         ).all()
         
+        recipes_affected = len(associations)
+        
+        # Remove all recipe associations if any exist
         if associations:
-            raise ValueError(f"Cannot delete tag '{existing_tag.name}' - it is associated with {len(associations)} recipe(s)")
+            for association in associations:
+                self.db.delete(association)
+            self.db.flush()
+        
+        # Decrement recipe counter for all associated recipes would be done by triggers
+        # but since we're deleting associations manually, we should update the tag's counter
+        existing_tag.recipe_counter = 0
+        self.db.add(existing_tag)
+        self.db.flush()
         
         # Delete the tag and commit
         self.db.delete(existing_tag)
         self.db.flush()
         self.db.commit()  # Commit the transaction to persist deletion
+        
+        return {
+            "tag_name": existing_tag.name,
+            "recipes_affected": recipes_affected
+        }
     
     def get_tags_for_recipe(self, recipe_id: int) -> List[Tag]:
         """

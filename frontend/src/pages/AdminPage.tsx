@@ -22,11 +22,24 @@ const AdminPage: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newTagName, setNewTagName] = useState('');
+  const [newTagCategory, setNewTagCategory] = useState('');
   const [editingTagId, setEditingTagId] = useState<number | null>(null);
   const [editingTagName, setEditingTagName] = useState('');
+  const [editingTagCategory, setEditingTagCategory] = useState('');
   const [deletingTagId, setDeletingTagId] = useState<number | null>(null);
   const [showDeleteTagModal, setShowDeleteTagModal] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<Tag | null>(null);
+  
+  // Tag categories (matching backend TagCategory enum)
+  const tagCategories = [
+    'Meal Types',
+    'Special Dietary',
+    'Course Types',
+    'Cuisine Types',
+    'Main Ingredients',
+    'Cooking Methods',
+    'Special Categories'
+  ];
   
   // Users state
   const [users, setUsers] = useState<User[]>([]);
@@ -54,6 +67,7 @@ const AdminPage: React.FC = () => {
   // Common state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Check authorization
   useEffect(() => {
@@ -98,13 +112,14 @@ const AdminPage: React.FC = () => {
   };
 
   const handleCreateTag = async () => {
-    if (!newTagName.trim()) return;
+    if (!newTagName.trim() || !newTagCategory.trim()) return;
     
     setIsCreating(true);
     setError(null);
     try {
-      await apiClient.createAdminTag(newTagName.trim());
+      await apiClient.createAdminTag(newTagName.trim(), newTagCategory);
       setNewTagName('');
+      setNewTagCategory(''); // Reset to empty
       await loadTags();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('admin.tags.error'));
@@ -116,6 +131,7 @@ const AdminPage: React.FC = () => {
   const handleEditTag = (tag: Tag) => {
     setEditingTagId(tag.id);
     setEditingTagName(tag.name);
+    setEditingTagCategory(tag.category);
   };
 
   const handleSaveTagEdit = async (tagId: number) => {
@@ -123,9 +139,10 @@ const AdminPage: React.FC = () => {
     
     setError(null);
     try {
-      await apiClient.updateAdminTag(tagId, editingTagName.trim());
+      await apiClient.updateAdminTag(tagId, editingTagName.trim(), editingTagCategory);
       setEditingTagId(null);
       setEditingTagName('');
+      setEditingTagCategory('');
       await loadTags();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('admin.tags.error'));
@@ -135,6 +152,7 @@ const AdminPage: React.FC = () => {
   const handleCancelTagEdit = () => {
     setEditingTagId(null);
     setEditingTagName('');
+    setEditingTagCategory('');
   };
 
   const handleDeleteTagClick = (tag: Tag) => {
@@ -147,11 +165,28 @@ const AdminPage: React.FC = () => {
     
     setDeletingTagId(tagToDelete.id);
     setError(null);
+    setSuccessMessage(null);
     try {
-      await apiClient.deleteAdminTag(tagToDelete.id);
+      const result = await apiClient.deleteAdminTag(tagToDelete.id);
       await loadTags();
       setShowDeleteTagModal(false);
       setTagToDelete(null);
+      
+      // Show success message with details
+      if (result.recipes_affected > 0) {
+        setSuccessMessage(
+          t('admin.tags.delete_success_with_recipes')
+            .replace('{name}', result.tag_name)
+            .replace('{count}', String(result.recipes_affected))
+        );
+      } else {
+        setSuccessMessage(
+          t('admin.tags.delete_success').replace('{name}', result.tag_name)
+        );
+      }
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('admin.tags.error'));
     } finally {
@@ -369,6 +404,13 @@ const AdminPage: React.FC = () => {
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded">
               {error}
+            </div>
+          )}
+          
+          {/* Success message display */}
+          {successMessage && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded">
+              {successMessage}
             </div>
           )}
 
@@ -627,24 +669,45 @@ const AdminPage: React.FC = () => {
                   <CardTitle>{t('admin.tags.create')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-4">
-                    <Input
-                      value={newTagName}
-                      onChange={(e) => setNewTagName(e.target.value)}
-                      placeholder={t('admin.tags.name_placeholder')}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newTagName.trim()) {
-                          handleCreateTag();
-                        }
-                      }}
-                      disabled={isCreating}
-                    />
-                    <Button 
-                      onClick={handleCreateTag} 
-                      disabled={!newTagName.trim() || isCreating}
-                    >
-                      {isCreating ? t('admin.tags.creating') : t('admin.tags.create')}
-                    </Button>
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium mb-2">{t('admin.tags.name')}</label>
+                        <Input
+                          value={newTagName}
+                          onChange={(e) => setNewTagName(e.target.value)}
+                          placeholder={t('admin.tags.name_placeholder')}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newTagName.trim()) {
+                              handleCreateTag();
+                            }
+                          }}
+                          disabled={isCreating}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium mb-2">{t('admin.tags.category')}</label>
+                        <select
+                          value={newTagCategory}
+                          onChange={(e) => setNewTagCategory(e.target.value)}
+                          disabled={isCreating}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                        >
+                          <option value="">{t('admin.tags.category_placeholder')}</option>
+                          {tagCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <Button 
+                          onClick={handleCreateTag} 
+                          disabled={!newTagName.trim() || !newTagCategory.trim() || isCreating}
+                        >
+                          {isCreating ? t('admin.tags.creating') : t('admin.tags.create')}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -695,7 +758,19 @@ const AdminPage: React.FC = () => {
                                 )}
                               </td>
                               <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                                {tag.category}
+                                {editingTagId === tag.id ? (
+                                  <select
+                                    value={editingTagCategory}
+                                    onChange={(e) => setEditingTagCategory(e.target.value)}
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                                  >
+                                    {tagCategories.map(cat => (
+                                      <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  tag.category
+                                )}
                               </td>
                               <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">
                                 {tag.recipe_counter}

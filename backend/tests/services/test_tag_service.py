@@ -339,10 +339,10 @@ class TestTagService:
             tag_service.update_tag(1, "New Name", TagCategory.MEAL_TYPES)
     
     def test_delete_tag_success(self):
-        """Test deleting a tag successfully."""
+        """Test deleting a tag successfully without associations."""
         # Arrange
         mock_db = Mock()
-        existing_tag = Tag(id=1, uuid="test-uuid", name="breakfast", recipe_counter=0)
+        existing_tag = Tag(id=1, uuid="test-uuid", name="breakfast", recipe_counter=0, category="Meal Types")
         
         # Mock get_tag to return existing tag
         mock_exec_get = Mock()
@@ -355,6 +355,7 @@ class TestTagService:
         mock_db.exec.side_effect = [mock_exec_get, mock_exec_assoc]
         
         # Mock database operations
+        mock_db.add = Mock()
         mock_db.delete = Mock()
         mock_db.flush = Mock()
         mock_db.commit = Mock()
@@ -362,11 +363,13 @@ class TestTagService:
         tag_service = TagService(mock_db)
         
         # Act
-        tag_service.delete_tag(1)
+        result = tag_service.delete_tag(1)
         
         # Assert
+        assert result == {"tag_name": "breakfast", "recipes_affected": 0}
+        mock_db.add.assert_called_once_with(existing_tag)  # Tag counter update
         mock_db.delete.assert_called_once_with(existing_tag)
-        mock_db.flush.assert_called_once()
+        assert mock_db.flush.call_count == 2  # Once for counter, once for deletion
         mock_db.commit.assert_called_once()
     
     def test_delete_tag_not_found(self):
@@ -386,26 +389,45 @@ class TestTagService:
             tag_service.delete_tag(999)
     
     def test_delete_tag_with_associations(self):
-        """Test deleting a tag that has associations."""
+        """Test deleting a tag that has associations - should remove associations first."""
         # Arrange
         mock_db = Mock()
-        existing_tag = Tag(id=1, uuid="test-uuid", name="breakfast", recipe_counter=2)
+        existing_tag = Tag(id=1, uuid="test-uuid", name="breakfast", recipe_counter=2, category="Meal Types")
         
         # Mock get_tag to return existing tag
         mock_exec_get = Mock()
         mock_exec_get.first.return_value = existing_tag
         
         # Mock check for associations to return existing associations
+        mock_assoc_1 = RecipeTag(recipe_id=1, tag_id=1)
+        mock_assoc_2 = RecipeTag(recipe_id=2, tag_id=1)
         mock_exec_assoc = Mock()
-        mock_exec_assoc.all.return_value = [RecipeTag(recipe_id=1, tag_id=1), RecipeTag(recipe_id=2, tag_id=1)]
+        mock_exec_assoc.all.return_value = [mock_assoc_1, mock_assoc_2]
         
         mock_db.exec.side_effect = [mock_exec_get, mock_exec_assoc]
         
+        # Mock database operations
+        mock_db.add = Mock()
+        mock_db.delete = Mock()
+        mock_db.flush = Mock()
+        mock_db.commit = Mock()
+        
         tag_service = TagService(mock_db)
         
-        # Act & Assert
-        with pytest.raises(ValueError, match="Cannot delete tag 'breakfast' - it is associated with 2 recipe\\(s\\)"):
-            tag_service.delete_tag(1)
+        # Act
+        result = tag_service.delete_tag(1)
+        
+        # Assert
+        assert result == {"tag_name": "breakfast", "recipes_affected": 2}
+        # Should delete both associations
+        assert mock_db.delete.call_count == 3  # 2 associations + 1 tag
+        mock_db.delete.assert_any_call(mock_assoc_1)
+        mock_db.delete.assert_any_call(mock_assoc_2)
+        mock_db.delete.assert_any_call(existing_tag)
+        # Should flush 3 times: associations, counter update, tag deletion
+        assert mock_db.flush.call_count == 3
+        mock_db.add.assert_called_once_with(existing_tag)  # Tag counter update
+        mock_db.commit.assert_called_once()
     
     def test_get_tags_for_recipe(self):
         """Test getting tags for a specific recipe."""
