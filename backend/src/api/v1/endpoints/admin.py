@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, status
+from fastapi import APIRouter, Request, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from src.core.config import settings
-from src.utils.dependencies import get_database_session, get_tag_service
+from src.utils.dependencies import get_database_session, get_tag_service, get_recipe_service_with_tags
 from src.services.tag_service import TagService
+from src.services.recipes_service import RecipeService
 from src.models.tag import TagCategory
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,72 @@ async def test_db_connection(
             "error": str(e),
             "error_type": type(e).__name__
         }
+
+# Admin recipe endpoints
+
+class Ingredient(BaseModel):
+    name: str
+    amount: str
+
+class TagInfo(BaseModel):
+    id: int
+    name: str
+    category: str
+
+class RecipeResponse(BaseModel):
+    id: int
+    uuid: str
+    title: str
+    description: str
+    ingredients: List[Ingredient]
+    instructions: List[str]
+    preparation_time: int
+    cooking_time: int
+    servings: int
+    difficulty_level: str
+    user_id: str
+    created_at: datetime
+    updated_at: datetime
+    is_public: bool
+    image_url: str | None = None
+    tags: List[TagInfo] = []
+
+class RecipesResponse(BaseModel):
+    recipes: List[RecipeResponse]
+    total: int
+    limit: int
+    offset: int
+
+@router.get("/recipes/", response_model=RecipesResponse)
+async def get_all_recipes(
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    limit: int = Query(1000, ge=1, le=10000, description="Maximum number of records to return"),
+    offset: int = Query(0, ge=0, description="Number of records to skip")
+):
+    """
+    Get ALL recipes (public and private) for admin management.
+    This endpoint is intended for admin use only.
+    
+    Args:
+        limit: Maximum number of records to return (1-10000)
+        offset: Number of records to skip
+        recipe_service: RecipeService instance with database session
+        
+    Returns:
+        List of all recipes with pagination info
+        
+    Raises:
+        HTTPException: If there's an error retrieving recipes
+    """
+    try:
+        result = recipe_service.get_all_recipes_with_tags(limit=limit, offset=offset)
+        return result
+    except Exception as e:
+        logger.error(f"Error retrieving all recipes for admin: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve recipes: {str(e)}"
+        )
 
 # Admin tag endpoints
 

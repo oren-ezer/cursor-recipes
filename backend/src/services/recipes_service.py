@@ -182,6 +182,47 @@ class RecipeService:
         
         return result
     
+    def get_all_recipes_with_tags(self, limit: int = 100, offset: int = 0) -> dict:
+        """
+        Get ALL recipes (public and private) with tags and pagination support.
+        This method is intended for admin use only.
+        
+        Args:
+            limit: Maximum number of records to return
+            offset: Number of records to skip
+            
+        Returns:
+            Dictionary with all recipes (including tags), total count, limit, and offset
+        """
+        # Build statement for ALL recipes (no public filter)
+        statement = select(Recipe)
+        count_statement = select(Recipe)
+        
+        # Add pagination
+        statement = statement.offset(offset).limit(limit)
+        
+        # Get recipes for current page
+        recipes = self.db.execute(statement).scalars().all()
+        
+        # Get total count
+        total = len(self.db.execute(count_statement).scalars().all())
+        
+        result = {
+            "recipes": recipes,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+        
+        # Add tags to each recipe if tag_service is available
+        if self.tag_service:
+            recipes_with_tags = []
+            for recipe in result["recipes"]:
+                recipes_with_tags.append(self._add_tags_to_recipe_dict(recipe))
+            result["recipes"] = recipes_with_tags
+        
+        return result
+    
     def create_recipe(self, recipe_data: dict, user_uuid: str) -> Recipe:
         """
         Create a new recipe.

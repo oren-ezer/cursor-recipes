@@ -257,7 +257,7 @@ const AdminPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const allRecipes = await apiClient.getRecipes(1000); // Get more recipes for admin view
+      const allRecipes = await apiClient.getAllRecipesForAdmin(1000); // Get ALL recipes (public and private) for admin view
       setRecipes(allRecipes);
       
       // Load users to create a lookup map for recipe authors
