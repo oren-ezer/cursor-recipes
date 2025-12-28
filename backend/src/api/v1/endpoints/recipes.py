@@ -260,8 +260,9 @@ async def update_recipe(
         
         update_dict = recipe_data.model_dump(exclude_unset=True)
         
-        # Update recipe with tags
-        recipe_with_tags = recipe_service.update_recipe_with_tags(recipe_id, update_dict, user["uuid"])
+        # Update recipe with tags (allow superusers to edit any recipe)
+        is_superuser = user.get("is_superuser", False)
+        recipe_with_tags = recipe_service.update_recipe_with_tags(recipe_id, update_dict, user["uuid"], is_superuser)
         return recipe_with_tags
         
     except ValueError as e:
@@ -300,7 +301,9 @@ async def delete_recipe(
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
         
-        recipe_service.delete_recipe_with_tags(recipe_id, user["uuid"])
+        # Delete recipe with tags (allow superusers to delete any recipe)
+        is_superuser = user.get("is_superuser", False)
+        recipe_service.delete_recipe_with_tags(recipe_id, user["uuid"], is_superuser)
         return None  # 204 No Content
         
     except ValueError as e:

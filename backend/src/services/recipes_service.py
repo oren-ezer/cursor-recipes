@@ -242,7 +242,7 @@ class RecipeService:
         # Return recipe with tags
         return self.get_recipe_with_tags(created_recipe.id)
     
-    def update_recipe(self, recipe_id: int, update_data: dict, user_uuid: str) -> Recipe:
+    def update_recipe(self, recipe_id: int, update_data: dict, user_uuid: str, is_superuser: bool = False) -> Recipe:
         """
         Update a recipe.
         
@@ -250,6 +250,7 @@ class RecipeService:
             recipe_id: The ID of the recipe to update
             update_data: Dictionary containing the fields to update
             user_uuid: UUID of the user updating the recipe
+            is_superuser: Whether the user is a superuser/admin (can edit any recipe)
             
         Returns:
             Updated Recipe object
@@ -263,7 +264,8 @@ class RecipeService:
         if not recipe:
             raise ValueError(f"Recipe with ID {recipe_id} not found")
         
-        if recipe.user_id != user_uuid:
+        # Allow superusers to update any recipe
+        if recipe.user_id != user_uuid and not is_superuser:
             raise ValueError("Not authorized to update this recipe")
         
         if not update_data:
@@ -287,7 +289,7 @@ class RecipeService:
         self.db.refresh(recipe)
         return recipe
 
-    def update_recipe_with_tags(self, recipe_id: int, update_data: dict, user_uuid: str) -> dict:
+    def update_recipe_with_tags(self, recipe_id: int, update_data: dict, user_uuid: str, is_superuser: bool = False) -> dict:
         """
         Update a recipe with tags.
         
@@ -295,6 +297,7 @@ class RecipeService:
             recipe_id: The ID of the recipe to update
             update_data: Dictionary containing the fields to update
             user_uuid: UUID of the user updating the recipe
+            is_superuser: Whether the user is a superuser/admin (can edit any recipe)
             
         Returns:
             Dictionary with updated recipe data and tags
@@ -306,7 +309,7 @@ class RecipeService:
         tag_ids = update_data.pop("tag_ids", None)
         
         # Update the recipe
-        updated_recipe = self.update_recipe(recipe_id, update_data, user_uuid)
+        updated_recipe = self.update_recipe(recipe_id, update_data, user_uuid, is_superuser)
         
         # Update tags if provided
         if tag_ids is not None and self.tag_service:
@@ -336,13 +339,14 @@ class RecipeService:
         # Return recipe with tags
         return self.get_recipe_with_tags(recipe_id)
     
-    def delete_recipe(self, recipe_id: int, user_uuid: str) -> None:
+    def delete_recipe(self, recipe_id: int, user_uuid: str, is_superuser: bool = False) -> None:
         """
         Delete a recipe.
         
         Args:
             recipe_id: The ID of the recipe to delete
             user_uuid: UUID of the user deleting the recipe
+            is_superuser: Whether the user is a superuser/admin (can delete any recipe)
             
         Raises:
             ValueError: If recipe not found or user not authorized
@@ -353,20 +357,22 @@ class RecipeService:
         if not recipe:
             raise ValueError(f"Recipe with ID {recipe_id} not found")
         
-        if recipe.user_id != user_uuid:
+        # Allow superusers to delete any recipe
+        if recipe.user_id != user_uuid and not is_superuser:
             raise ValueError("Not authorized to delete this recipe")
         
         self.db.delete(recipe)
         self.db.flush()
         self.db.commit()  # Commit the transaction to persist deletion
 
-    def delete_recipe_with_tags(self, recipe_id: int, user_uuid: str) -> None:
+    def delete_recipe_with_tags(self, recipe_id: int, user_uuid: str, is_superuser: bool = False) -> None:
         """
         Delete a recipe and remove all its tag associations.
         
         Args:
             recipe_id: The ID of the recipe to delete
             user_uuid: UUID of the user deleting the recipe
+            is_superuser: Whether the user is a superuser/admin (can delete any recipe)
             
         Raises:
             ValueError: If recipe not found or user not authorized
@@ -382,4 +388,4 @@ class RecipeService:
                 )
         
         # Then delete the recipe
-        self.delete_recipe(recipe_id, user_uuid) 
+        self.delete_recipe(recipe_id, user_uuid, is_superuser) 

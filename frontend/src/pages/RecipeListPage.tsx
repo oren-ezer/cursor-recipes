@@ -10,9 +10,10 @@ import { Input } from '../components/ui/input';
 import RecipeCard from '../components/RecipeCard';
 import TagSelector from '../components/ui/tag-selector';
 import { useLanguage } from '../contexts/LanguageContext';
+import ConfirmationModal from '../components/ui/confirmation-modal';
 
 const RecipeListPage: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -20,6 +21,9 @@ const RecipeListPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchRecipes = async () => {
@@ -40,6 +44,27 @@ const RecipeListPage: React.FC = () => {
 
     fetchRecipes();
   }, [t]);
+
+  const handleDeleteClick = (recipe: Recipe) => {
+    setRecipeToDelete(recipe);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!recipeToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await apiClient.deleteRecipe(recipeToDelete.id);
+      setRecipes(recipes.filter(r => r.id !== recipeToDelete.id));
+      setShowDeleteModal(false);
+      setRecipeToDelete(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to delete recipe');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleLoadTags = async () => {
     return await apiClient.getAllTags();
@@ -120,13 +145,27 @@ const RecipeListPage: React.FC = () => {
                 <RecipeCard
                   key={recipe.id}
                   recipe={recipe}
-                  variant="default"
+                  variant={user?.is_superuser ? "my-recipes" : "default"}
+                  onDelete={user?.is_superuser ? handleDeleteClick : undefined}
                 />
               ))}
             </div>
           )}
         </div>
       </PageContainer>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+        title={t('recipe.detail.delete_title')}
+        message={t('recipe.detail.delete_message').replace('{title}', recipeToDelete?.title || '')}
+        confirmText={t('recipe.detail.delete_confirm')}
+        cancelText={t('modal.cancel')}
+        variant="destructive"
+        isLoading={isDeleting}
+      />
     </MainLayout>
   );
 };

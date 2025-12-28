@@ -1231,7 +1231,7 @@ class TestRecipeServiceWithTags:
         mock_tag_service.update_recipe_tags.assert_called_once_with(
             recipe_id=1, remove_tag_ids=[1, 2]
         )
-        recipe_service.delete_recipe.assert_called_once_with(1, "test-user-uuid")
+        recipe_service.delete_recipe.assert_called_once_with(1, "test-user-uuid", False)
     
     def test_delete_recipe_with_tags_no_tags(self):
         """Test delete_recipe_with_tags when recipe has no tags."""
@@ -1267,7 +1267,7 @@ class TestRecipeServiceWithTags:
         # Assert
         mock_tag_service.get_tags_for_recipe.assert_called_once_with(1)
         mock_tag_service.update_recipe_tags.assert_not_called()
-        recipe_service.delete_recipe.assert_called_once_with(1, "test-user-uuid")
+        recipe_service.delete_recipe.assert_called_once_with(1, "test-user-uuid", False)
     
     def test_delete_recipe_with_tags_no_tag_service(self):
         """Test delete_recipe_with_tags when no tag_service is available."""
@@ -1297,4 +1297,4 @@ class TestRecipeServiceWithTags:
         recipe_service.delete_recipe_with_tags(1, "test-user-uuid")
         
         # Assert
-        recipe_service.delete_recipe.assert_called_once_with(1, "test-user-uuid")
+        recipe_service.delete_recipe.assert_called_once_with(1, "test-user-uuid", False)
