@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 # import logging
 # import re
@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SUPABASE_SERVICE_KEY: str
+    
+    # OpenAI Configuration
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_ORG_ID: Optional[str] = None
+    OPENAI_DEFAULT_MODEL: str = "gpt-4o-mini"
+    OPENAI_MAX_TOKENS: int = 1000
+    OPENAI_TEMPERATURE: float = 0.7
     
     model_config = SettingsConfigDict(
         env_file=".env",

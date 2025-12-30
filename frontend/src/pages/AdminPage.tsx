@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, ApiError } from '../lib/api-client';
-import type { Tag, User, Recipe } from '../lib/api-client';
+import type { Tag, User, Recipe, AITestRequest, AITestResponse } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
@@ -16,7 +16,7 @@ const AdminPage: React.FC = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'recipes' | 'tags' | 'system'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'recipes' | 'tags' | 'system' | 'ai'>('users');
   
   // Tags state
   const [tags, setTags] = useState<Tag[]>([]);
@@ -63,6 +63,17 @@ const AdminPage: React.FC = () => {
   // System test state
   const [testResults, setTestResults] = useState<{ [key: string]: any }>({});
   const [testingKey, setTestingKey] = useState<string | null>(null);
+  
+  // AI test state
+  const [aiModel, setAiModel] = useState('gpt-4o-mini');
+  const [aiSystemPrompt, setAiSystemPrompt] = useState('You are a helpful culinary AI assistant.');
+  const [aiUserPrompt, setAiUserPrompt] = useState('');
+  const [aiTemperature, setAiTemperature] = useState(0.7);
+  const [aiMaxTokens, setAiMaxTokens] = useState(1000);
+  const [aiResponseFormat, setAiResponseFormat] = useState<'json' | null>(null);
+  const [aiResponse, setAiResponse] = useState<AITestResponse | null>(null);
+  const [isExecutingAi, setIsExecutingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   
   // Common state
   const [isLoading, setIsLoading] = useState(true);
@@ -330,6 +341,40 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // AI Test Functions
+  const executeAiTest = async () => {
+    if (!aiUserPrompt.trim()) {
+      setAiError('User prompt is required');
+      return;
+    }
+
+    setIsExecutingAi(true);
+    setAiError(null);
+    setAiResponse(null);
+    
+    try {
+      const request: AITestRequest = {
+        model: aiModel,
+        system_prompt: aiSystemPrompt || undefined,
+        user_prompt: aiUserPrompt,
+        temperature: aiTemperature,
+        max_tokens: aiMaxTokens,
+        response_format: aiResponseFormat,
+      };
+
+      const response = await apiClient.testAI(request);
+      setAiResponse(response);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setAiError(err.message);
+      } else {
+        setAiError(t('admin.ai.error'));
+      }
+    } finally {
+      setIsExecutingAi(false);
+    }
+  };
+
   // Show unauthorized message for non-superusers
   if (!user?.is_superuser) {
     return (
@@ -397,6 +442,16 @@ const AdminPage: React.FC = () => {
               }`}
             >
               {t('admin.nav.system')}
+            </button>
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                activeTab === 'ai'
+                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {t('admin.ai.title')}
             </button>
           </div>
 
@@ -896,6 +951,185 @@ const AdminPage: React.FC = () => {
                       {testingKey === 'setup' ? t('admin.system.testing') : t('admin.system.test')}
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* AI Testing Tab */}
+          {activeTab === 'ai' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t('admin.ai.title')}</CardTitle>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{t('admin.ai.description')}</p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Model Selection */}
+                  <div>
+                    <label htmlFor="aiModel" className="block text-sm font-medium mb-2">
+                      {t('admin.ai.model')}
+                    </label>
+                    <select
+                      id="aiModel"
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      disabled={isExecutingAi}
+                    >
+                      <option value="gpt-4o">gpt-4o (Most capable)</option>
+                      <option value="gpt-4o-mini">gpt-4o-mini (Fast, cost-effective)</option>
+                      <option value="gpt-3.5-turbo">gpt-3.5-turbo (Legacy)</option>
+                    </select>
+                  </div>
+
+                  {/* Temperature and Max Tokens */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="aiTemperature" className="block text-sm font-medium mb-2">
+                        {t('admin.ai.temperature')}: {aiTemperature}
+                      </label>
+                      <input
+                        type="range"
+                        id="aiTemperature"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={aiTemperature}
+                        onChange={(e) => setAiTemperature(parseFloat(e.target.value))}
+                        disabled={isExecutingAi}
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="aiMaxTokens" className="block text-sm font-medium mb-2">
+                        {t('admin.ai.max_tokens')}
+                      </label>
+                      <input
+                        type="number"
+                        id="aiMaxTokens"
+                        min="100"
+                        max="4000"
+                        step="100"
+                        value={aiMaxTokens}
+                        onChange={(e) => setAiMaxTokens(parseInt(e.target.value))}
+                        disabled={isExecutingAi}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                  </div>
+
+                  {/* System Prompt */}
+                  <div>
+                    <label htmlFor="aiSystemPrompt" className="block text-sm font-medium mb-2">
+                      {t('admin.ai.system_prompt')}
+                    </label>
+                    <textarea
+                      id="aiSystemPrompt"
+                      value={aiSystemPrompt}
+                      onChange={(e) => setAiSystemPrompt(e.target.value)}
+                      placeholder={t('admin.ai.system_prompt_placeholder')}
+                      disabled={isExecutingAi}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+
+                  {/* User Prompt */}
+                  <div>
+                    <label htmlFor="aiUserPrompt" className="block text-sm font-medium mb-2">
+                      {t('admin.ai.user_prompt')} *
+                    </label>
+                    <textarea
+                      id="aiUserPrompt"
+                      value={aiUserPrompt}
+                      onChange={(e) => setAiUserPrompt(e.target.value)}
+                      placeholder={t('admin.ai.user_prompt_placeholder')}
+                      disabled={isExecutingAi}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+
+                  {/* Response Format */}
+                  <div>
+                    <span className="block text-sm font-medium mb-2">{t('admin.ai.response_format')}</span>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="responseFormat"
+                          checked={aiResponseFormat === null}
+                          onChange={() => setAiResponseFormat(null)}
+                          disabled={isExecutingAi}
+                        />
+                        <span>{t('admin.ai.format_text')}</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="responseFormat"
+                          checked={aiResponseFormat === 'json'}
+                          onChange={() => setAiResponseFormat('json')}
+                          disabled={isExecutingAi}
+                        />
+                        <span>{t('admin.ai.format_json')}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Execute Button */}
+                  <Button
+                    onClick={executeAiTest}
+                    disabled={isExecutingAi || !aiUserPrompt.trim()}
+                    className="w-full"
+                  >
+                    {isExecutingAi ? t('admin.ai.executing') : t('admin.ai.execute')}
+                  </Button>
+
+                  {/* Error Display */}
+                  {aiError && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded">
+                      {aiError}
+                    </div>
+                  )}
+
+                  {/* Response Display */}
+                  {aiResponse && (
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-medium mb-2">{t('admin.ai.response')}</h3>
+                        <pre className="text-sm p-4 bg-gray-100 dark:bg-gray-800 rounded overflow-auto max-h-96 whitespace-pre-wrap">
+                          {typeof aiResponse.content === 'string' 
+                            ? aiResponse.content 
+                            : JSON.stringify(aiResponse.content, null, 2)}
+                        </pre>
+                      </div>
+
+                      {/* Metadata */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">{t('admin.ai.tokens_used')}:</span>
+                          <p className="text-gray-600 dark:text-gray-400">
+                            {aiResponse.tokens_used.total} 
+                            <span className="text-xs"> ({aiResponse.tokens_used.prompt} + {aiResponse.tokens_used.completion})</span>
+                          </p>
+                        </div>
+                        <div>
+                          <span className="font-medium">{t('admin.ai.estimated_cost')}:</span>
+                          <p className="text-gray-600 dark:text-gray-400">${aiResponse.estimated_cost.toFixed(6)}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">{t('admin.ai.model')}:</span>
+                          <p className="text-gray-600 dark:text-gray-400">{aiResponse.model}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">{t('admin.ai.finish_reason')}:</span>
+                          <p className="text-gray-600 dark:text-gray-400">{aiResponse.finish_reason}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

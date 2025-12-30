@@ -121,12 +121,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # Import and include routers
-from src.api.v1.endpoints import users, recipes, admin, tags
+from src.api.v1.endpoints import users, recipes, admin, tags, ai
 
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(recipes.router, prefix=settings.API_V1_STR)
 app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(tags.router, prefix=settings.API_V1_STR)
+app.include_router(ai.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 async def root():
