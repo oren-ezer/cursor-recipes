@@ -22,6 +22,8 @@ const RecipeDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasNavigated, setHasNavigated] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null);
 
   // Use the consistent deletion hook
   const {
@@ -145,6 +147,73 @@ const RecipeDetailPage: React.FC = () => {
     navigate(`/recipes/${recipeId}/edit`);
   };
 
+  const handleExportPdf = async () => {
+    if (!recipe) return;
+    
+    setIsExporting(true);
+    setError(null);
+    setExportSuccess(null);
+    
+    try {
+      const blob = await apiClient.exportRecipeToPdf(recipe.id);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${recipe.title.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      setExportSuccess(t('recipe.detail.export_success'));
+      setTimeout(() => setExportSuccess(null), 3000);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(t('recipe.detail.export_error'));
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportJson = async () => {
+    if (!recipe) return;
+    
+    setIsExporting(true);
+    setError(null);
+    setExportSuccess(null);
+    
+    try {
+      const data = await apiClient.exportRecipeToJson(recipe.id);
+      
+      // Create download link
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${recipe.title.replace(/\s+/g, '_')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      setExportSuccess(t('recipe.detail.export_success'));
+      setTimeout(() => setExportSuccess(null), 3000);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(t('recipe.detail.export_error'));
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleDeleteButtonClick = () => {
     if (recipe) {
       handleDeleteClick(recipe);
@@ -237,7 +306,36 @@ const RecipeDetailPage: React.FC = () => {
             />
           </div>
 
-          {/* Action Buttons */}
+          {/* Export Success Message */}
+          {exportSuccess && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded text-center">
+              {exportSuccess}
+            </div>
+          )}
+
+          {/* Export Buttons - Available to all authenticated users */}
+          {isAuthenticated && (
+            <div className="flex justify-center gap-4">
+              <Button 
+                onClick={handleExportPdf}
+                disabled={isExporting}
+                variant="outline"
+              >
+                {isExporting ? t('recipe.detail.exporting') : t('recipe.detail.export_pdf')}
+              </Button>
+              {user?.is_superuser && (
+                <Button 
+                  onClick={handleExportJson}
+                  disabled={isExporting}
+                  variant="outline"
+                >
+                  {isExporting ? t('recipe.detail.exporting') : t('recipe.detail.export_json')}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons - Owner only */}
           {isOwner && (
             <div className="flex justify-center gap-4">
               <Button onClick={handleEdit}>

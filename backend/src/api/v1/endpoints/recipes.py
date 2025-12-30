@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi.responses import Response, StreamingResponse
 from typing import List, Dict, Any, Optional, Annotated
 from src.utils.dependencies import get_recipe_service_with_tags, get_current_user
 from src.services.recipes_service import RecipeService
@@ -315,4 +316,83 @@ async def delete_recipe(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error deleting recipe {recipe_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete recipe: {str(e)}") 
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete recipe: {str(e)}")
+
+
+@router.get("/{recipe_id}/export/json", response_model=Dict[str, Any])
+async def export_recipe_json(
+    recipe_id: int,
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    request: Request
+):
+    """
+    Export a recipe to JSON format.
+    Requires authentication and superuser status.
+    """
+    try:
+        # Check authentication
+        user = request.state.user
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        
+        # Check if user is superuser
+        if not user.get("is_superuser", False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Only administrators can export recipes to JSON"
+            )
+        
+        # Export recipe
+        recipe_data = recipe_service.export_recipe_to_json(recipe_id)
+        return recipe_data
+        
+    except ValueError as e:
+        if "Recipe with ID" in str(e) and "not found" in str(e):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error exporting recipe {recipe_id} to JSON: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to export recipe: {str(e)}")
+
+
+@router.get("/{recipe_id}/export/pdf")
+async def export_recipe_pdf(
+    recipe_id: int,
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    request: Request
+):
+    """
+    Export a recipe to PDF format.
+    Available to all authenticated users.
+    """
+    try:
+        # Check authentication
+        user = request.state.user
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        
+        # Export recipe
+        pdf_content = recipe_service.export_recipe_to_pdf(recipe_id)
+        
+        # Get recipe name for filename
+        recipe = recipe_service.get_recipe(recipe_id)
+        filename = f"{recipe.title.replace(' ', '_')}.pdf" if recipe else f"recipe_{recipe_id}.pdf"
+        
+        # Return PDF as streaming response
+        return StreamingResponse(
+            iter([pdf_content]),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+        
+    except ValueError as e:
+        if "Recipe with ID" in str(e) and "not found" in str(e):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error exporting recipe {recipe_id} to PDF: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to export recipe: {str(e)}") 

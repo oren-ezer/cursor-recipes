@@ -429,4 +429,151 @@ class RecipeService:
                 )
         
         # Then delete the recipe
-        self.delete_recipe(recipe_id, user_uuid, is_superuser) 
+        self.delete_recipe(recipe_id, user_uuid, is_superuser)
+
+    def export_recipe_to_json(self, recipe_id: int) -> dict:
+        """
+        Export a recipe to JSON format.
+        
+        Args:
+            recipe_id: The ID of the recipe to export
+            
+        Returns:
+            Dictionary representation of the recipe with all details
+            
+        Raises:
+            ValueError: If recipe not found
+        """
+        recipe = self.get_recipe(recipe_id)
+        if not recipe:
+            raise ValueError(f"Recipe with ID {recipe_id} not found")
+        
+        return self._add_tags_to_recipe_dict(recipe)
+
+    def export_recipe_to_pdf(self, recipe_id: int) -> bytes:
+        """
+        Export a recipe to PDF format.
+        
+        Args:
+            recipe_id: The ID of the recipe to export
+            
+        Returns:
+            PDF file content as bytes
+            
+        Raises:
+            ValueError: If recipe not found
+        """
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib import colors
+        from io import BytesIO
+        from xml.sax.saxutils import escape
+        
+        recipe = self.get_recipe(recipe_id)
+        if not recipe:
+            raise ValueError(f"Recipe with ID {recipe_id} not found")
+        
+        # Get recipe with tags
+        recipe_dict = self._add_tags_to_recipe_dict(recipe)
+        
+        # Helper function to escape XML special characters
+        def escape_text(text):
+            """Escape special XML characters for ReportLab Paragraph."""
+            if not text:
+                return ""
+            return escape(str(text), entities={
+                "'": "&apos;",
+                '"': "&quot;",
+            })
+        
+        # Create PDF in memory
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, 
+                              topMargin=0.5*inch, bottomMargin=0.5*inch)
+        
+        # Container for PDF elements
+        story = []
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#1e40af'),
+            spaceAfter=12,
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            textColor=colors.HexColor('#1e40af'),
+            spaceAfter=6,
+            spaceBefore=12,
+        )
+        
+        # Title
+        story.append(Paragraph(escape_text(recipe.title), title_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Description
+        if recipe.description:
+            story.append(Paragraph(escape_text(recipe.description), styles['Normal']))
+            story.append(Spacer(1, 0.2*inch))
+        
+        # Recipe Information Table
+        info_data = [
+            ['Preparation Time', f"{recipe.preparation_time} minutes"],
+            ['Cooking Time', f"{recipe.cooking_time} minutes"],
+            ['Servings', str(recipe.servings)],
+            ['Difficulty', escape_text(recipe.difficulty_level)],
+        ]
+        
+        if recipe_dict.get('tags'):
+            tags_text = ', '.join([escape_text(tag['name']) for tag in recipe_dict['tags']])
+            info_data.append(['Tags', tags_text])
+        
+        info_table = Table(info_data, colWidths=[2*inch, 4*inch])
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e5e7eb')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        
+        story.append(info_table)
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Ingredients
+        story.append(Paragraph('Ingredients', heading_style))
+        for ingredient in recipe.ingredients:
+            amount = escape_text(ingredient.get('amount', ''))
+            name = escape_text(ingredient.get('name', ''))
+            bullet_text = f"• {amount} {name}"
+            story.append(Paragraph(bullet_text, styles['Normal']))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Instructions
+        story.append(Paragraph('Instructions', heading_style))
+        for i, instruction in enumerate(recipe.instructions, 1):
+            escaped_instruction = escape_text(instruction)
+            step_text = f"<b>Step {i}:</b> {escaped_instruction}"
+            story.append(Paragraph(step_text, styles['Normal']))
+            story.append(Spacer(1, 0.1*inch))
+        
+        # Build PDF
+        doc.build(story)
+        
+        # Get PDF content - seek to beginning first to ensure we read everything
+        buffer.seek(0)
+        pdf_content = buffer.read()
+        buffer.close()
+        
+        return pdf_content 

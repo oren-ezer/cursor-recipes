@@ -1298,3 +1298,122 @@ class TestRecipeServiceWithTags:
         
         # Assert
         recipe_service.delete_recipe.assert_called_once_with(1, "test-user-uuid", False)
+
+    def test_export_recipe_to_json_success(self):
+        """Test exporting a recipe to JSON format."""
+        # Arrange
+        mock_db = Mock()
+        mock_tag_service = Mock()
+        mock_recipe = Recipe(
+            id=1,
+            uuid="test-recipe-uuid",
+            title="Test Recipe",
+            description="A test recipe",
+            ingredients=[{"name": "Flour", "amount": "1 cup"}],
+            instructions=["Mix ingredients", "Bake at 350F"],
+            preparation_time=15,
+            cooking_time=30,
+            servings=4,
+            difficulty_level="Easy",
+            is_public=True,
+            image_url="https://example.com/image.jpg",
+            user_id="test-user-uuid"
+        )
+        
+        # Mock database execution
+        mock_execute = Mock()
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = mock_recipe
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
+        
+        # Mock tag service
+        mock_tag_service.get_tags_for_recipe.return_value = []
+        
+        recipe_service = RecipeService(mock_db, mock_tag_service)
+        
+        # Act
+        result = recipe_service.export_recipe_to_json(1)
+        
+        # Assert
+        assert result is not None
+        assert isinstance(result, dict)
+        assert result['title'] == "Test Recipe"
+        assert result['description'] == "A test recipe"
+        assert 'tags' in result
+        assert isinstance(result['tags'], list)
+
+    def test_export_recipe_to_json_not_found(self):
+        """Test exporting a recipe that doesn't exist."""
+        # Arrange
+        mock_db = Mock()
+        mock_execute = Mock()
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = None
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
+        
+        recipe_service = RecipeService(mock_db)
+        
+        # Act & Assert
+        with pytest.raises(ValueError, match="Recipe with ID 1 not found"):
+            recipe_service.export_recipe_to_json(1)
+
+    def test_export_recipe_to_pdf_success(self):
+        """Test exporting a recipe to PDF format."""
+        # Arrange
+        mock_db = Mock()
+        mock_tag_service = Mock()
+        mock_recipe = Recipe(
+            id=1,
+            uuid="test-recipe-uuid",
+            title="Test Recipe",
+            description="A test recipe",
+            ingredients=[{"name": "Flour", "amount": "1 cup"}],
+            instructions=["Mix ingredients", "Bake at 350F"],
+            preparation_time=15,
+            cooking_time=30,
+            servings=4,
+            difficulty_level="Easy",
+            is_public=True,
+            image_url="https://example.com/image.jpg",
+            user_id="test-user-uuid"
+        )
+        
+        # Mock database execution
+        mock_execute = Mock()
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = mock_recipe
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
+        
+        # Mock tag service
+        mock_tag_service.get_tags_for_recipe.return_value = []
+        
+        recipe_service = RecipeService(mock_db, mock_tag_service)
+        
+        # Act
+        result = recipe_service.export_recipe_to_pdf(1)
+        
+        # Assert
+        assert result is not None
+        assert isinstance(result, bytes)
+        assert len(result) > 0
+        # Check for PDF header
+        assert result[:4] == b'%PDF'
+
+    def test_export_recipe_to_pdf_not_found(self):
+        """Test exporting a PDF for a recipe that doesn't exist."""
+        # Arrange
+        mock_db = Mock()
+        mock_execute = Mock()
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = None
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
+        
+        recipe_service = RecipeService(mock_db)
+        
+        # Act & Assert
+        with pytest.raises(ValueError, match="Recipe with ID 1 not found"):
+            recipe_service.export_recipe_to_pdf(1)

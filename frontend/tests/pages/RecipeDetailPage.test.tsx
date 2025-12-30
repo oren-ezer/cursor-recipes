@@ -17,6 +17,8 @@ vi.mock('../../src/lib/api-client', () => ({
   apiClient: {
     getRecipe: vi.fn(),
     deleteRecipe: vi.fn(),
+    exportRecipeToPdf: vi.fn(),
+    exportRecipeToJson: vi.fn(),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string) {
@@ -503,6 +505,145 @@ describe('RecipeDetailPage', () => {
         expect(recipeTitles).toHaveLength(2); // One in page title, one in RecipeCard
         const descriptions = screen.getAllByText('A delicious test recipe');
         expect(descriptions).toHaveLength(2); // One in page description, one in RecipeCard
+      });
+    });
+  });
+
+  describe('Export Functionality', () => {
+    beforeEach(() => {
+      // Mock URL.createObjectURL and revokeObjectURL
+      global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+      global.URL.revokeObjectURL = vi.fn();
+    });
+
+    it('should show export PDF button for authenticated users', async () => {
+      vi.mocked(useAuth).mockReturnValue(createMockAuth(true, { id: 1, email: 'test@example.com' }));
+      
+      renderWithRouter(<RecipeDetailPage />);
+      
+      await waitFor(() => {
+        const titles = screen.getAllByText('Test Recipe');
+        expect(titles.length).toBeGreaterThan(0);
+      });
+      
+      expect(screen.getByRole('button', { name: /export as pdf/i })).toBeInTheDocument();
+    });
+
+    it('should not show export JSON button for non-admin users', async () => {
+      vi.mocked(useAuth).mockReturnValue(createMockAuth(true, { id: 1, email: 'test@example.com', is_superuser: false }));
+      
+      renderWithRouter(<RecipeDetailPage />);
+      
+      await waitFor(() => {
+        const titles = screen.getAllByText('Test Recipe');
+        expect(titles.length).toBeGreaterThan(0);
+      });
+      
+      expect(screen.getByRole('button', { name: /export as pdf/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /export as json/i })).not.toBeInTheDocument();
+    });
+
+    it('should show export JSON button for admin users', async () => {
+      vi.mocked(useAuth).mockReturnValue(createMockAuth(true, { id: 1, email: 'test@example.com', is_superuser: true }));
+      
+      renderWithRouter(<RecipeDetailPage />);
+      
+      await waitFor(() => {
+        const titles = screen.getAllByText('Test Recipe');
+        expect(titles.length).toBeGreaterThan(0);
+      });
+      
+      expect(screen.getByRole('button', { name: /export as pdf/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /export as json/i })).toBeInTheDocument();
+    });
+
+    it('should call export API when PDF button is clicked', async () => {
+      const mockBlob = new Blob(['mock pdf content'], { type: 'application/pdf' });
+      vi.mocked(apiClient.exportRecipeToPdf).mockResolvedValue(mockBlob);
+      vi.mocked(useAuth).mockReturnValue(createMockAuth(true, { id: 1, email: 'test@example.com' }));
+      
+      renderWithRouter(<RecipeDetailPage />);
+      
+      await waitFor(() => {
+        const titles = screen.getAllByText('Test Recipe');
+        expect(titles.length).toBeGreaterThan(0);
+      });
+      
+      const pdfButton = screen.getByRole('button', { name: /export as pdf/i });
+      fireEvent.click(pdfButton);
+      
+      await waitFor(() => {
+        expect(vi.mocked(apiClient.exportRecipeToPdf)).toHaveBeenCalledWith(123);
+      });
+    });
+
+    it('should call export API when JSON button is clicked by admin', async () => {
+      vi.mocked(useAuth).mockReturnValue(createMockAuth(true, { id: 1, email: 'test@example.com', is_superuser: true }));
+      
+      const mockJsonData = { ...mockRecipe };
+      vi.mocked(apiClient.exportRecipeToJson).mockResolvedValue(mockJsonData);
+      
+      renderWithRouter(<RecipeDetailPage />);
+      
+      await waitFor(() => {
+        const titles = screen.getAllByText('Test Recipe');
+        expect(titles.length).toBeGreaterThan(0);
+      });
+      
+      const jsonButton = screen.getByRole('button', { name: /export as json/i });
+      fireEvent.click(jsonButton);
+      
+      await waitFor(() => {
+        expect(vi.mocked(apiClient.exportRecipeToJson)).toHaveBeenCalledWith(123);
+      });
+    });
+
+    it('should show error message when PDF export fails', async () => {
+      vi.mocked(apiClient.exportRecipeToPdf).mockRejectedValue(new Error('Export failed'));
+      vi.mocked(useAuth).mockReturnValue(createMockAuth(true, { id: 1, email: 'test@example.com' }));
+      
+      renderWithRouter(<RecipeDetailPage />);
+      
+      await waitFor(() => {
+        const titles = screen.getAllByText('Test Recipe');
+        expect(titles.length).toBeGreaterThan(0);
+      });
+      
+      const pdfButton = screen.getByRole('button', { name: /export as pdf/i });
+      fireEvent.click(pdfButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/failed to export recipe/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should show error message when JSON export fails', async () => {
+      vi.mocked(useAuth).mockReturnValue(createMockAuth(true, { id: 1, email: 'test@example.com', is_superuser: true }));
+      vi.mocked(apiClient.exportRecipeToJson).mockRejectedValue(new Error('Export failed'));
+      
+      renderWithRouter(<RecipeDetailPage />);
+      
+      await waitFor(() => {
+        const titles = screen.getAllByText('Test Recipe');
+        expect(titles.length).toBeGreaterThan(0);
+      });
+      
+      const jsonButton = screen.getByRole('button', { name: /export as json/i });
+      fireEvent.click(jsonButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/failed to export recipe/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should not show export buttons for unauthenticated users', async () => {
+      vi.mocked(useAuth).mockReturnValue(createMockAuth(false));
+      
+      renderWithRouter(<RecipeDetailPage />);
+      
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /export as pdf/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /export as json/i })).not.toBeInTheDocument();
       });
     });
   });
