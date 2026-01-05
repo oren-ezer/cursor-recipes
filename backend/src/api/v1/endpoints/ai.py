@@ -15,7 +15,10 @@ from src.models.ai_models import (
     NutritionResponse
 )
 from src.services.ai_service import AIService
+from src.services.llm_config_service import LLMConfigService
 from src.core.config import settings
+from src.utils.database_session import get_db
+from sqlmodel import Session
 from openai import AuthenticationError, RateLimitError, APIError
 
 logger = logging.getLogger(__name__)
@@ -23,7 +26,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 
-def get_ai_service() -> AIService:
+def get_ai_service(db: Annotated[Session, Depends(get_db)]) -> AIService:
     """Dependency to get AI service instance."""
     if not settings.OPENAI_API_KEY:
         raise HTTPException(
@@ -31,13 +34,8 @@ def get_ai_service() -> AIService:
             detail="AI service is not configured. Please contact administrator."
         )
     
-    return AIService(
-        api_key=settings.OPENAI_API_KEY,
-        org_id=settings.OPENAI_ORG_ID,
-        default_model=settings.OPENAI_DEFAULT_MODEL,
-        default_temperature=settings.OPENAI_TEMPERATURE,
-        default_max_tokens=settings.OPENAI_MAX_TOKENS
-    )
+    llm_config_service = LLMConfigService(db)
+    return AIService(db=db, llm_config_service=llm_config_service)
 
 
 def calculate_cost(tokens: dict, model: str) -> float:

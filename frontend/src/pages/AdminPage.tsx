@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, ApiError } from '../lib/api-client';
-import type { Tag, User, Recipe, AITestRequest, AITestResponse } from '../lib/api-client';
+import type { Tag, User, Recipe, AITestRequest, AITestResponse, LLMConfig, LLMConfigCreate } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
@@ -16,7 +16,7 @@ const AdminPage: React.FC = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'recipes' | 'tags' | 'system' | 'ai'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'recipes' | 'tags' | 'system' | 'ai' | 'llm_config'>('users');
   
   // Tags state
   const [tags, setTags] = useState<Tag[]>([]);
@@ -75,6 +75,29 @@ const AdminPage: React.FC = () => {
   const [isExecutingAi, setIsExecutingAi] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   
+  // LLM Config state
+  const [llmConfigs, setLlmConfigs] = useState<LLMConfig[]>([]);
+  const [showLlmForm, setShowLlmForm] = useState(false);
+  const [editingLlmConfig, setEditingLlmConfig] = useState<LLMConfig | null>(null);
+  const [isTestMode, setIsTestMode] = useState(false);
+  const [llmFormData, setLlmFormData] = useState<LLMConfigCreate>({
+    config_type: 'GLOBAL',
+    provider: 'OPENAI',
+    model: 'gpt-4o-mini',
+    temperature: 0.7,
+    max_tokens: 1000,
+    response_format: 'text',
+  });
+  const [showDeleteLlmModal, setShowDeleteLlmModal] = useState(false);
+  const [llmConfigToDelete, setLlmConfigToDelete] = useState<LLMConfig | null>(null);
+  const [deletingLlmConfigId, setDeletingLlmConfigId] = useState<number | null>(null);
+  
+  // LLM Config Test state (reusing form)
+  const [llmTestPrompt, setLlmTestPrompt] = useState('Tell me about pasta carbonara.');
+  const [llmTestResponse, setLlmTestResponse] = useState<AITestResponse | null>(null);
+  const [isTestingLlm, setIsTestingLlm] = useState(false);
+  const [llmTestError, setLlmTestError] = useState<string | null>(null);
+  
   // Common state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +125,8 @@ const AdminPage: React.FC = () => {
         loadUsers();
       } else if (activeTab === 'recipes') {
         loadRecipes();
+      } else if (activeTab === 'llm_config') {
+        loadLlmConfigs();
       } else {
         setIsLoading(false);
       }
@@ -375,6 +400,224 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // LLM Config Management Functions
+  const loadLlmConfigs = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const configs = await apiClient.getAllLLMConfigs();
+      setLlmConfigs(configs);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('admin.llm_config.error_load'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateLlmConfig = () => {
+    setEditingLlmConfig(null);
+    setLlmFormData({
+      config_type: 'GLOBAL',
+      provider: 'OPENAI',
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+      max_tokens: 1000,
+      response_format: 'text',
+    });
+    setShowLlmForm(true);
+  };
+
+  const handleEditLlmConfig = (config: LLMConfig) => {
+    setEditingLlmConfig(config);
+    setLlmFormData({
+      config_type: config.config_type,
+      service_name: config.service_name || undefined,
+      provider: config.provider,
+      model: config.model,
+      temperature: config.temperature,
+      max_tokens: config.max_tokens,
+      system_prompt: config.system_prompt || undefined,
+      user_prompt_template: config.user_prompt_template || undefined,
+      response_format: config.response_format || undefined,
+      description: config.description || undefined,
+      is_active: config.is_active,
+    });
+    setShowLlmForm(true);
+  };
+
+  const handleSaveLlmConfig = async () => {
+    setError(null);
+    
+    // Validation
+    if (llmFormData.config_type === 'SERVICE' && !llmFormData.service_name?.trim()) {
+      setError(t('admin.llm_config.validation_service_name_required'));
+      return;
+    }
+    if (llmFormData.config_type === 'GLOBAL' && llmFormData.service_name) {
+      setError(t('admin.llm_config.validation_service_name_forbidden'));
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      if (editingLlmConfig) {
+        // Update existing
+        await apiClient.updateLLMConfig(editingLlmConfig.id, llmFormData);
+        setSuccessMessage(t('admin.llm_config.update_success'));
+      } else {
+        // Create new
+        await apiClient.createLLMConfig(llmFormData);
+        setSuccessMessage(t('admin.llm_config.create_success'));
+      }
+      
+      setShowLlmForm(false);
+      await loadLlmConfigs();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 
+        editingLlmConfig ? t('admin.llm_config.error_update') : t('admin.llm_config.error_create'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelLlmForm = () => {
+    setShowLlmForm(false);
+    setEditingLlmConfig(null);
+    setIsTestMode(false);
+    setLlmTestResponse(null);
+    setLlmTestError(null);
+    setError(null);
+  };
+
+  const handleDeleteLlmConfigClick = (config: LLMConfig) => {
+    setLlmConfigToDelete(config);
+    setShowDeleteLlmModal(true);
+  };
+
+  const handleDeleteLlmConfigConfirm = async () => {
+    if (!llmConfigToDelete) return;
+    
+    setDeletingLlmConfigId(llmConfigToDelete.id);
+    setError(null);
+    try {
+      await apiClient.deleteLLMConfig(llmConfigToDelete.id);
+      await loadLlmConfigs();
+      setShowDeleteLlmModal(false);
+      setLlmConfigToDelete(null);
+      setSuccessMessage(t('admin.llm_config.delete_success'));
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('admin.llm_config.error_delete'));
+    } finally {
+      setDeletingLlmConfigId(null);
+    }
+  };
+
+  const handleTestLlmConfig = async (config: LLMConfig) => {
+    setEditingLlmConfig(config);
+    setIsTestMode(true);
+    setShowLlmForm(true);
+    setLlmTestResponse(null);
+    setLlmTestError(null);
+    setError(null);
+
+    try {
+      setIsLoading(true);
+      
+      let effectiveConfig;
+      
+      // For SERVICE configs, fetch effective configuration (with fallback cascade)
+      // For GLOBAL configs, use the config values directly (they ARE the defaults)
+      if (config.config_type === 'SERVICE' && config.service_name) {
+        effectiveConfig = await apiClient.getEffectiveLLMConfig(config.service_name);
+      } else {
+        // For GLOBAL config, it's already the base - no need to fetch effective
+        effectiveConfig = {
+          provider: config.provider,
+          model: config.model,
+          temperature: config.temperature,
+          max_tokens: config.max_tokens,
+          system_prompt: config.system_prompt,
+          user_prompt_template: config.user_prompt_template,
+          response_format: config.response_format,
+        };
+      }
+      
+      // Populate test prompt with user_prompt_template (empty if not configured)
+      setLlmTestPrompt(effectiveConfig.user_prompt_template || '');
+      
+      // Populate form with effective config values
+      setLlmFormData({
+        config_type: config.config_type,
+        service_name: config.service_name || undefined,
+        provider: effectiveConfig.provider as 'OPENAI' | 'ANTHROPIC' | 'GOOGLE',
+        model: effectiveConfig.model,
+        temperature: effectiveConfig.temperature,
+        max_tokens: effectiveConfig.max_tokens,
+        system_prompt: effectiveConfig.system_prompt || undefined,
+        user_prompt_template: effectiveConfig.user_prompt_template || undefined,
+        response_format: effectiveConfig.response_format || undefined,
+        description: config.description || undefined,
+        is_active: config.is_active,
+      });
+    } catch (err) {
+      // Fallback to config values if effective config fetch fails
+      setLlmTestPrompt(config.user_prompt_template || '');
+      
+      setLlmFormData({
+        config_type: config.config_type,
+        service_name: config.service_name || undefined,
+        provider: config.provider,
+        model: config.model,
+        temperature: config.temperature,
+        max_tokens: config.max_tokens,
+        system_prompt: config.system_prompt || undefined,
+        user_prompt_template: config.user_prompt_template || undefined,
+        response_format: config.response_format || undefined,
+        description: config.description || undefined,
+        is_active: config.is_active,
+      });
+      setError(err instanceof ApiError ? err.message : t('admin.llm_config.error_load_effective'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const executeConfigTest = async () => {
+    if (!llmTestPrompt.trim()) return;
+
+    setIsTestingLlm(true);
+    setLlmTestError(null);
+    setLlmTestResponse(null);
+
+    try {
+      const request: AITestRequest = {
+        model: llmFormData.model,
+        system_prompt: llmFormData.system_prompt || undefined,
+        user_prompt: llmTestPrompt,
+        temperature: llmFormData.temperature,
+        max_tokens: llmFormData.max_tokens,
+        response_format: llmFormData.response_format === 'json' ? 'json' : null,
+      };
+
+      const response = await apiClient.testAI(request);
+      setLlmTestResponse(response);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setLlmTestError(err.message);
+      } else {
+        setLlmTestError(t('admin.llm_config.test_error'));
+      }
+    } finally {
+      setIsTestingLlm(false);
+    }
+  };
+
   // Show unauthorized message for non-superusers
   if (!user?.is_superuser) {
     return (
@@ -452,6 +695,16 @@ const AdminPage: React.FC = () => {
               }`}
             >
               {t('admin.ai.title')}
+            </button>
+            <button
+              onClick={() => setActiveTab('llm_config')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                activeTab === 'llm_config'
+                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {t('admin.llm_config.title')}
             </button>
           </div>
 
@@ -1134,6 +1387,389 @@ const AdminPage: React.FC = () => {
               </Card>
             </div>
           )}
+
+          {/* LLM Configuration Tab */}
+          {activeTab === 'llm_config' && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>{t('admin.llm_config.title')}</CardTitle>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('admin.llm_config.page_description')}</p>
+                  </div>
+                    <Button onClick={handleCreateLlmConfig} disabled={showLlmForm}>
+                      {t('admin.llm_config.create_new')}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* Configuration Cascade Info */}
+                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-sm text-blue-800 dark:text-blue-200">
+                    ℹ️ {t('admin.llm_config.cascade_info')}
+                  </div>
+
+                  {/* Create/Edit Form */}
+                  {showLlmForm && (
+                    <div className="mb-6 p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-4">
+                      <div>
+                        <h3 className="text-lg font-semibold">
+                          {isTestMode ? t('admin.llm_config.test_config') : editingLlmConfig ? t('admin.llm_config.edit') : t('admin.llm_config.create_new')}
+                        </h3>
+                        {isTestMode && (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {t('admin.llm_config.test_hint')}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>{t('admin.llm_config.test_effective_hint')}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Config Type */}
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {t('admin.llm_config.config_type')} *
+                        </label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              checked={llmFormData.config_type === 'GLOBAL'}
+                              onChange={() => setLlmFormData({ ...llmFormData, config_type: 'GLOBAL', service_name: undefined })}
+                            />
+                            <span>{t('admin.llm_config.type_global')}</span>
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              checked={llmFormData.config_type === 'SERVICE'}
+                              onChange={() => setLlmFormData({ ...llmFormData, config_type: 'SERVICE' })}
+                            />
+                            <span>{t('admin.llm_config.type_service')}</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Service Name (conditional) */}
+                      {llmFormData.config_type === 'SERVICE' && (
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {t('admin.llm_config.service_name')} *
+                          </label>
+                          <Input
+                            value={llmFormData.service_name || ''}
+                            onChange={(e) => setLlmFormData({ ...llmFormData, service_name: e.target.value })}
+                            placeholder={t('admin.llm_config.service_name_placeholder')}
+                          />
+                        </div>
+                      )}
+
+                      {/* Provider */}
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {t('admin.llm_config.provider')} *
+                        </label>
+                        <select
+                          value={llmFormData.provider}
+                          onChange={(e) => setLlmFormData({ ...llmFormData, provider: e.target.value as 'OPENAI' | 'ANTHROPIC' | 'GOOGLE' })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                        >
+                          <option value="OPENAI">OpenAI</option>
+                          <option value="ANTHROPIC">Anthropic</option>
+                          <option value="GOOGLE">Google</option>
+                        </select>
+                      </div>
+
+                      {/* Model */}
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {t('admin.llm_config.model')} *
+                        </label>
+                        <Input
+                          value={llmFormData.model}
+                          onChange={(e) => setLlmFormData({ ...llmFormData, model: e.target.value })}
+                          placeholder={t('admin.llm_config.model_placeholder')}
+                        />
+                      </div>
+
+                      {/* Temperature & Max Tokens in same row */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {t('admin.llm_config.temperature')} *
+                          </label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="2"
+                            step="0.1"
+                            value={llmFormData.temperature}
+                            onChange={(e) => setLlmFormData({ ...llmFormData, temperature: parseFloat(e.target.value) })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {t('admin.llm_config.max_tokens')} *
+                          </label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="4000"
+                            value={llmFormData.max_tokens}
+                            onChange={(e) => setLlmFormData({ ...llmFormData, max_tokens: parseInt(e.target.value) })}
+                          />
+                        </div>
+                      </div>
+
+                      {/* System Prompt */}
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {t('admin.llm_config.system_prompt')}
+                        </label>
+                        <textarea
+                          value={llmFormData.system_prompt || ''}
+                          onChange={(e) => setLlmFormData({ ...llmFormData, system_prompt: e.target.value })}
+                          placeholder={t('admin.llm_config.system_prompt_placeholder')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                          rows={3}
+                        />
+                      </div>
+
+                      {/* User Prompt Template */}
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {t('admin.llm_config.user_prompt_template')}
+                        </label>
+                        <textarea
+                          value={llmFormData.user_prompt_template || ''}
+                          onChange={(e) => setLlmFormData({ ...llmFormData, user_prompt_template: e.target.value })}
+                          placeholder={t('admin.llm_config.user_prompt_placeholder')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                          rows={3}
+                        />
+                      </div>
+
+                      {/* Response Format */}
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {t('admin.llm_config.response_format')}
+                        </label>
+                        <select
+                          value={llmFormData.response_format || ''}
+                          onChange={(e) => setLlmFormData({ ...llmFormData, response_format: e.target.value || undefined })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                        >
+                          <option value="">-</option>
+                          <option value="text">text</option>
+                          <option value="json">json</option>
+                        </select>
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          {t('admin.llm_config.field_description')}
+                        </label>
+                        <textarea
+                          value={llmFormData.description || ''}
+                          onChange={(e) => setLlmFormData({ ...llmFormData, description: e.target.value })}
+                          placeholder={t('admin.llm_config.description_placeholder')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                          rows={2}
+                        />
+                      </div>
+
+                      {/* Active Status - Only show when editing (not testing) */}
+                      {editingLlmConfig && !isTestMode && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={llmFormData.is_active ?? true}
+                            onChange={(e) => setLlmFormData({ ...llmFormData, is_active: e.target.checked })}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                          />
+                          <label htmlFor="is_active" className="text-sm font-medium cursor-pointer">
+                            {t('admin.llm_config.is_active_label')}
+                          </label>
+                        </div>
+                      )}
+
+                      {/* Test Mode: User Prompt */}
+                      {isTestMode && (
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            {t('admin.llm_config.test_prompt')} *
+                          </label>
+                          <textarea
+                            value={llmTestPrompt}
+                            onChange={(e) => setLlmTestPrompt(e.target.value)}
+                            placeholder={t('admin.llm_config.test_prompt_placeholder')}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                            rows={3}
+                            disabled={isTestingLlm}
+                          />
+                        </div>
+                      )}
+
+                      {/* Test Mode: Error Display */}
+                      {isTestMode && llmTestError && (
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded">
+                          {llmTestError}
+                        </div>
+                      )}
+
+                      {/* Test Mode: Response Display */}
+                      {isTestMode && llmTestResponse && (
+                        <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded border border-gray-200 dark:border-gray-700">
+                          <div>
+                            <h4 className="font-medium mb-2">{t('admin.ai.response')}</h4>
+                            <pre className="text-sm p-4 bg-white dark:bg-gray-900 rounded overflow-auto max-h-64 whitespace-pre-wrap border border-gray-200 dark:border-gray-700">
+                              {typeof llmTestResponse.content === 'string' 
+                                ? llmTestResponse.content 
+                                : JSON.stringify(llmTestResponse.content, null, 2)}
+                            </pre>
+                          </div>
+
+                          {/* Metadata */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium">{t('admin.ai.tokens_used')}:</span>
+                              <p className="text-gray-600 dark:text-gray-400">
+                                {llmTestResponse.tokens_used.total}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="font-medium">{t('admin.ai.estimated_cost')}:</span>
+                              <p className="text-gray-600 dark:text-gray-400">${llmTestResponse.estimated_cost.toFixed(6)}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium">{t('admin.ai.model')}:</span>
+                              <p className="text-gray-600 dark:text-gray-400">{llmTestResponse.model}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium">{t('admin.ai.finish_reason')}:</span>
+                              <p className="text-gray-600 dark:text-gray-400">{llmTestResponse.finish_reason}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button variant="outline" onClick={handleCancelLlmForm}>
+                          {t('admin.llm_config.cancel')}
+                        </Button>
+                        {isTestMode ? (
+                          <Button onClick={executeConfigTest} disabled={isTestingLlm || !llmTestPrompt.trim()}>
+                            {isTestingLlm ? t('admin.llm_config.testing') : t('admin.llm_config.test_execute')}
+                          </Button>
+                        ) : (
+                          <Button onClick={handleSaveLlmConfig} disabled={isLoading}>
+                            {isLoading ? t('admin.llm_config.creating') : t('admin.llm_config.save')}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Configurations List - Hidden when form is open */}
+                  {!showLlmForm && (
+                    <>
+                      {isLoading ? (
+                        <p className="text-center py-8 text-gray-600 dark:text-gray-300">
+                          {t('admin.llm_config.loading')}
+                        </p>
+                      ) : llmConfigs.length === 0 ? (
+                        <p className="text-center py-8 text-gray-600 dark:text-gray-300">
+                          {t('admin.llm_config.no_configs')}
+                        </p>
+                      ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-3">{t('admin.llm_config.config_type')}</th>
+                            <th className="px-4 py-3">{t('admin.llm_config.service_name')}</th>
+                            <th className="px-4 py-3">{t('admin.llm_config.provider')}</th>
+                            <th className="px-4 py-3">{t('admin.llm_config.model')}</th>
+                            <th className="px-4 py-3">{t('admin.llm_config.temperature')}</th>
+                            <th className="px-4 py-3">{t('admin.llm_config.max_tokens')}</th>
+                            <th className="px-4 py-3">{t('admin.llm_config.is_active')}</th>
+                            <th className="px-4 py-3 text-right">{t('admin.llm_config.actions')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {llmConfigs.map((config) => (
+                            <tr key={config.id} className="border-b dark:border-gray-700">
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  config.config_type === 'GLOBAL'
+                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                }`}>
+                                  {config.config_type}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">{config.service_name || '-'}</td>
+                              <td className="px-4 py-3">{config.provider}</td>
+                              <td className="px-4 py-3 font-mono text-xs">{config.model}</td>
+                              <td className="px-4 py-3">{config.temperature}</td>
+                              <td className="px-4 py-3">{config.max_tokens}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  config.is_active
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
+                                  {config.is_active ? '✓' : '✗'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleTestLlmConfig(config)}
+                                  disabled={!config.is_active}
+                                  className="mr-2"
+                                >
+                                  {t('admin.llm_config.test')}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditLlmConfig(config)}
+                                  disabled={showLlmForm}
+                                >
+                                  {t('admin.llm_config.edit')}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDeleteLlmConfigClick(config)}
+                                  disabled={deletingLlmConfigId === config.id}
+                                >
+                                  {t('admin.llm_config.delete')}
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
 
         {/* Delete Tag Confirmation Modal */}
@@ -1160,6 +1796,19 @@ const AdminPage: React.FC = () => {
           cancelText={t('modal.cancel')}
           variant="destructive"
           isLoading={deletingRecipeId !== null}
+        />
+
+        {/* Delete LLM Config Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showDeleteLlmModal}
+          onClose={() => setShowDeleteLlmModal(false)}
+          onConfirm={handleDeleteLlmConfigConfirm}
+          title={t('admin.llm_config.delete')}
+          message={t('admin.llm_config.delete_confirm')}
+          confirmText={t('admin.llm_config.delete')}
+          cancelText={t('modal.cancel')}
+          variant="destructive"
+          isLoading={deletingLlmConfigId !== null}
         />
       </PageContainer>
     </MainLayout>

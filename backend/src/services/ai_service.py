@@ -2,11 +2,15 @@
 AI Service for LLM interactions using OpenAI API.
 
 This service provides a unified interface for making LLM calls with proper
-error handling, rate limiting, and response parsing.
+error handling, rate limiting, and response parsing. Configurations are managed
+through LLMConfigService with a fallback hierarchy.
 """
 
 from typing import Optional, Dict, Any, List
+from sqlmodel import Session
 from openai import AsyncOpenAI, OpenAIError, APIError, RateLimitError, AuthenticationError
+from src.services.llm_config_service import LLMConfigService
+from src.core.config import settings
 import logging
 import json
 
@@ -14,42 +18,35 @@ logger = logging.getLogger(__name__)
 
 
 class AIService:
-    """Service for interacting with OpenAI's LLM API."""
+    """Service for interacting with OpenAI's LLM API with database-driven configuration."""
     
     def __init__(
         self, 
-        api_key: str, 
-        org_id: Optional[str] = None,
-        default_model: str = "gpt-4o-mini",
-        default_temperature: float = 0.7,
-        default_max_tokens: int = 1000
+        db: Session,
+        llm_config_service: LLMConfigService
     ):
         """
-        Initialize the AI service.
+        Initialize the AI service with database configuration support.
         
         Args:
-            api_key: OpenAI API key
-            org_id: Optional OpenAI organization ID
-            default_model: Default model to use for completions
-            default_temperature: Default temperature for completions (0.0-2.0)
-            default_max_tokens: Default maximum tokens for completions
+            db: Database session for configuration lookups
+            llm_config_service: Service for managing LLM configurations
         """
-        if not api_key:
+        if not settings.OPENAI_API_KEY:
             raise ValueError("OpenAI API key is required")
         
         self.client = AsyncOpenAI(
-            api_key=api_key,
-            organization=org_id
+            api_key=settings.OPENAI_API_KEY,
+            organization=settings.OPENAI_ORG_ID if settings.OPENAI_ORG_ID else None
         )
-        self.default_model = default_model
-        self.default_temperature = default_temperature
-        self.default_max_tokens = default_max_tokens
+        self.config_service = llm_config_service
         
-        logger.info(f"AIService initialized with model: {default_model}")
+        logger.info("AIService initialized with database configuration support")
     
     async def call_llm(
         self,
         user_prompt: str,
+        service_name: str = "general",
         system_prompt: Optional[str] = None,
         model: Optional[str] = None,
         temperature: Optional[float] = None,
@@ -57,15 +54,22 @@ class AIService:
         response_format: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Make a generic LLM call with retry logic and error handling.
+        Make a generic LLM call with configuration fallback and error handling.
+        
+        Configuration hierarchy (highest to lowest priority):
+        1. Runtime parameters (function arguments)
+        2. Service-specific configuration (from database)
+        3. Global configuration (from database)
+        4. Environment variable defaults
         
         Args:
             user_prompt: The user's prompt/question
+            service_name: Name of the service for config lookup (e.g., "tag_suggestion")
             system_prompt: Optional system prompt to set context
-            model: Model to use (defaults to service default)
-            temperature: Temperature for completion (0.0-2.0)
-            max_tokens: Maximum tokens to generate
-            response_format: 'json' for JSON mode, None for text
+            model: Model to use (overrides config if provided)
+            temperature: Temperature for completion (0.0-2.0, overrides config)
+            max_tokens: Maximum tokens to generate (overrides config)
+            response_format: 'json' for JSON mode, None for text (overrides config)
             
         Returns:
             Dict containing:
@@ -79,32 +83,56 @@ class AIService:
             RateLimitError: Rate limit exceeded
             APIError: General API error
         """
-        model = model or self.default_model
-        temperature = temperature if temperature is not None else self.default_temperature
-        max_tokens = max_tokens or self.default_max_tokens
+        # Get effective configuration with fallback hierarchy
+        override_params = {}
+        if model is not None:
+            override_params["model"] = model
+        if temperature is not None:
+            override_params["temperature"] = temperature
+        if max_tokens is not None:
+            override_params["max_tokens"] = max_tokens
+        if response_format is not None:
+            override_params["response_format"] = response_format
+        if system_prompt is not None:
+            override_params["system_prompt"] = system_prompt
+        
+        config = self.config_service.get_effective_config(
+            service_name=service_name,
+            override_params=override_params
+        )
+        
+        # Use system prompt from config if not provided directly
+        effective_system_prompt = system_prompt or config.get("system_prompt")
+        effective_model = config["model"]
+        effective_temperature = config["temperature"]
+        effective_max_tokens = config["max_tokens"]
+        effective_response_format = config.get("response_format")
         
         # Build messages
         messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
+        if effective_system_prompt:
+            messages.append({"role": "system", "content": effective_system_prompt})
         messages.append({"role": "user", "content": user_prompt})
         
         try:
-            logger.info(f"Calling OpenAI API with model={model}, max_tokens={max_tokens}")
+            logger.info(
+                f"Calling OpenAI API - service={service_name}, model={effective_model}, "
+                f"max_tokens={effective_max_tokens}, temp={effective_temperature}"
+            )
             
             # Prepare request parameters
             request_params = {
-                "model": model,
+                "model": effective_model,
                 "messages": messages,
-                "temperature": temperature,
-                "max_tokens": max_tokens
+                "temperature": effective_temperature,
+                "max_tokens": effective_max_tokens
             }
             
             # Add JSON mode if requested
-            if response_format == "json":
+            if effective_response_format == "json":
                 request_params["response_format"] = {"type": "json_object"}
                 # Ensure system prompt mentions JSON
-                if system_prompt and "json" not in system_prompt.lower():
+                if effective_system_prompt and "json" not in effective_system_prompt.lower():
                     messages[0]["content"] += "\n\nProvide your response in valid JSON format."
             
             # Make the API call
@@ -114,7 +142,7 @@ class AIService:
             content = response.choices[0].message.content
             
             # Parse JSON if requested
-            if response_format == "json":
+            if effective_response_format == "json":
                 try:
                     content = json.loads(content)
                 except json.JSONDecodeError as e:
@@ -153,27 +181,46 @@ class AIService:
         self, 
         recipe_title: str, 
         ingredients: List[str],
-        existing_tags: Optional[List[str]] = None
+        existing_tags: Optional[List[str]] = None,
+        config_override: Optional[Dict[str, Any]] = None
     ) -> List[str]:
         """
         Suggest relevant tags for a recipe based on title and ingredients.
+        Uses "tag_suggestion" service configuration with fallback hierarchy.
         
         Args:
             recipe_title: The recipe's title
             ingredients: List of ingredient names
             existing_tags: Optional list of tags already applied
+            config_override: Optional runtime configuration overrides
             
         Returns:
             List of suggested tag names
         """
-        system_prompt = """You are a culinary AI assistant. Suggest relevant tags for recipes.
+        # Get configuration for tag suggestion service
+        config = self.config_service.get_effective_config(
+            service_name="tag_suggestion",
+            override_params=config_override
+        )
+        
+        # Use system prompt from config or fall back to default
+        system_prompt = config.get("system_prompt") or """You are a culinary AI assistant. Suggest relevant tags for recipes.
 Tags should be concise, accurate, and help users discover recipes.
 Categories include: Meal Types, Cuisine Types, Dietary Restrictions, Cooking Methods, Main Ingredients.
 Provide your response as a JSON object with a "tags" array containing 3-7 tag suggestions."""
         
-        existing_tags_str = f"\nExisting tags: {', '.join(existing_tags)}" if existing_tags else ""
-        
-        user_prompt = f"""Recipe: {recipe_title}
+        # Build user prompt using template if available
+        user_prompt_template = config.get("user_prompt_template")
+        if user_prompt_template:
+            # Fill in template placeholders
+            existing_tags_str = ', '.join(existing_tags) if existing_tags else "None"
+            user_prompt = user_prompt_template.replace("{recipe_title}", recipe_title)
+            user_prompt = user_prompt.replace("{ingredients}", ', '.join(ingredients))
+            user_prompt = user_prompt.replace("{existing_tags}", existing_tags_str)
+        else:
+            # Fall back to default prompt
+            existing_tags_str = f"\nExisting tags: {', '.join(existing_tags)}" if existing_tags else ""
+            user_prompt = f"""Recipe: {recipe_title}
 Ingredients: {', '.join(ingredients)}{existing_tags_str}
 
 Suggest appropriate tags for this recipe. Consider:
@@ -187,9 +234,9 @@ Suggest appropriate tags for this recipe. Consider:
         try:
             response = await self.call_llm(
                 user_prompt=user_prompt,
+                service_name="tag_suggestion",
                 system_prompt=system_prompt,
-                response_format="json",
-                temperature=0.5  # Lower temperature for more consistent results
+                **({k: v for k, v in (config_override or {}).items() if k in ['model', 'temperature', 'max_tokens', 'response_format']})
             )
             
             # Extract tags from response
@@ -204,12 +251,18 @@ Suggest appropriate tags for this recipe. Consider:
             logger.error(f"Error suggesting tags: {str(e)}")
             return []
     
-    async def parse_natural_language_search(self, query: str) -> Dict[str, Any]:
+    async def parse_natural_language_search(
+        self, 
+        query: str,
+        config_override: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Convert a natural language query to structured search parameters.
+        Uses "natural_language_search" service configuration.
         
         Args:
             query: Natural language search query (e.g., "quick vegetarian dinner under 30 minutes")
+            config_override: Optional runtime configuration overrides
             
         Returns:
             Dict with search parameters:
@@ -219,26 +272,11 @@ Suggest appropriate tags for this recipe. Consider:
                 - max_cook_time: Maximum cooking time in minutes
                 - difficulty: Difficulty level (Easy/Medium/Hard)
         """
-        system_prompt = """You are a recipe search assistant. Convert natural language queries into structured search parameters.
-Output valid JSON with these fields (all optional):
-- keywords: array of search keywords
-- tags: array of relevant tag names
-- max_prep_time: maximum preparation time in minutes
-- max_cook_time: maximum cooking time in minutes
-- difficulty: one of "Easy", "Medium", or "Hard"
-"""
-        
-        user_prompt = f"""Convert this recipe search query to structured parameters:
-"{query}"
-
-Consider time constraints, dietary needs, cooking methods, cuisines, and difficulty levels."""
-        
         try:
             response = await self.call_llm(
-                user_prompt=user_prompt,
-                system_prompt=system_prompt,
-                response_format="json",
-                temperature=0.3  # Low temperature for consistent parsing
+                user_prompt=f'Convert this recipe search query to structured parameters:\n"{query}"\n\nConsider time constraints, dietary needs, cooking methods, cuisines, and difficulty levels.',
+                service_name="natural_language_search",
+                **({k: v for k, v in (config_override or {}).items() if k in ['model', 'temperature', 'max_tokens', 'system_prompt', 'response_format']})
             )
             
             content = response["content"]
@@ -254,13 +292,16 @@ Consider time constraints, dietary needs, cooking methods, cuisines, and difficu
     
     async def calculate_nutrition(
         self, 
-        ingredients: List[Dict[str, str]]
+        ingredients: List[Dict[str, str]],
+        config_override: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Estimate nutrition facts for a recipe based on ingredients.
+        Uses "nutrition_calculation" service configuration.
         
         Args:
             ingredients: List of ingredients with 'name' and 'amount'
+            config_override: Optional runtime configuration overrides
             
         Returns:
             Dict with estimated nutrition per serving:
@@ -270,17 +311,6 @@ Consider time constraints, dietary needs, cooking methods, cuisines, and difficu
                 - fat: fat in grams
                 - fiber: fiber in grams
         """
-        system_prompt = """You are a nutrition calculator. Estimate nutritional information for recipes.
-Provide estimates based on standard ingredient nutrition values.
-Output valid JSON with these fields (all numbers):
-- calories: estimated calories per serving
-- protein_g: protein in grams
-- carbs_g: carbohydrates in grams
-- fat_g: fat in grams
-- fiber_g: fiber in grams
-- sodium_mg: sodium in milligrams
-"""
-        
         ingredients_str = "\n".join([f"- {ing['name']}: {ing['amount']}" for ing in ingredients])
         user_prompt = f"""Estimate the nutritional content per serving for a recipe with these ingredients:
 
@@ -291,9 +321,8 @@ Provide reasonable estimates based on typical portions."""
         try:
             response = await self.call_llm(
                 user_prompt=user_prompt,
-                system_prompt=system_prompt,
-                response_format="json",
-                temperature=0.3
+                service_name="nutrition_calculation",
+                **({k: v for k, v in (config_override or {}).items() if k in ['model', 'temperature', 'max_tokens', 'system_prompt', 'response_format']})
             )
             
             content = response["content"]
