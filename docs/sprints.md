@@ -103,15 +103,15 @@ Focus: Search, filters, and user profile
 Focus: Add AI based capabilities
 
 ### Backend (P1)
-- #1000 refactor openai lib upgrade (1.101.0 → 2.8.1 , major version - **BREAKING CHANGES**)
-- #1001 Design how to add AI related endpoint/s (as a separate endpoint/service or within existing ones?)
-- #1002 detailed planning for connecting to LLM capabilities - authentication? switching between models, data aggregation for prompt, data parsing from response, etc.
-- #1003 - spike on AI capabilities with separate code base for the backend
+- #1000 Design how to add AI related endpoint/s (as a separate endpoint/service or within existing ones?)
+- #1001 detailed planning for connecting to LLM capabilities - authentication, switching between models, data required for prompt, data parsing from response, etc.
+- #1002 add a designated AIService to support LLM calls while recieving the following parameters - LLM, system-prompt, user-prompt, output-format
+- #1003 - Add an admin page allowing the user to decide on the LLM model, configure system-prompt, input user prompt and view LLM response using the AIService
 - #1004 Add AI based Tag suggestions for specific recipes
 - #1005 Add recipe search based on AI prompt coming from semi-structured user input
 - #1006 Add Recipe from pic/document based on AI capabilities (with/without OCR, with/withoput translation)
 - #1007 add AI based Nutrition facts for recipes
-- #110 add admin UI for AI and other endpoints
+- #110 add admin UI for AI and other endpoints - DONE
 
 ### Frontend (P1)
 - #1010 Enhance Tag capabilities for AI suggestions on what to add/remove
@@ -287,4 +287,5 @@ Nice to have features that can be implemented as needed:
 ## Bugs
 - Dont show Edit/Delete buttons if the recipe is not mine - DONE
 - DB down or not accesible or any other connectivity issue - doesn't reflect well on the UI
-- 
+- Don't allow to delete user with recipes - DONE
+- Don't allow to delete tag with recipes or remove tagging as well
