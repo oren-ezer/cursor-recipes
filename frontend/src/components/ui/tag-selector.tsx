@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Search, Plus } from 'lucide-react';
+import { X, Search, Plus, Sparkles } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { Tag } from '../../lib/api-client';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -17,6 +17,8 @@ export interface TagSelectorProps {
   className?: string;
   availableTags?: Tag[];
   onLoadTags?: () => Promise<Tag[]>;
+  showAiSuggestion?: boolean;
+  onSuggestTags?: () => Promise<string[]>;
 }
 
 // No hardcoded categories needed - we use backend data
@@ -33,7 +35,9 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   error,
   className,
   availableTags,
-  onLoadTags
+  onLoadTags,
+  showAiSuggestion = false,
+  onSuggestTags
 }) => {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -43,6 +47,12 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   const [recentTags, setRecentTags] = useState<Tag[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  // AI Suggestion state
+  const [aiSuggestions, setAiSuggestions] = useState<Tag[]>([]);
+  const [aiConfidence, setAiConfidence] = useState<number>(0);
+  const [isLoadingAi, setIsLoadingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Load tags when input is focused for the first time
   const handleInputFocus = () => {
@@ -76,6 +86,40 @@ const TagSelector: React.FC<TagSelectorProps> = ({
       setAllTags([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle AI tag suggestions
+  const handleGetAiSuggestions = async () => {
+    if (!onSuggestTags) return;
+    
+    setIsLoadingAi(true);
+    setAiError(null);
+    setAiSuggestions([]);
+    setAiConfidence(0);
+    
+    try {
+      const suggestedTagNames = await onSuggestTags();
+      
+      // Match suggested names with available tags
+      const matchedTags = suggestedTagNames
+        .map(name => allTags.find(tag => 
+          tag.name.toLowerCase() === name.toLowerCase()
+        ))
+        .filter((tag): tag is Tag => tag !== undefined);
+      
+      setAiSuggestions(matchedTags);
+      
+      // Calculate confidence: 100% if 5+ suggestions, otherwise proportional
+      const confidence = Math.min(1.0, matchedTags.length / 5.0);
+      setAiConfidence(confidence);
+      
+      console.log(`AI suggested ${suggestedTagNames.length} tags, matched ${matchedTags.length}`);
+    } catch (error) {
+      console.error('AI suggestion error:', error);
+      setAiError(error instanceof Error ? error.message : t('tag_selector.ai_error'));
+    } finally {
+      setIsLoadingAi(false);
     }
   };
 
@@ -242,6 +286,28 @@ const TagSelector: React.FC<TagSelectorProps> = ({
       {isOpen && (
         <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
           <div className="p-2">
+            {/* AI Suggestions Button */}
+            {showAiSuggestion && onSuggestTags && (
+              <button
+                type="button"
+                onClick={handleGetAiSuggestions}
+                disabled={isLoadingAi || loading || disabled}
+                className="mb-2 w-full rounded-md bg-gradient-to-r from-purple-500 to-indigo-600 px-3 py-2 text-sm font-medium text-white hover:from-purple-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+              >
+                {isLoadingAi ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>{t('tag_selector.ai_loading')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    <span>{t('tag_selector.ai_suggest')}</span>
+                  </>
+                )}
+              </button>
+            )}
+
             {/* Search Input */}
             {showSearch && (
               <div className="relative mb-2">
@@ -254,6 +320,13 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                   onKeyDown={handleSearchKeyDown}
                   className="w-full rounded-md border bg-background px-8 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
+              </div>
+            )}
+
+            {/* AI Error Display */}
+            {aiError && (
+              <div className="mb-2 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-800 dark:text-red-200">
+                {aiError}
               </div>
             )}
 
@@ -271,6 +344,54 @@ const TagSelector: React.FC<TagSelectorProps> = ({
             {/* Tag List */}
             {!loading && (
               <div className="max-h-60 overflow-y-auto">
+                {/* AI Suggestions Display */}
+                {aiSuggestions.length > 0 && (
+                  <div className="mb-3 rounded-md bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 p-3 border border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        <h4 className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
+                          {t('tag_selector.ai_suggestions')}
+                        </h4>
+                        <span className="text-xs text-purple-600 dark:text-purple-400">
+                          ({Math.round(aiConfidence * 100)}% {t('tag_selector.confidence')})
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Add all AI suggestions at once
+                          const newTags = aiSuggestions.filter(tag => !value.some(v => v.id === tag.id));
+                          if (newTags.length > 0) {
+                            onChange([...value, ...newTags]);
+                            setAiSuggestions([]);
+                          }
+                        }}
+                        className="text-xs text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-100 underline"
+                      >
+                        {t('tag_selector.add_all_suggestions')}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {aiSuggestions
+                        .filter(tag => !value.some(v => v.id === tag.id))
+                        .map((tag) => (
+                          <TagChip
+                            key={tag.id}
+                            tag={tag}
+                            variant="ai-suggestion"
+                            onClick={() => {
+                              handleTagSelect(tag);
+                              // Remove from suggestions after selection
+                              setAiSuggestions(prev => prev.filter(t => t.id !== tag.id));
+                            }}
+                            disabled={disabled}
+                          />
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Recent Tags */}
                 {recentTags.length > 0 && searchQuery === '' && (
                   <div className="mb-3">
@@ -377,7 +498,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
 // Tag Chip Component
 interface TagChipProps {
   tag: Tag;
-  variant?: 'selected' | 'suggestion';
+  variant?: 'selected' | 'suggestion' | 'ai-suggestion';
   onRemove?: () => void;
   onClick?: () => void;
   disabled?: boolean;
@@ -391,18 +512,20 @@ const TagChip: React.FC<TagChipProps> = ({
   disabled = false
 }) => {
   const isSelected = variant === 'selected';
+  const isAiSuggestion = variant === 'ai-suggestion';
   
   return (
     <div
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium transition-colors",
-        isSelected
-          ? "bg-primary text-primary-foreground"
-          : "bg-secondary text-secondary-foreground hover:bg-secondary/80 cursor-pointer",
+        isSelected && "bg-primary text-primary-foreground",
+        variant === 'suggestion' && "bg-secondary text-secondary-foreground hover:bg-secondary/80 cursor-pointer",
+        isAiSuggestion && "bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 cursor-pointer shadow-sm",
         disabled && "opacity-50 cursor-not-allowed"
       )}
       onClick={onClick}
     >
+      {isAiSuggestion && <Sparkles className="h-3 w-3" />}
       <span>{tag.name}</span>
       {isSelected && onRemove && (
         <button
@@ -418,7 +541,10 @@ const TagChip: React.FC<TagChipProps> = ({
           <X className="h-3 w-3" />
         </button>
       )}
-      {!isSelected && (
+      {variant === 'suggestion' && (
+        <Plus className="h-3 w-3" />
+      )}
+      {isAiSuggestion && (
         <Plus className="h-3 w-3" />
       )}
     </div>
