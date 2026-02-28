@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-02-28T19:46:02.168149+00:00",
+  "database_url": "127.0.0.1:54322/postgres",
+  "tables": {
+    "users": {
+      "count": 7,
+      "file": "users.json"
+    },
+    "tags": {
+      "count": 62,
+      "file": "tags.json"
+    },
+    "recipes": {
+      "count": 13,
+      "file": "recipes.json"
+    },
+    "recipe_tags": {
+      "count": 53,
+      "file": "recipe_tags.json"
+    },
+    "alembic_version": {
+      "count": 1,
+      "file": "alembic_version.json"
+    }
+  }
+}

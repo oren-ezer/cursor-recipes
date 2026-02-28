@@ -1,0 +1,560 @@
+[
+  {
+    "uuid": "6301135",
+    "id": 35,
+    "recipe_counter": 0,
+    "name": "japanese",
+    "created_at": "2025-08-16T20:35:05.106035",
+    "updated_at": "2025-12-28T15:21:38.598464",
+    "category": "Cuisine Types"
+  },
+  {
+    "uuid": "4129569",
+    "id": 38,
+    "recipe_counter": 2,
+    "name": "mediterranean",
+    "created_at": "2025-08-16T20:35:05.109259",
+    "updated_at": "2025-12-28T15:21:38.604357",
+    "category": "Cuisine Types"
+  },
+  {
+    "uuid": "7653281",
+    "id": 13,
+    "recipe_counter": 0,
+    "name": "nut-free",
+    "created_at": "2025-08-16T20:35:05.088202",
+    "updated_at": "2025-12-28T15:21:38.606528",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "4115512",
+    "id": 55,
+    "recipe_counter": 1,
+    "name": "steaming",
+    "created_at": "2025-08-16T20:35:05.123559",
+    "updated_at": "2025-12-28T15:21:38.608872",
+    "category": "Cooking Methods"
+  },
+  {
+    "uuid": "9336898",
+    "id": 37,
+    "recipe_counter": 1,
+    "name": "french",
+    "created_at": "2025-08-16T20:35:05.107576",
+    "updated_at": "2025-12-03T21:13:32.718479",
+    "category": "Cuisine Types"
+  },
+  {
+    "uuid": "1981480",
+    "id": 58,
+    "recipe_counter": 0,
+    "name": "comfort-food",
+    "created_at": "2025-08-16T20:35:05.126715",
+    "updated_at": "2025-08-21T12:43:43.438491",
+    "category": "Special Categories"
+  },
+  {
+    "uuid": "8796387",
+    "id": 44,
+    "recipe_counter": 1,
+    "name": "tofu",
+    "created_at": "2025-08-16T20:35:05.114475",
+    "updated_at": "2025-12-03T21:13:32.722248",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "3523445",
+    "id": 49,
+    "recipe_counter": 2,
+    "name": "vegetables",
+    "created_at": "2025-08-16T20:35:05.119082",
+    "updated_at": "2025-12-03T21:13:32.724882",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "1222385",
+    "id": 27,
+    "recipe_counter": 2,
+    "name": "main-course",
+    "created_at": "2025-08-16T20:35:05.099601",
+    "updated_at": "2026-01-05T16:11:54.671386",
+    "category": "Course Types"
+  },
+  {
+    "uuid": "7354459",
+    "id": 57,
+    "recipe_counter": 3,
+    "name": "kid-friendly",
+    "created_at": "2025-08-16T20:35:05.125668",
+    "updated_at": "2026-01-05T16:11:54.673416",
+    "category": "Special Categories"
+  },
+  {
+    "uuid": "5240147",
+    "id": 2,
+    "recipe_counter": 1,
+    "name": "breakfast",
+    "created_at": "2025-08-16T20:35:05.076598",
+    "updated_at": "2026-01-06T15:12:18.073850",
+    "category": "Meal Types"
+  },
+  {
+    "uuid": "4367441",
+    "id": 7,
+    "recipe_counter": 2,
+    "name": "finger-food",
+    "created_at": "2025-08-16T20:35:05.083057",
+    "updated_at": "2026-01-06T15:12:18.087250",
+    "category": "Meal Types"
+  },
+  {
+    "uuid": "2934485",
+    "id": 50,
+    "recipe_counter": 1,
+    "name": "fruit",
+    "created_at": "2025-08-16T20:35:05.119899",
+    "updated_at": "2025-12-03T21:13:32.726142",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "2233700",
+    "id": 53,
+    "recipe_counter": 1,
+    "name": "roasting",
+    "created_at": "2025-08-16T20:35:05.122121",
+    "updated_at": "2025-12-03T21:13:32.727414",
+    "category": "Cooking Methods"
+  },
+  {
+    "uuid": "7072597",
+    "id": 8,
+    "recipe_counter": 1,
+    "name": "brunch",
+    "created_at": "2025-08-16T20:35:05.084053",
+    "updated_at": "2026-01-06T15:12:18.090935",
+    "category": "Meal Types"
+  },
+  {
+    "uuid": "5251150",
+    "id": 62,
+    "recipe_counter": 1,
+    "name": "one-pot",
+    "created_at": "2025-08-16T20:35:05.129900",
+    "updated_at": "2025-08-21T14:12:33.706777",
+    "category": "Special Categories"
+  },
+  {
+    "uuid": "4575232",
+    "id": 56,
+    "recipe_counter": 1,
+    "name": "raw",
+    "created_at": "2025-08-16T20:35:05.124336",
+    "updated_at": "2025-12-03T21:13:32.729836",
+    "category": "Cooking Methods"
+  },
+  {
+    "uuid": "3430847",
+    "id": 9,
+    "recipe_counter": 3,
+    "name": "vegetarian",
+    "created_at": "2025-08-16T20:35:05.084960",
+    "updated_at": "2026-01-06T15:12:18.093792",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "1987289",
+    "id": 3,
+    "recipe_counter": 1,
+    "name": "lunch",
+    "created_at": "2025-08-16T20:35:05.079583",
+    "updated_at": "2025-12-24T16:21:11.885911",
+    "category": "Meal Types"
+  },
+  {
+    "uuid": "9420891",
+    "id": 5,
+    "recipe_counter": 1,
+    "name": "late-night",
+    "created_at": "2025-08-16T20:35:05.081452",
+    "updated_at": "2025-12-24T16:21:11.895358",
+    "category": "Meal Types"
+  },
+  {
+    "uuid": "7968106",
+    "id": 48,
+    "recipe_counter": 2,
+    "name": "pasta",
+    "created_at": "2025-08-16T20:35:05.118131",
+    "updated_at": "2025-12-24T16:21:11.897337",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "4253326",
+    "id": 14,
+    "recipe_counter": 0,
+    "name": "sugar-free",
+    "created_at": "2025-08-16T20:35:05.088956",
+    "updated_at": "2025-08-16T20:35:05.088957",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "8282868",
+    "id": 45,
+    "recipe_counter": 0,
+    "name": "eggs",
+    "created_at": "2025-08-16T20:35:05.115232",
+    "updated_at": "2025-08-23T06:27:16.502498",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "5981134",
+    "id": 43,
+    "recipe_counter": 0,
+    "name": "seafood-or-shellfish",
+    "created_at": "2025-08-16T20:35:05.113709",
+    "updated_at": "2025-12-03T13:12:14.703290",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "8866958",
+    "id": 63,
+    "recipe_counter": 1,
+    "name": "super-food",
+    "created_at": "2025-08-16T20:35:05.130620",
+    "updated_at": "2025-12-03T13:12:14.706224",
+    "category": "Special Categories"
+  },
+  {
+    "uuid": "7295979",
+    "id": 41,
+    "recipe_counter": 0,
+    "name": "pork",
+    "created_at": "2025-08-16T20:35:05.112282",
+    "updated_at": "2025-12-03T13:13:38.977572",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "8363766",
+    "id": 16,
+    "recipe_counter": 0,
+    "name": "keto",
+    "created_at": "2025-08-16T20:35:05.090505",
+    "updated_at": "2025-08-16T20:35:05.090505",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "4399461",
+    "id": 61,
+    "recipe_counter": 0,
+    "name": "budget-friendly",
+    "created_at": "2025-08-16T20:35:05.129120",
+    "updated_at": "2025-08-21T12:14:17.014248",
+    "category": "Special Categories"
+  },
+  {
+    "uuid": "2934624",
+    "id": 25,
+    "recipe_counter": 0,
+    "name": "appetizer",
+    "created_at": "2025-08-16T20:35:05.097608",
+    "updated_at": "2025-08-16T20:35:05.097608",
+    "category": "Course Types"
+  },
+  {
+    "uuid": "3717277",
+    "id": 26,
+    "recipe_counter": 0,
+    "name": "first-course",
+    "created_at": "2025-08-16T20:35:05.098714",
+    "updated_at": "2025-08-16T20:35:05.098715",
+    "category": "Course Types"
+  },
+  {
+    "uuid": "7610469",
+    "id": 31,
+    "recipe_counter": 1,
+    "name": "italian",
+    "created_at": "2025-08-16T20:35:05.102908",
+    "updated_at": "2025-12-24T16:21:11.909116",
+    "category": "Cuisine Types"
+  },
+  {
+    "uuid": "9753211",
+    "id": 28,
+    "recipe_counter": 0,
+    "name": "side-dish",
+    "created_at": "2025-08-16T20:35:05.100417",
+    "updated_at": "2025-08-16T20:35:05.100417",
+    "category": "Course Types"
+  },
+  {
+    "uuid": "9238216",
+    "id": 10,
+    "recipe_counter": 2,
+    "name": "vegan",
+    "created_at": "2025-08-16T20:35:05.085752",
+    "updated_at": "2025-12-03T21:13:32.694484",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "9975177",
+    "id": 47,
+    "recipe_counter": 0,
+    "name": "rice",
+    "created_at": "2025-08-16T20:35:05.116770",
+    "updated_at": "2025-12-03T13:13:38.984271",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "4209180",
+    "id": 11,
+    "recipe_counter": 2,
+    "name": "gluten-free",
+    "created_at": "2025-08-16T20:35:05.086571",
+    "updated_at": "2025-12-03T21:13:32.695955",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "2603965",
+    "id": 39,
+    "recipe_counter": 0,
+    "name": "chicken",
+    "created_at": "2025-08-16T20:35:05.110401",
+    "updated_at": "2025-08-16T20:35:05.110405",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "4701522",
+    "id": 40,
+    "recipe_counter": 0,
+    "name": "beef",
+    "created_at": "2025-08-16T20:35:05.111487",
+    "updated_at": "2025-08-16T20:35:05.111488",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "3745234",
+    "id": 15,
+    "recipe_counter": 1,
+    "name": "low-carb",
+    "created_at": "2025-08-16T20:35:05.089729",
+    "updated_at": "2025-12-03T21:13:32.699951",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "8004823",
+    "id": 20,
+    "recipe_counter": 1,
+    "name": "high-fiber",
+    "created_at": "2025-08-16T20:35:05.093664",
+    "updated_at": "2025-12-03T21:13:32.704846",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "5715629",
+    "id": 46,
+    "recipe_counter": 0,
+    "name": "beans-legumes",
+    "created_at": "2025-08-16T20:35:05.115931",
+    "updated_at": "2025-08-16T20:35:05.115931",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "3095294",
+    "id": 24,
+    "recipe_counter": 1,
+    "name": "high-sugar",
+    "created_at": "2025-08-16T20:35:05.096700",
+    "updated_at": "2025-12-03T21:13:32.707250",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "4801426",
+    "id": 29,
+    "recipe_counter": 1,
+    "name": "dessert",
+    "created_at": "2025-08-16T20:35:05.101274",
+    "updated_at": "2025-12-03T21:13:32.709051",
+    "category": "Course Types"
+  },
+  {
+    "uuid": "4682355",
+    "id": 51,
+    "recipe_counter": 0,
+    "name": "grilling",
+    "created_at": "2025-08-16T20:35:05.120730",
+    "updated_at": "2025-08-16T20:35:05.120731",
+    "category": "Cooking Methods"
+  },
+  {
+    "uuid": "2005116",
+    "id": 52,
+    "recipe_counter": 0,
+    "name": "baking",
+    "created_at": "2025-08-16T20:35:05.121431",
+    "updated_at": "2025-08-16T20:35:05.121431",
+    "category": "Cooking Methods"
+  },
+  {
+    "uuid": "2931034",
+    "id": 54,
+    "recipe_counter": 0,
+    "name": "frying",
+    "created_at": "2025-08-16T20:35:05.122877",
+    "updated_at": "2025-08-16T20:35:05.122878",
+    "category": "Cooking Methods"
+  },
+  {
+    "uuid": "3659136",
+    "id": 33,
+    "recipe_counter": 1,
+    "name": "indian",
+    "created_at": "2025-08-16T20:35:05.104465",
+    "updated_at": "2025-12-03T21:13:32.714620",
+    "category": "Cuisine Types"
+  },
+  {
+    "uuid": "7170608",
+    "id": 21,
+    "recipe_counter": 2,
+    "name": "heart-healthy",
+    "created_at": "2025-08-16T20:35:05.094373",
+    "updated_at": "2025-12-03T21:13:32.706119",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "9530751",
+    "id": 32,
+    "recipe_counter": 1,
+    "name": "mexican",
+    "created_at": "2025-08-16T20:35:05.103700",
+    "updated_at": "2025-12-03T21:13:32.713333",
+    "category": "Cuisine Types"
+  },
+  {
+    "uuid": "3661338",
+    "id": 42,
+    "recipe_counter": 1,
+    "name": "fish",
+    "created_at": "2025-08-16T20:35:05.113005",
+    "updated_at": "2025-12-03T21:13:32.720997",
+    "category": "Main Ingredients"
+  },
+  {
+    "uuid": "9505479",
+    "id": 59,
+    "recipe_counter": 2,
+    "name": "holiday",
+    "created_at": "2025-08-16T20:35:05.127474",
+    "updated_at": "2025-12-03T21:13:32.732348",
+    "category": "Special Categories"
+  },
+  {
+    "uuid": "9003826",
+    "id": 4,
+    "recipe_counter": 2,
+    "name": "dinner",
+    "created_at": "2025-08-16T20:35:05.080617",
+    "updated_at": "2025-12-24T16:21:11.892287",
+    "category": "Meal Types"
+  },
+  {
+    "uuid": "8317486",
+    "id": 36,
+    "recipe_counter": 0,
+    "name": "thai",
+    "created_at": "2025-08-16T20:35:05.106809",
+    "updated_at": "2025-12-28T15:21:38.600116",
+    "category": "Cuisine Types"
+  },
+  {
+    "uuid": "7118216",
+    "id": 60,
+    "recipe_counter": 2,
+    "name": "romantic-dinner",
+    "created_at": "2025-08-16T20:35:05.128371",
+    "updated_at": "2025-12-28T15:21:38.610447",
+    "category": "Special Categories"
+  },
+  {
+    "uuid": "2443840",
+    "id": 6,
+    "recipe_counter": 1,
+    "name": "snack",
+    "created_at": "2025-08-16T20:35:05.082214",
+    "updated_at": "2026-01-06T15:12:18.082871",
+    "category": "Meal Types"
+  },
+  {
+    "uuid": "8087140",
+    "id": 12,
+    "recipe_counter": 3,
+    "name": "dairy-free",
+    "created_at": "2025-08-16T20:35:05.087456",
+    "updated_at": "2026-01-06T15:12:18.100096",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "7312297",
+    "id": 34,
+    "recipe_counter": 0,
+    "name": "chinese",
+    "created_at": "2025-08-16T20:35:05.105254",
+    "updated_at": "2025-08-25T19:53:12.184859",
+    "category": "Cuisine Types"
+  },
+  {
+    "uuid": "5812297",
+    "id": 30,
+    "recipe_counter": 0,
+    "name": "beverage",
+    "created_at": "2025-08-16T20:35:05.102060",
+    "updated_at": "2025-08-25T19:53:12.194303",
+    "category": "Course Types"
+  },
+  {
+    "uuid": "5226894",
+    "id": 22,
+    "recipe_counter": 0,
+    "name": "low-sodium",
+    "created_at": "2025-08-16T20:35:05.095184",
+    "updated_at": "2025-12-03T13:12:14.704759",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "6536587",
+    "id": 23,
+    "recipe_counter": 0,
+    "name": "diabetic-friendly",
+    "created_at": "2025-08-16T20:35:05.095983",
+    "updated_at": "2025-12-03T13:13:38.986932",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "1464218",
+    "id": 17,
+    "recipe_counter": 1,
+    "name": "paleo",
+    "created_at": "2025-08-16T20:35:05.091321",
+    "updated_at": "2025-12-03T21:13:32.701236",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "9482284",
+    "id": 18,
+    "recipe_counter": 1,
+    "name": "high-protein",
+    "created_at": "2025-08-16T20:35:05.092130",
+    "updated_at": "2025-12-03T21:13:32.702435",
+    "category": "Special Dietary"
+  },
+  {
+    "uuid": "2797026",
+    "id": 19,
+    "recipe_counter": 1,
+    "name": "low-fat",
+    "created_at": "2025-08-16T20:35:05.092884",
+    "updated_at": "2025-12-03T21:13:32.703636",
+    "category": "Special Dietary"
+  }
+]

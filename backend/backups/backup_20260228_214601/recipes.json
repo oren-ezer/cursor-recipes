@@ -1,0 +1,588 @@
+[
+  {
+    "id": 3,
+    "created_at": "2025-08-08T21:12:08.150934",
+    "uuid": "b193cfd6-0857-4edc-b35c-57577c570aaf",
+    "description": "Creamy Italian mushroom risotto",
+    "instructions": [
+      "Saut\u00e9 mushrooms",
+      "Toast rice with onions",
+      "Add wine and stir",
+      "Gradually add hot stock",
+      "Finish with butter and cheese"
+    ],
+    "cooking_time": 25,
+    "difficulty_level": "Hard",
+    "image_url": null,
+    "updated_at": "2025-08-08T21:12:08.150938",
+    "title": "Risotto ai Funghi",
+    "ingredients": [
+      {
+        "name": "Arborio rice",
+        "amount": "300g"
+      },
+      {
+        "name": "Mixed mushrooms",
+        "amount": "400g"
+      },
+      {
+        "name": "White wine",
+        "amount": "150ml"
+      },
+      {
+        "name": "Parmesan",
+        "amount": "100g"
+      },
+      {
+        "name": "Butter",
+        "amount": "50g"
+      }
+    ],
+    "preparation_time": 20,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "67e330a3-77cf-42e9-bd80-09984f5698f4"
+  },
+  {
+    "id": 4,
+    "created_at": "2025-08-08T21:12:08.150996",
+    "uuid": "1772aefe-8f3d-48fa-8b7c-62ca6776e6b6",
+    "description": "Quick and healthy vegetable stir fry",
+    "instructions": [
+      "Cut all vegetables into bite-sized pieces",
+      "Heat oil in a large wok or pan",
+      "Add garlic and ginger, stir for 30 seconds",
+      "Add vegetables, stir-fry for 5-7 minutes",
+      "Add soy sauce and cook for 1 more minute"
+    ],
+    "cooking_time": 10,
+    "difficulty_level": "Easy",
+    "image_url": null,
+    "updated_at": "2025-08-08T21:12:08.150999",
+    "title": "Vegetable Stir Fry",
+    "ingredients": [
+      {
+        "name": "Broccoli",
+        "amount": "2 cups"
+      },
+      {
+        "name": "Carrots",
+        "amount": "2 medium"
+      },
+      {
+        "name": "Bell peppers",
+        "amount": "2"
+      },
+      {
+        "name": "Soy sauce",
+        "amount": "1/4 cup"
+      },
+      {
+        "name": "Ginger",
+        "amount": "1 tbsp"
+      },
+      {
+        "name": "Garlic",
+        "amount": "3 cloves"
+      }
+    ],
+    "preparation_time": 15,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "f14089a8-30d3-4523-8800-e95796c24589"
+  },
+  {
+    "id": 2,
+    "created_at": "2025-08-08T21:12:08.150077",
+    "uuid": "f4f46517-1ffd-454c-8e74-a3c3ad6ef0f2",
+    "description": "Classic Roman pasta dish with eggs, cheese, pancetta, and black pepper",
+    "instructions": [
+      "Cook pasta in salted water",
+      "Fry pancetta until crispy",
+      "Mix eggs, cheese, and pepper",
+      "Combine hot pasta with egg mixture",
+      "Add pancetta and serve immediately"
+    ],
+    "cooking_time": 20,
+    "difficulty_level": "Medium",
+    "image_url": null,
+    "updated_at": "2025-12-28T17:53:27.306841",
+    "title": "Spaghetti Carbonara",
+    "ingredients": [
+      {
+        "name": "Spaghetti",
+        "amount": "400g"
+      },
+      {
+        "name": "Pancetta",
+        "amount": "150g"
+      },
+      {
+        "name": "Eggs",
+        "amount": "4"
+      },
+      {
+        "name": "Pecorino Romano",
+        "amount": "100g"
+      },
+      {
+        "name": "Black pepper",
+        "amount": "2 tsp"
+      }
+    ],
+    "preparation_time": 15,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "46f8cf35-2c0d-4f15-b9d7-6423c285acc0"
+  },
+  {
+    "id": 6,
+    "created_at": "2025-08-08T21:12:08.151108",
+    "uuid": "b7074a96-053c-4c91-98e1-fb9447cce959",
+    "description": "Basic California roll",
+    "instructions": [
+      "Cook and season rice",
+      "Place nori on bamboo mat",
+      "Spread rice evenly",
+      "Add fillings",
+      "Roll tightly and slice"
+    ],
+    "cooking_time": 20,
+    "difficulty_level": "Hard",
+    "image_url": null,
+    "updated_at": "2025-08-08T21:12:08.151112",
+    "title": "Sushi Roll",
+    "ingredients": [
+      {
+        "name": "Sushi rice",
+        "amount": "2 cups"
+      },
+      {
+        "name": "Nori sheets",
+        "amount": "4"
+      },
+      {
+        "name": "Crab meat",
+        "amount": "200g"
+      },
+      {
+        "name": "Avocado",
+        "amount": "1"
+      },
+      {
+        "name": "Cucumber",
+        "amount": "1"
+      }
+    ],
+    "preparation_time": 30,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "67e330a3-77cf-42e9-bd80-09984f5698f4"
+  },
+  {
+    "id": 7,
+    "created_at": "2025-08-08T21:12:08.151161",
+    "uuid": "f98be3c3-baef-4064-ace0-f9702ee1cfdb",
+    "description": "Traditional Mexican enchiladas with red sauce",
+    "instructions": [
+      "Cook and shred chicken",
+      "Dip tortillas in sauce",
+      "Fill with chicken and cheese",
+      "Roll and place in dish",
+      "Top with sauce and bake"
+    ],
+    "cooking_time": 30,
+    "difficulty_level": "Medium",
+    "image_url": null,
+    "updated_at": "2025-08-08T21:12:08.151164",
+    "title": "Chicken Enchiladas",
+    "ingredients": [
+      {
+        "name": "Corn tortillas",
+        "amount": "12"
+      },
+      {
+        "name": "Chicken breast",
+        "amount": "500g"
+      },
+      {
+        "name": "Enchilada sauce",
+        "amount": "2 cups"
+      },
+      {
+        "name": "Cheese",
+        "amount": "200g"
+      },
+      {
+        "name": "Onion",
+        "amount": "1"
+      }
+    ],
+    "preparation_time": 25,
+    "servings": 6,
+    "is_public": true,
+    "user_id": "f14089a8-30d3-4523-8800-e95796c24589"
+  },
+  {
+    "id": 1,
+    "created_at": "2025-08-08T21:12:08.149371",
+    "uuid": "d48d236e-fd3e-4c80-a7a7-dab295dd0e2f",
+    "description": "A simple and delicious traditional Italian pizza",
+    "instructions": [
+      "Preheat oven to 450\u00b0F (230\u00b0C)",
+      "Roll out the pizza dough",
+      "Spread tomato sauce evenly",
+      "Add torn mozzarella pieces",
+      "Bake for 12-15 minutes",
+      "Add fresh basil leaves and drizzle with olive oil"
+    ],
+    "cooking_time": 15,
+    "difficulty_level": "Easy",
+    "image_url": null,
+    "updated_at": "2026-01-05T18:11:54.650676",
+    "title": "Classic Margherita Pizza",
+    "ingredients": [
+      {
+        "name": "Pizza dough",
+        "amount": "1 ball"
+      },
+      {
+        "name": "Fresh mozzarella",
+        "amount": "200g"
+      },
+      {
+        "name": "Fresh basil leaves",
+        "amount": "1 bunch"
+      },
+      {
+        "name": "Tomato sauce",
+        "amount": "1 cup"
+      },
+      {
+        "name": "Olive oil",
+        "amount": "2 tbsp"
+      }
+    ],
+    "preparation_time": 20,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "f14089a8-30d3-4523-8800-e95796c24589"
+  },
+  {
+    "id": 10,
+    "created_at": "2025-08-08T21:12:08.151309",
+    "uuid": "6e4a7e07-6b0a-4d2e-9e71-5359e4b2cb58",
+    "description": "Classic homemade chocolate chip cookies",
+    "instructions": [
+      "Preheat oven to 375\u00b0F (190\u00b0C)",
+      "Cream butter and sugars",
+      "Add eggs and vanilla",
+      "Mix in flour and chocolate chips",
+      "Drop rounded tablespoons onto baking sheet",
+      "Bake for 9-11 minutes"
+    ],
+    "cooking_time": 10,
+    "difficulty_level": "Easy",
+    "image_url": null,
+    "updated_at": "2025-08-08T21:12:08.151312",
+    "title": "Chocolate Chip Cookies",
+    "ingredients": [
+      {
+        "name": "Butter",
+        "amount": "1 cup"
+      },
+      {
+        "name": "Sugar",
+        "amount": "3/4 cup"
+      },
+      {
+        "name": "Brown sugar",
+        "amount": "3/4 cup"
+      },
+      {
+        "name": "Eggs",
+        "amount": "2"
+      },
+      {
+        "name": "Vanilla extract",
+        "amount": "1 tsp"
+      },
+      {
+        "name": "Flour",
+        "amount": "2 1/4 cups"
+      },
+      {
+        "name": "Chocolate chips",
+        "amount": "2 cups"
+      }
+    ],
+    "preparation_time": 15,
+    "servings": 24,
+    "is_public": true,
+    "user_id": "f14089a8-30d3-4523-8800-e95796c24589"
+  },
+  {
+    "id": 11,
+    "created_at": "2025-08-08T21:12:08.151358",
+    "uuid": "95cfd019-9b97-47f8-a154-e6b5add072f4",
+    "description": "Creamy homemade macaroni and cheese",
+    "instructions": [
+      "Cook macaroni",
+      "Make cheese sauce",
+      "Combine with pasta",
+      "Top with breadcrumbs",
+      "Bake until golden"
+    ],
+    "cooking_time": 30,
+    "difficulty_level": "Medium",
+    "image_url": null,
+    "updated_at": "2025-08-08T21:12:08.151362",
+    "title": "Mac and Cheese",
+    "ingredients": [
+      {
+        "name": "Macaroni",
+        "amount": "500g"
+      },
+      {
+        "name": "Cheddar cheese",
+        "amount": "300g"
+      },
+      {
+        "name": "Milk",
+        "amount": "2 cups"
+      },
+      {
+        "name": "Butter",
+        "amount": "4 tbsp"
+      },
+      {
+        "name": "Flour",
+        "amount": "4 tbsp"
+      }
+    ],
+    "preparation_time": 20,
+    "servings": 6,
+    "is_public": true,
+    "user_id": "46f8cf35-2c0d-4f15-b9d7-6423c285acc0"
+  },
+  {
+    "id": 9,
+    "created_at": "2025-08-08T21:12:08.151260",
+    "uuid": "f0629fc9-ba3e-42ba-ae1f-c34b89c89d1f",
+    "description": "Stuffed poblano peppers",
+    "instructions": [
+      "Roast and peel peppers",
+      "Stuff with cheese",
+      "Batter with egg mixture",
+      "Fry until golden",
+      "Serve with tomato sauce"
+    ],
+    "cooking_time": 14,
+    "difficulty_level": "Hard",
+    "image_url": null,
+    "updated_at": "2025-12-28T17:55:14.959002",
+    "title": "Chiles Rellenos",
+    "ingredients": [
+      {
+        "name": "Poblano peppers",
+        "amount": "6"
+      },
+      {
+        "name": "Cheese",
+        "amount": "300g"
+      },
+      {
+        "name": "Eggs",
+        "amount": "4"
+      },
+      {
+        "name": "Flour",
+        "amount": "1 cup"
+      },
+      {
+        "name": "Tomato sauce",
+        "amount": "2 cups"
+      }
+    ],
+    "preparation_time": 30,
+    "servings": 6,
+    "is_public": false,
+    "user_id": "67e330a3-77cf-42e9-bd80-09984f5698f4"
+  },
+  {
+    "id": 1212,
+    "created_at": "2026-01-06T15:12:18.039557",
+    "uuid": "97f23bc0-1ecb-45ca-97c5-4d59c6b211ee",
+    "description": "a nice breakfast or brunch dish which is very popular these days and also considered at healthy",
+    "instructions": [
+      "peel the avocado, mesh it and season it to your taste",
+      "poach the eggs to the level you like",
+      "toast or lightly fry the bread",
+      "apply thick layer of the avocado paste/slices on the toasted bread",
+      "place the poached eggs on top of the avocado and add some garnish that matches your flavour"
+    ],
+    "cooking_time": 10,
+    "difficulty_level": "Easy",
+    "image_url": null,
+    "updated_at": "2026-01-06T15:12:18.039599",
+    "title": "Avocado Bruschetta",
+    "ingredients": [
+      {
+        "name": "Avocado",
+        "amount": "half "
+      },
+      {
+        "name": "sourdough bread",
+        "amount": "2 slices "
+      },
+      {
+        "name": "egg",
+        "amount": "2"
+      },
+      {
+        "name": "salt, pepper, chilli, fresh coriander, olive oil",
+        "amount": "as much as you like for seasoning"
+      }
+    ],
+    "preparation_time": 15,
+    "servings": 1,
+    "is_public": true,
+    "user_id": "0ce8963e-65e1-4ee2-9ac6-2eeb31df9620"
+  },
+  {
+    "id": 12,
+    "created_at": "2025-08-08T21:12:08.151408",
+    "uuid": "75a4caf6-a3a1-403b-bce8-92b7f915b15a",
+    "description": "Classic American apple pie",
+    "instructions": [
+      "Prepare pie crust",
+      "Slice and season apples",
+      "Fill pie shell",
+      "Add top crust",
+      "Bake until golden",
+      "cool down and serve warm with whiped cream"
+    ],
+    "cooking_time": 59,
+    "difficulty_level": "Medium",
+    "image_url": null,
+    "updated_at": "2026-01-04T22:32:06.098322",
+    "title": "Apple Pie with cream",
+    "ingredients": [
+      {
+        "name": "Pie crust",
+        "amount": "2"
+      },
+      {
+        "name": "Apples",
+        "amount": "6 large"
+      },
+      {
+        "name": "Sugar",
+        "amount": "3/4 cup"
+      },
+      {
+        "name": "Cinnamon",
+        "amount": "2 tsp"
+      },
+      {
+        "name": "Butter",
+        "amount": "2 tbsp"
+      },
+      {
+        "name": "cream",
+        "amount": "1 cup"
+      }
+    ],
+    "preparation_time": 45,
+    "servings": 9,
+    "is_public": true,
+    "user_id": "0ce8963e-65e1-4ee2-9ac6-2eeb31df9620"
+  },
+  {
+    "id": 562,
+    "created_at": "2025-12-03T12:34:37.554216",
+    "uuid": "e2f876bc-e978-4a5b-bd35-9a28ab51c52a",
+    "description": "a delicious healty food from the mountains.",
+    "instructions": [
+      "smash and squeez the pilled garlic cloves and put aside for 10 minutes",
+      "boil the fresh washed horta in salted water ",
+      "drain the horta and let it cool for a bit",
+      "mix together horta olive oil and garlic and eat",
+      "can be fridged and eaten later",
+      "you can add some fresh feta cheese for saltiness, texture and color"
+    ],
+    "cooking_time": 20,
+    "difficulty_level": "Easy",
+    "image_url": null,
+    "updated_at": "2025-12-28T18:33:53.662595",
+    "title": "horta with garlic",
+    "ingredients": [
+      {
+        "name": "horta",
+        "amount": "big nice bunch"
+      },
+      {
+        "name": "garlic",
+        "amount": "2 cloves"
+      },
+      {
+        "name": "feta cheese",
+        "amount": "a handfull "
+      },
+      {
+        "name": "olive oil",
+        "amount": "like for a salat"
+      },
+      {
+        "name": "salt",
+        "amount": "like for cooking pasta"
+      }
+    ],
+    "preparation_time": 30,
+    "servings": 2,
+    "is_public": true,
+    "user_id": "f4a5a88a-e457-43e6-b7ac-447684d0d2c0"
+  },
+  {
+    "id": 567,
+    "created_at": "2025-12-24T16:21:11.866157",
+    "uuid": "ab250396-86ba-461d-b7b3-dd114bdc1c70",
+    "description": "\u05de\u05d0\u05db\u05dc \u05e4\u05e1\u05d8\u05d4 \u05de\u05e1\u05d5\u05e8\u05ea\u05d9 ",
+    "instructions": [
+      "\u05dc\u05d4\u05e8\u05ea\u05d9\u05d7 \u05de\u05d9\u05dd \u05e2\u05dd \u05de\u05dc\u05d7",
+      "\u05dc\u05d6\u05e8\u05d5\u05e7 \u05e4\u05e1\u05d8\u05d4 \u05dc\u05de\u05d9\u05dd \u05d5\u05dc\u05e2\u05e8\u05d1\u05d1 \u05de\u05d9\u05d3\u05d9 \u05e4\u05e2\u05dd",
+      "\u05d1\u05de\u05e7\u05d1\u05d9\u05dc \u05dc\u05d4\u05e4\u05e9\u05d9\u05e8 \u05d1\u05d5\u05dc\u05d5\u05e0\u05d6",
+      "\u05db\u05e9\u05d4\u05e4\u05e1\u05d8\u05d4 \u05de\u05d5\u05db\u05e0\u05d4 (\u05e2\u05dc \u05e4\u05d9 \u05d4\u05d5\u05e8\u05d0\u05d5\u05ea \u05d4\u05d9\u05e6\u05e8\u05df \u05d0\u05d5 \u05e2\u05dc \u05e4\u05d9 \u05d8\u05e2\u05d9\u05de\u05d4) \u05dc\u05d4\u05d5\u05e6\u05d9\u05d0 \u05de\u05d4\u05de\u05d9\u05dd \u05d5\u05d8\u05dc\u05e2\u05e8\u05d1\u05d1 \u05e2\u05dd \u05d4\u05d1\u05d5\u05dc\u05d5\u05e0\u05d6 \u05d4\u05d7\u05dd \u05e2\u05dc \u05d0\u05e9 \u05dc\u05d0 \u05d7\u05d6\u05e7\u05d4",
+      "\u05dc\u05e4\u05d6\u05e8 \u05d0\u05ea \u05d4\u05e4\u05e8\u05de\u05d6\u05df , \u05dc\u05d4\u05d5\u05e1\u05d9\u05e3 \u05de\u05e2\u05d8 \u05de\u05de\u05d9 \u05d4\u05d1\u05d9\u05e9\u05d5\u05dc \u05d5\u05dc\u05e2\u05e8\u05d1 \u05d4\u05d9\u05d8\u05d1 \u05db\u05de\u05d4 \u05d3\u05e7\u05d5\u05ea",
+      "\u05dc\u05d4\u05d2\u05d9\u05e9 \u05de\u05d9\u05d3",
+      "\u05e0\u05d9\u05ea\u05df \u05dc\u05d7\u05de\u05dd \u05d1\u05de\u05d9\u05e7\u05e8\u05d5 \u05dc\u05d0\u05d7\u05e8 \u05e9\u05d4\u05d9\u05d4 \u05d1\u05de\u05e7\u05e8\u05e8"
+    ],
+    "cooking_time": 25,
+    "difficulty_level": "Easy",
+    "image_url": null,
+    "updated_at": "2025-12-26T21:54:14.382097",
+    "title": "\u05e1\u05e4\u05d2\u05d8\u05d9 \u05d1\u05d5\u05dc\u05d5\u05e0\u05d6",
+    "ingredients": [
+      {
+        "name": "\u05e4\u05e1\u05d8\u05d4 \u05d9\u05d1\u05e9\u05d4",
+        "amount": "500 \u05d2\u05e8"
+      },
+      {
+        "name": "\u05d1\u05d5\u05dc\u05d5\u05e0\u05d6 \u05e7\u05e4\u05d5\u05d0",
+        "amount": "\u05e7\u05d5\u05e4\u05e1\u05d0"
+      },
+      {
+        "name": "\u05e4\u05e8\u05de\u05d6\u05df \u05de\u05d2\u05d5\u05e8\u05e8",
+        "amount": "2-3 \u05d7\u05d5\u05e4\u05e0\u05d9\u05dd"
+      },
+      {
+        "name": "\u05de\u05dc\u05d7",
+        "amount": "3 \u05db\u05e4\u05d5\u05ea"
+      }
+    ],
+    "preparation_time": 45,
+    "servings": 4,
+    "is_public": true,
+    "user_id": "0ce8963e-65e1-4ee2-9ac6-2eeb31df9620"
+  }
+]
