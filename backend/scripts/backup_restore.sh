@@ -111,6 +111,11 @@ restore_backup() {
     
     local backup_path="$BACKUP_DIR/$backup_name"
     
+    print_error "================================================"
+    print_error "backup_path: $backup_path"
+    print_error "BACKUP_DIR: $BACKUP_DIR"
+    print_error "backup_name: $backup_name"
+    print_error "================================================"  
     if [ ! -d "$backup_path" ]; then
         print_error "Backup not found: $backup_path"
         print_info "Available backups:"

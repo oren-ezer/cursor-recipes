@@ -66,7 +66,7 @@ class DatabaseBackupRestore:
         self.engine = create_engine(self.database_url)
         
         # Define table models in dependency order (for proper insertion)
-        # Note: alembic_version is handled separately as it doesn't have a SQLModel class
+        # Note: alembic_version is managed by Alembic (alembic upgrade head), not this script
         self.table_models = [
             ('users', User),
             ('tags', Tag),
@@ -90,8 +90,8 @@ class DatabaseBackupRestore:
                 inspector = inspect(self.engine)
                 existing_tables = inspector.get_table_names()
                 
-                # Expected tables
-                expected_tables = {'users', 'recipes', 'tags', 'recipe_tags', 'alembic_version'}
+                # Expected tables (alembic_version is managed by Alembic, not this script)
+                expected_tables = {'users', 'recipes', 'tags', 'recipe_tags'}
                 missing_tables = expected_tables - set(existing_tables)
                 
                 if missing_tables:
@@ -176,23 +176,6 @@ class DatabaseBackupRestore:
                     
                     logger.info(f"Dumped {len(records)} records from {table_name}")
                 
-                # Dump alembic_version table (doesn't have SQLModel class)
-                logger.info("Dumping table: alembic_version")
-                alembic_result = session.exec(text("SELECT version_num FROM alembic_version"))
-                alembic_records = [{'version_num': row[0]} for row in alembic_result]
-                
-                # Save alembic_version to JSON file
-                alembic_file = output_path / "alembic_version.json"
-                with open(alembic_file, 'w', encoding='utf-8') as f:
-                    json.dump(alembic_records, f, indent=2)
-                
-                backup_info['tables']['alembic_version'] = {
-                    'count': len(alembic_records),
-                    'file': 'alembic_version.json'
-                }
-                
-                logger.info(f"Dumped {len(alembic_records)} records from alembic_version")
-                
                 # Save backup metadata
                 metadata_file = output_path / "backup_info.json"
                 with open(metadata_file, 'w', encoding='utf-8') as f:
@@ -249,12 +232,7 @@ class DatabaseBackupRestore:
                         session.exec(text(f"DELETE FROM {table_name}"))
                         logger.info(f"Cleared {len(count_before)} records from {table_name}")
                 
-                # Clear alembic_version (should be done last as it's not dependent on other tables)
-                alembic_count = session.exec(text("SELECT COUNT(*) FROM alembic_version")).first()
-                if alembic_count and alembic_count > 0:
-                    session.exec(text("DELETE FROM alembic_version"))
-                    logger.info(f"Cleared {alembic_count} records from alembic_version")
-                
+                # alembic_version is managed by Alembic; do not clear or upload it
                 session.commit()
                 
                 # Upload data in dependency order
@@ -304,29 +282,7 @@ class DatabaseBackupRestore:
                     session.commit()
                     logger.info(f"Uploaded {uploaded_count} records to {table_name}")
                 
-                # Upload alembic_version data
-                alembic_file = input_path / "alembic_version.json"
-                if alembic_file.exists():
-                    logger.info("Uploading data to table: alembic_version")
-                    
-                    with open(alembic_file, 'r', encoding='utf-8') as f:
-                        alembic_records = json.load(f)
-                    
-                    uploaded_count = 0
-                    for record_data in alembic_records:
-                        try:
-                            # Insert alembic version directly with SQL
-                            session.exec(text("INSERT INTO alembic_version (version_num) VALUES (:version_num)"), 
-                                       {'version_num': record_data['version_num']})
-                            uploaded_count += 1
-                        except Exception as e:
-                            logger.error(f"Failed to upload alembic_version record: {record_data} - {str(e)}")
-                            continue
-                    
-                    session.commit()
-                    logger.info(f"Uploaded {uploaded_count} records to alembic_version")
-                else:
-                    logger.warning("alembic_version.json not found, skipping alembic version restore")
+                # alembic_version is managed by Alembic (alembic upgrade head); do not upload it
                 
                 # Update sequences for auto-increment columns
                 logger.info("Updating database sequences...")
