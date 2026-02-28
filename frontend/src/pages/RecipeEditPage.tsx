@@ -132,34 +132,6 @@ const RecipeEditPage: React.FC = () => {
     }
   };
 
-  const handleAiTagSuggestion = async (): Promise<string[]> => {
-    // Validate that we have the required data
-    if (!formData.title.trim()) {
-      throw new Error(t('recipe.form.ai_suggestion_no_title'));
-    }
-    
-    const validIngredients = formData.ingredients.filter(ing => ing.name.trim());
-    if (validIngredients.length === 0) {
-      throw new Error(t('recipe.form.ai_suggestion_no_ingredients'));
-    }
-
-    try {
-      const ingredientsList = validIngredients.map(ing => ing.name);
-      const existingTagNames = formData.selectedTags.map(tag => tag.name);
-      
-      const response = await apiClient.suggestTags({
-        recipe_title: formData.title,
-        ingredients: ingredientsList,
-        existing_tags: existingTagNames.length > 0 ? existingTagNames : undefined,
-      });
-
-      return response.suggested_tags;
-    } catch (error) {
-      console.error('Failed to get AI tag suggestions:', error);
-      throw error;
-    }
-  };
-
   const handleIngredientChange = (index: number, field: 'name' | 'amount', value: string) => {
     const newIngredients = [...formData.ingredients];
     newIngredients[index] = { ...newIngredients[index], [field]: value };
@@ -429,11 +401,9 @@ const RecipeEditPage: React.FC = () => {
                   onLoadTags={loadTagsWithLogging}
                   showSearch={true}
                   showCategories={true}
-                  showAiSuggestion={true}
-                  onSuggestTags={handleAiTagSuggestion}
                 />
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t('recipe.form.tags_help_with_ai')}
+                  {t('recipe.form.tags_help')}
                 </p>
               </div>
             </CardContent>

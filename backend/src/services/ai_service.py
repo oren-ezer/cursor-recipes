@@ -306,23 +306,46 @@ Suggest appropriate tags for this recipe. Consider:
         Returns:
             Dict with estimated nutrition per serving:
                 - calories: estimated calories
-                - protein: protein in grams
-                - carbs: carbohydrates in grams
-                - fat: fat in grams
-                - fiber: fiber in grams
+                - protein_g: protein in grams
+                - carbs_g: carbohydrates in grams
+                - fat_g: fat in grams
+                - fiber_g: fiber in grams
+                - sodium_mg: sodium in milligrams
         """
+        # Get configuration for nutrition service
+        config = self.config_service.get_effective_config(
+            service_name="nutrition_calculation",
+            override_params=config_override
+        )
+        
+        # Format ingredients
         ingredients_str = "\n".join([f"- {ing['name']}: {ing['amount']}" for ing in ingredients])
-        user_prompt = f"""Estimate the nutritional content per serving for a recipe with these ingredients:
+        
+        # Use system prompt from config or fall back to default
+        system_prompt = config.get("system_prompt") or """You are a nutrition expert AI. 
+Provide accurate nutritional estimates for recipe ingredients based on USDA data and typical serving sizes.
+Return your response in JSON format with numeric values."""
+        
+        # Build user prompt using template if available
+        user_prompt_template = config.get("user_prompt_template")
+        if user_prompt_template:
+            # Replace placeholder in template
+            user_prompt = user_prompt_template.replace("{ingredients}", ingredients_str)
+        else:
+            # Fall back to default prompt
+            user_prompt = f"""Estimate the nutritional content per serving for a recipe with these ingredients:
 
 {ingredients_str}
 
-Provide reasonable estimates based on typical portions."""
+Provide reasonable estimates based on typical portions and USDA nutrition data.
+Return as JSON with: calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg"""
         
         try:
             response = await self.call_llm(
                 user_prompt=user_prompt,
                 service_name="nutrition_calculation",
-                **({k: v for k, v in (config_override or {}).items() if k in ['model', 'temperature', 'max_tokens', 'system_prompt', 'response_format']})
+                system_prompt=system_prompt,
+                **({k: v for k, v in (config_override or {}).items() if k in ['model', 'temperature', 'max_tokens', 'response_format']})
             )
             
             content = response["content"]

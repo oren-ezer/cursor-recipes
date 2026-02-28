@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import RecipeCard from '../components/RecipeCard';
 import ConfirmationModal from '../components/ui/confirmation-modal';
 import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
+import NutritionModal from '../components/nutrition-modal';
 
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
@@ -24,6 +25,12 @@ const RecipeDetailPage: React.FC = () => {
   const [hasNavigated, setHasNavigated] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
+
+  // Nutrition state
+  const [showNutritionModal, setShowNutritionModal] = useState(false);
+  const [nutritionData, setNutritionData] = useState<any>(null);
+  const [isCalculatingNutrition, setIsCalculatingNutrition] = useState(false);
+  const [nutritionError, setNutritionError] = useState<string | null>(null);
 
   // Use the consistent deletion hook
   const {
@@ -214,6 +221,40 @@ const RecipeDetailPage: React.FC = () => {
     }
   };
 
+  const handleCalculateNutrition = async () => {
+    if (!recipe) return;
+    
+    setShowNutritionModal(true);
+    setIsCalculatingNutrition(true);
+    setNutritionError(null);
+    setNutritionData(null);
+    
+    try {
+      // Prepare ingredients data
+      const ingredients = recipe.ingredients.map(ing => ({
+        name: ing.name,
+        amount: ing.amount
+      }));
+      
+      const nutrition = await apiClient.calculateNutrition(ingredients);
+      setNutritionData(nutrition);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setNutritionError(err.message);
+      } else {
+        setNutritionError(t('nutrition.error'));
+      }
+    } finally {
+      setIsCalculatingNutrition(false);
+    }
+  };
+
+  const handleCloseNutritionModal = () => {
+    setShowNutritionModal(false);
+    setNutritionData(null);
+    setNutritionError(null);
+  };
+
   const handleDeleteButtonClick = () => {
     if (recipe) {
       handleDeleteClick(recipe);
@@ -313,9 +354,17 @@ const RecipeDetailPage: React.FC = () => {
             </div>
           )}
 
-          {/* Export Buttons - Available to all authenticated users */}
+          {/* Export and Nutrition Buttons - Available to all authenticated users */}
           {isAuthenticated && (
-            <div className="flex justify-center gap-4">
+            <div className="flex justify-center gap-4 flex-wrap">
+              <Button 
+                onClick={handleCalculateNutrition}
+                disabled={isCalculatingNutrition}
+                variant="outline"
+                className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-300 dark:border-green-700 hover:from-green-100 hover:to-emerald-100 dark:hover:from-green-900/30 dark:hover:to-emerald-900/30"
+              >
+                🥗 {t('nutrition.calculate')}
+              </Button>
               <Button 
                 onClick={handleExportPdf}
                 disabled={isExporting}
@@ -491,6 +540,16 @@ const RecipeDetailPage: React.FC = () => {
         cancelText={t('modal.cancel')}
         variant="default"
         isLoading={false}
+      />
+
+      {/* Nutrition Modal */}
+      <NutritionModal
+        isOpen={showNutritionModal}
+        onClose={handleCloseNutritionModal}
+        nutrition={nutritionData}
+        isLoading={isCalculatingNutrition}
+        error={nutritionError}
+        recipeName={recipe?.title || ''}
       />
     </MainLayout>
   );

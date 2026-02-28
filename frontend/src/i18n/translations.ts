@@ -84,9 +84,6 @@ export const translations = {
     "recipe.form.update": "Update Recipe",
     "recipe.form.login_required": "Please log in to create a recipe",
     "recipe.form.edit_login_required": "Please log in to edit a recipe",
-    "recipe.form.tags_help_with_ai": "Add tags to help others discover your recipe. You can search by name, browse by category, or use AI to suggest relevant tags based on your recipe title and ingredients.",
-    "recipe.form.ai_suggestion_no_title": "Please add a recipe title to get AI tag suggestions.",
-    "recipe.form.ai_suggestion_no_ingredients": "Please add at least one ingredient to get AI tag suggestions.",
 
     "recipe.detail.info": "Recipe Information",
     "recipe.detail.image": "Image",
@@ -311,6 +308,25 @@ export const translations = {
     "tag_selector.ai_error": "Failed to get AI suggestions. Please try again.",
     "tag_selector.add_all_suggestions": "Add all suggestions",
     
+    // Nutrition
+    "nutrition.modal_title": "Nutrition Facts",
+    "nutrition.recipe_label": "Recipe",
+    "nutrition.calculating": "Calculating nutrition facts...",
+    "nutrition.per_serving": "Per Serving (estimated)",
+    "nutrition.calories": "Calories",
+    "nutrition.kcal": "kcal",
+    "nutrition.protein": "Protein",
+    "nutrition.carbs": "Carbohydrates",
+    "nutrition.fat": "Fat",
+    "nutrition.fiber": "Fiber",
+    "nutrition.sodium": "Sodium",
+    "nutrition.disclaimer": "Nutritional values are AI-generated estimates based on typical ingredients and serving sizes. Actual values may vary.",
+    "nutrition.calculate": "Calculate Nutrition",
+    "nutrition.error": "Failed to calculate nutrition facts. Please try again.",
+    
+    // Common
+    "common.close": "Close",
+    
     "difficulty.easy": "Easy",
     "difficulty.medium": "Medium",
     "difficulty.hard": "Hard",
@@ -404,9 +420,6 @@ export const translations = {
     "recipe.form.update": "עדכן מתכון",
     "recipe.form.login_required": "נא להתחבר כדי ליצור מתכון",
     "recipe.form.edit_login_required": "נא להתחבר כדי לערוך מתכון",
-    "recipe.form.tags_help_with_ai": "הוסף תגיות כדי לעזור לאחרים לגלות את המתכון שלך. תוכל לחפש לפי שם, לעיין לפי קטגוריה, או להשתמש ב-AI כדי להציע תגיות רלוונטיות בהתבסס על כותרת המתכון והמרכיבים.",
-    "recipe.form.ai_suggestion_no_title": "אנא הוסף כותרת מתכון כדי לקבל הצעות תגיות מ-AI.",
-    "recipe.form.ai_suggestion_no_ingredients": "אנא הוסף לפחות מרכיב אחד כדי לקבל הצעות תגיות מ-AI.",
 
     "recipe.detail.info": "פרטי המתכון",
     "recipe.detail.image": "תמונה",
@@ -630,6 +643,25 @@ export const translations = {
     "tag_selector.confidence": "ביטחון",
     "tag_selector.ai_error": "נכשל בקבלת הצעות AI. אנא נסה שוב.",
     "tag_selector.add_all_suggestions": "הוסף את כל ההצעות",
+    
+    // Nutrition
+    "nutrition.modal_title": "ערכים תזונתיים",
+    "nutrition.recipe_label": "מתכון",
+    "nutrition.calculating": "מחשב ערכים תזונתיים...",
+    "nutrition.per_serving": "למנה (הערכה)",
+    "nutrition.calories": "קלוריות",
+    "nutrition.kcal": "קק\"ל",
+    "nutrition.protein": "חלבון",
+    "nutrition.carbs": "פחמימות",
+    "nutrition.fat": "שומן",
+    "nutrition.fiber": "סיבים תזונתיים",
+    "nutrition.sodium": "נתרן",
+    "nutrition.disclaimer": "הערכים התזונתיים הם הערכות שנוצרו על ידי AI המבוססות על מרכיבים טיפוסיים וגודל מנה. ערכים בפועל עשויים להשתנות.",
+    "nutrition.calculate": "חשב ערכים תזונתיים",
+    "nutrition.error": "נכשל בחישוב ערכים תזונתיים. אנא נסה שוב.",
+    
+    // Common
+    "common.close": "סגור",
     
     "difficulty.easy": "קל",
     "difficulty.medium": "בינוני",
