@@ -293,6 +293,7 @@ Suggest appropriate tags for this recipe. Consider:
     async def calculate_nutrition(
         self, 
         ingredients: List[Dict[str, str]],
+        servings: int = 1,
         config_override: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -301,16 +302,17 @@ Suggest appropriate tags for this recipe. Consider:
         
         Args:
             ingredients: List of ingredients with 'name' and 'amount'
+            servings: Number of servings the recipe yields; returned values are per serving
             config_override: Optional runtime configuration overrides
             
         Returns:
             Dict with estimated nutrition per serving:
-                - calories: estimated calories
-                - protein_g: protein in grams
-                - carbs_g: carbohydrates in grams
-                - fat_g: fat in grams
-                - fiber_g: fiber in grams
-                - sodium_mg: sodium in milligrams
+                - calories: estimated calories per serving
+                - protein_g: protein in grams per serving
+                - carbs_g: carbohydrates in grams per serving
+                - fat_g: fat in grams per serving
+                - fiber_g: fiber in grams per serving
+                - sodium_mg: sodium in milligrams per serving
         """
         # Get configuration for nutrition service
         config = self.config_service.get_effective_config(
@@ -329,16 +331,19 @@ Return your response in JSON format with numeric values."""
         # Build user prompt using template if available
         user_prompt_template = config.get("user_prompt_template")
         if user_prompt_template:
-            # Replace placeholder in template
+            # Replace placeholders in template
             user_prompt = user_prompt_template.replace("{ingredients}", ingredients_str)
+            user_prompt = user_prompt.replace("{servings}", str(servings))
         else:
             # Fall back to default prompt
-            user_prompt = f"""Estimate the nutritional content per serving for a recipe with these ingredients:
+            user_prompt = f"""Estimate the nutritional content PER SERVING for a recipe that yields {servings} serving(s).
 
+Ingredients (total for full recipe):
 {ingredients_str}
 
+Divide total nutrition by {servings} to get per-serving values.
 Provide reasonable estimates based on typical portions and USDA nutrition data.
-Return as JSON with: calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg"""
+Return as JSON with: calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg (all per serving)"""
         
         try:
             response = await self.call_llm(

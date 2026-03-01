@@ -106,6 +106,7 @@ class NutritionRequest(BaseModel):
     """Request model for nutrition calculation."""
     
     ingredients: List[Ingredient] = Field(..., min_length=1)
+    servings: int = Field(default=1, gt=0, description="Number of servings the recipe yields; nutrition is per serving")
 
 
 class NutritionResponse(BaseModel):

@@ -227,7 +227,7 @@ async def calculate_nutrition(
         logger.info(f"Calculating nutrition for {len(request.ingredients)} ingredients")
         
         ingredients_dict = [{"name": ing.name, "amount": ing.amount} for ing in request.ingredients]
-        nutrition = await ai_service.calculate_nutrition(ingredients_dict)
+        nutrition = await ai_service.calculate_nutrition(ingredients_dict, servings=request.servings)
         
         return NutritionResponse(**nutrition)
         
