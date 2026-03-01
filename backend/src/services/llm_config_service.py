@@ -2,7 +2,7 @@
 from sqlmodel import Session, select
 from src.models.llm_config import LLMConfig, LLMConfigType
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid as uuid_lib
 
 
@@ -164,7 +164,7 @@ class LLMConfigService:
                 setattr(config, key, value)
         
         # Update timestamp
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(timezone.utc)
         
         self.db.add(config)
         self.db.commit()
@@ -206,7 +206,7 @@ class LLMConfigService:
             raise ValueError(f"Config with ID {config_id} not found")
         
         config.is_active = True
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(timezone.utc)
         
         self.db.add(config)
         self.db.commit()

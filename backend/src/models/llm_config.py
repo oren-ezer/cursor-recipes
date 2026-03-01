@@ -1,6 +1,6 @@
 """LLM Configuration model for managing AI service settings."""
 from sqlmodel import SQLModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from enum import Enum
 
@@ -53,8 +53,8 @@ class LLMConfig(SQLModel, table=True):
     # Metadata
     is_active: bool = Field(default=True)
     created_by: str = Field(index=True)  # UUID of admin user
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Description for admin reference
     description: Optional[str] = Field(default=None)
