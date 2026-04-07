@@ -245,23 +245,24 @@ const AdminPage: React.FC = () => {
   };
 
   const handleSaveUserEdit = async () => {
-    if (!editingUserId) return;
+    if (editingUserId == null) return;
+    const userId = Number(editingUserId);
     
     setError(null);
     try {
       // Update basic user data
-      await apiClient.updateUser(editingUserId, {
+      await apiClient.updateUser(userId, {
         email: editingUserData.email,
         full_name: editingUserData.full_name,
         is_active: editingUserData.is_active,
       });
       
       // Update superuser status separately
-      await apiClient.setUserSuperuser(editingUserId, editingUserData.is_superuser);
+      await apiClient.setUserSuperuser(userId, editingUserData.is_superuser);
       
       // Update password if provided
       if (editingUserData.password.trim()) {
-        await apiClient.updateUserPassword(editingUserId, editingUserData.password);
+        await apiClient.updateUserPassword(userId, editingUserData.password);
       }
       
       setEditingUserId(null);

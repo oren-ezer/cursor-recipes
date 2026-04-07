@@ -90,7 +90,7 @@ const RecipeEditPage: React.FC = () => {
           difficulty_level: data.difficulty_level,
           is_public: data.is_public,
           image_url: data.image_url || '',
-          selectedTags: data.tags || [],
+          selectedTags: (data.tags || []) as Tag[],
         });
       } catch (err) {
         if (err instanceof ApiError) {

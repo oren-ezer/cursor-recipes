@@ -64,9 +64,9 @@ export const translations = {
     "recipe.form.recipe_tags": "Recipe Tags",
     "recipe.form.tags_placeholder": "Select tags for your recipe...",
     "recipe.form.tags_help": "Add tags to help others discover your recipe. You can search by name or browse by category.",
-    "recipe.form.tags_help_with_ai": "Add tags to help others discover your recipe. Use AI to suggest tags based on your recipe title and ingredients.",
-    "recipe.form.ai_suggestion_no_title": "Please enter a recipe title before requesting AI suggestions.",
-    "recipe.form.ai_suggestion_no_ingredients": "Please add at least one ingredient before requesting AI suggestions.",
+    "recipe.form.tags_help_with_ai": "Add tags to help others discover your recipe. Use AI to suggest relevant tags based on your recipe title and ingredients.",
+    "recipe.form.ai_suggestion_no_title": "Please enter a recipe title before requesting AI tag suggestions.",
+    "recipe.form.ai_suggestion_no_ingredients": "Please add at least one ingredient before requesting AI tag suggestions.",
     "recipe.form.ingredients": "Ingredients",
     "recipe.form.ingredient_name": "Ingredient Name",
     "recipe.form.ingredient_placeholder": "e.g., Flour",
@@ -403,9 +403,13 @@ export const translations = {
     "recipe.form.recipe_tags": "תגיות מתכון",
     "recipe.form.tags_placeholder": "בחר תגיות למתכון שלך...",
     "recipe.form.tags_help": "הוסף תגיות כדי לעזור לאחרים למצוא את המתכון שלך. ניתן לחפש לפי שם או לדפדף לפי קטגוריה.",
-    "recipe.form.tags_help_with_ai": "הוסף תגיות כדי לעזור לאחרים למצוא את המתכון שלך. השתמש ב-AI להצעת תגיות על בסיס שם המתכון והרכיבים.",
-    "recipe.form.ai_suggestion_no_title": "אנא הזן שם מתכון לפני בקשת הצעות AI.",
-    "recipe.form.ai_suggestion_no_ingredients": "אנא הוסף לפחות רכיב אחד לפני בקשת הצעות AI.",
+    
+    "recipe.form.tags_help_with_ai": "הוסף תגיות כדי לעזור לאחרים למצוא את המתכון שלך. השתמש ב-AI להצעת תגיות רלוונטיות לפי כותרת ורכיבי המתכון.",
+    "recipe.form.ai_suggestion_no_title": "נא להזין כותרת מתכון לפני בקשת הצעות תגיות מ-AI.",
+    "recipe.form.ai_suggestion_no_ingredients": "נא להוסיף לפחות רכיב אחד לפני בקשת הצעות תגיות מ-AI.",
+    
+    
+    
     "recipe.form.ingredients": "רכיבים",
     "recipe.form.ingredient_name": "שם הרכיב",
     "recipe.form.ingredient_placeholder": "לדוגמה: קמח",
