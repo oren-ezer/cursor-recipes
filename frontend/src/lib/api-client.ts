@@ -387,10 +387,10 @@ class ApiClient {
     });
   }
 
-  async calculateNutrition(ingredients: Ingredient[]): Promise<NutritionResponse> {
+  async calculateNutrition(ingredients: Ingredient[], servings: number = 1): Promise<NutritionResponse> {
     return this.request<NutritionResponse>('/ai/nutrition', {
       method: 'POST',
-      body: JSON.stringify({ ingredients }),
+      body: JSON.stringify({ ingredients, servings }),
     });
   }
 

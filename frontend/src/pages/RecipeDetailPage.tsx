@@ -236,7 +236,7 @@ const RecipeDetailPage: React.FC = () => {
         amount: ing.amount
       }));
       
-      const nutrition = await apiClient.calculateNutrition(ingredients);
+      const nutrition = await apiClient.calculateNutrition(ingredients, recipe.servings);
       setNutritionData(nutrition);
     } catch (err) {
       if (err instanceof ApiError) {
