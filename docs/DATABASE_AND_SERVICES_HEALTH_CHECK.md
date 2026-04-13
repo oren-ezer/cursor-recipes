@@ -300,7 +300,7 @@ Both database and services are ready for development.
 
 ## Files
 
-- Database backup/restore script: `backend/scripts/db_backup_restore.py`
+- Data management script (`dump` / `upload` / `list` / `stats` under `backups/<subfolder>/`): `backend/scripts/data_management.py`
 - Migration directory: `backend/migrations/versions/`
 - Main application: `backend/src/main.py`
 - Frontend config: `frontend/vite.config.ts`

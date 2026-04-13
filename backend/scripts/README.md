@@ -1,227 +1,102 @@
-# Database Backup and Restore Scripts
+# Data management scripts
 
-This directory contains scripts for backing up and restoring your Recipe Application database.
+JSON snapshots live under **`backend/scripts/backups/<subfolder>/`** (always the same location regardless of where you invoke the commands from).
 
 ## Files
 
-- `db_backup_restore.py` - Main Python script with backup/restore logic
-- `backup_restore.sh` - Shell wrapper script for easier usage
-- `README.md` - This documentation file
+- `data_management.py` — CLI: `dump`, `upload`, `list`, `stats`, `clean`
+- `data_management.sh` — Shell wrapper
+- `README.md` — This file
 
-## Prerequisites
+## Layout
 
-1. **Environment Setup**: Ensure you have the required environment variables:
-   ```bash
-   export DATABASE_URL="postgresql://username:password@host:port/database"
-   export OPENAI_API_KEY="your-openai-api-key"  # Optional
-   ```
+```
+backend/scripts/
+  backups/
+    data_management.log              # log file
+    backup_20260228_214601/          # or any subfolder name you choose on dump
+      <one JSON file per DB table, e.g. users.json, recipes.json, ...>
+      backup_info.json               # format 2: lists every dumped table and counts
+```
 
-2. **Dependencies**: The script uses the existing project dependencies via `uv`.
+## Commands
 
-## Quick Start
+| Command | Subfolder | Behavior |
+|--------|-----------|----------|
+| `dump` | Optional | Writes to `backups/<subfolder>/`. If omitted, subfolder name defaults to `backup_YYYYMMDD_HHMMSS`. |
+| `upload` | **Required** | Restores from `backups/<subfolder>/`. |
+| `list` | **Required** | Prints `backup_info.json` (if present) and file list for `backups/<subfolder>/`. |
+| `stats` | — | Row counts for every table the DB exposes (same discovery as `dump`). |
+| `clean` | — | Deletes all rows in FK-safe order; leaves `alembic_version` unchanged (use `clean --include-alembic` in Python only if you really need that). |
 
-### Using the Shell Script (Recommended)
+## Shell (recommended)
 
 ```bash
-# Navigate to the backend directory
+./scripts/data_management.sh dump
+./scripts/data_management.sh dump my_snapshot
+./scripts/data_management.sh list backup_20260228_214601
+./scripts/data_management.sh upload backup_20260228_214601
+./scripts/data_management.sh stats
+./scripts/data_management.sh clean
+./scripts/data_management.sh help
+```
+
+## Python (same rules)
+
+```bash
 cd backend
 
-# Create a backup
-./scripts/backup_restore.sh dump
+uv run python scripts/data_management.py dump
+uv run python scripts/data_management.py dump my_snapshot
 
-# Create a backup with custom name
-./scripts/backup_restore.sh dump my_backup_name
+uv run python scripts/data_management.py list backup_20260228_214601
+uv run python scripts/data_management.py upload backup_20260228_214601
+uv run python scripts/data_management.py upload my_snapshot --skip-verification
 
-# List available backups
-./scripts/backup_restore.sh list
+uv run python scripts/data_management.py stats
 
-# Restore from backup
-./scripts/backup_restore.sh upload my_backup_name
+uv run python scripts/data_management.py clean
+uv run python scripts/data_management.py clean -y
+uv run python scripts/data_management.py clean -y --include-alembic
 
-# Show database statistics
-./scripts/backup_restore.sh stats
-
-# Show help
-./scripts/backup_restore.sh help
+# Optional DB URL override
+uv run python scripts/data_management.py dump my_export --database-url "postgresql://..."
 ```
 
-### Using the Python Script Directly
+## How it works
 
-```bash
-# Navigate to the backend directory
-cd backend
+### Dump
 
-# Create a backup
-uv run python scripts/db_backup_restore.py dump --output-dir ./backups/my_backup
+1. Creates `backups/<subfolder>/`, introspects the database for table names, and writes one `<table>.json` per table plus `backup_info.json` (`format: 2`). New migrations/tables are included automatically on the next dump.
 
-# Upload data to database
-uv run python scripts/db_backup_restore.py upload --input-dir ./backups/my_backup
+### Upload
 
-# Skip database structure verification during upload
-uv run python scripts/db_backup_restore.py upload --input-dir ./backups/my_backup --skip-verification
+1. Requires `backups/<subfolder>/` to exist and contain `backup_info.json`.
+2. Verifies schema (unless `--skip-verification`).
+3. Clears tables that appear in the backup (FK-safe order; `alembic_version` is never deleted) and inserts rows in dependency order; attempts PostgreSQL sequence fixes for `id` columns.
 
-# Show database statistics
-uv run python scripts/db_backup_restore.py stats
+### List
 
-# Use custom database URL
-uv run python scripts/db_backup_restore.py dump --output-dir ./backups/custom --database-url "postgresql://..."
-```
+1. Requires `backups/<subfolder>/` to exist.
+2. Prints path, metadata, and file names (helpful before `upload`).
 
-## How It Works
+### Clean
 
-### Dump Mode
+1. Introspects tables and runs `DELETE` in reverse FK order (same ordering idea as `upload`).
+2. Skips `alembic_version` by default so migration history stays valid.
+3. Best-effort PostgreSQL `id` sequence reset after deletes.
 
-1. **Connects** to the database using the provided DATABASE_URL
-2. **Extracts** all data from tables in the correct order:
-   - users
-   - tags  
-   - recipes
-   - recipe_tags
-3. **Converts** each record to JSON format, handling datetime fields
-4. **Saves** each table's data to a separate JSON file
-5. **Creates** a metadata file (`backup_info.json`) with backup information
+## Safety
 
-### Upload Mode
-
-1. **Verifies** database structure (can be skipped with `--skip-verification`)
-2. **Loads** backup metadata to validate the backup
-3. **Clears** existing data from all tables (in reverse dependency order)
-4. **Uploads** data from JSON files (in correct dependency order)
-5. **Updates** database sequences for auto-increment columns
-6. **Provides** final statistics
-
-### Database Structure Verification
-
-The script verifies that the target database has the expected:
-- Tables: `users`, `recipes`, `tags`, `recipe_tags`
-- Critical columns for each table
-- Proper relationships and constraints
-
-## File Structure
-
-```
-backend/
-├── scripts/
-│   ├── db_backup_restore.py    # Main Python script
-│   ├── backup_restore.sh       # Shell wrapper
-│   └── README.md              # This file
-├── backups/                   # Created automatically
-│   ├── backup_20241201_143022/
-│   │   ├── users.json
-│   │   ├── tags.json
-│   │   ├── recipes.json
-│   │   ├── recipe_tags.json
-│   │   └── backup_info.json
-│   └── my_custom_backup/
-│       └── ...
-└── ...
-```
-
-## Backup File Format
-
-Each table's data is stored as a JSON array of objects:
-
-```json
-[
-  {
-    "id": 1,
-    "uuid": "550e8400-e29b-41d4-a716-446655440000",
-    "email": "user@example.com",
-    "created_at": "2024-01-15T10:30:00.000000",
-    ...
-  }
-]
-```
-
-The `backup_info.json` contains metadata:
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:00.000000",
-  "database_url": "host.example.com:5432/database",
-  "tables": {
-    "users": {
-      "count": 150,
-      "file": "users.json"
-    },
-    ...
-  }
-}
-```
-
-## Safety Features
-
-- **Structure Verification**: Ensures target database has correct schema
-- **Confirmation Prompts**: Shell script asks for confirmation before destructive operations
-- **Logging**: Comprehensive logging to both console and `db_backup_restore.log`
-- **Error Handling**: Graceful handling of errors with detailed messages
-- **Sequence Updates**: Automatically updates auto-increment sequences after restore
-
-## Common Use Cases
-
-### 1. Before Database Migration
-```bash
-# Create backup before running migrations
-./scripts/backup_restore.sh dump pre_migration_backup
-```
-
-### 2. Environment Setup
-```bash
-# Dump from production
-DATABASE_URL="postgresql://prod-url" ./scripts/backup_restore.sh dump prod_data
-
-# Upload to development
-DATABASE_URL="postgresql://dev-url" ./scripts/backup_restore.sh upload prod_data
-```
-
-### 3. Testing Data Reset
-```bash
-# Create test data backup
-./scripts/backup_restore.sh dump clean_test_data
-
-# Reset to clean state anytime
-./scripts/backup_restore.sh upload clean_test_data
-```
+- **Upload** overwrites application data; the shell asks for confirmation.
+- **Clean** wipes all application rows; the shell asks for confirmation (`clean --yes` / `-y` skips the Python prompt when you already confirmed in the shell).
+- **Logs**: `data_management.log` under `backend/scripts/backups/`.
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Permission Denied**
-   ```bash
-   chmod +x scripts/backup_restore.sh
-   ```
-
-2. **Database Connection Error**
-   - Verify `DATABASE_URL` is correct
-   - Ensure database server is running
-   - Check network connectivity
-
-3. **Missing Dependencies**
-   ```bash
-   uv sync  # Install dependencies
-   ```
-
-4. **Structure Verification Failed**
-   - Run database migrations first: `uv run alembic upgrade head`
-   - Use `--skip-verification` flag to bypass (not recommended)
-
-### Debug Mode
-
-For detailed debugging, check the log file:
-```bash
-tail -f db_backup_restore.log
-```
-
-## Security Considerations
-
-- **Database URLs**: Never commit database URLs to version control
-- **Backup Files**: Backup files contain sensitive data - store securely
-- **Environment Variables**: Use `.env` files or secure environment variable management
-- **Access Control**: Restrict access to backup files and scripts
+- **`upload` / `list` errors**: Messages include expected path, backups root, and existing subfolder names when relevant.
+- **Permissions**: `chmod +x scripts/data_management.sh`
 
 ## Performance
 
-- **Large Datasets**: For very large databases, consider using PostgreSQL's native `pg_dump` and `pg_restore`
-- **Network**: Upload/download times depend on database size and network speed
-- **Memory**: Script loads entire tables into memory - monitor for large datasets
+For very large databases, prefer PostgreSQL `pg_dump` / `pg_restore`.

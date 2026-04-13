@@ -749,7 +749,7 @@ uv run alembic current
 
 ```bash
 cd backend
-uv run python scripts/db_backup_restore.py dump --output-dir ./backups/pre-production
+uv run python scripts/data_management.py dump pre-production
 ```
 
 ---
@@ -1024,8 +1024,7 @@ async def health_check():
 **Manual Backup**:
 ```bash
 cd backend
-uv run python scripts/db_backup_restore.py dump \
-  --output-dir ./backups/production-$(date +%Y%m%d)
+uv run python scripts/data_management.py dump "production-$(date +%Y%m%d)"
 ```
 
 **Automated Backup to S3**:
