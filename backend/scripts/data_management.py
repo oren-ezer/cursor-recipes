@@ -7,6 +7,8 @@ All backup data lives under: backend/scripts/backups/<backup_subfolder>/
 Usage:
     python data_management.py dump [backup_subfolder]
     python data_management.py upload <backup_subfolder>
+    python data_management.py upload_seed <backup_subfolder>
+    python data_management.py upload_demo <backup_subfolder>
     python data_management.py list <backup_subfolder>
     python data_management.py stats
     python data_management.py clean [--yes] [--include-alembic]
@@ -53,6 +55,10 @@ def _configure_logging() -> None:
 
 # Restored backups never rewrite Alembic revision rows (schema is managed by migrations).
 _SKIP_UPLOAD_TABLES = frozenset({"alembic_version"})
+
+# Subsets for partial uploads. Keep these in sync when adding new models.
+_SEED_TABLES = ("tags", "llm_configs")
+_DEMO_TABLES = _SEED_TABLES + ("users", "recipes", "recipe_tags")
 
 
 def _quote_ident(name: str) -> str:
@@ -273,7 +279,19 @@ class DataManagement:
             logger.error(f"Data dump failed: {str(e)}")
             return False
 
-    def upload_data(self, input_dir: str, verify_structure: bool = True) -> bool:
+    def upload_data(
+        self,
+        input_dir: str,
+        verify_structure: bool = True,
+        only_tables: tuple[str, ...] | None = None,
+    ) -> bool:
+        """Restore data from a backup directory.
+
+        Args:
+            input_dir: Path to the backup subfolder.
+            verify_structure: Check that backup tables exist in the DB.
+            only_tables: If given, restrict the upload to this subset of tables.
+        """
         try:
             input_path = Path(input_dir).resolve()
             if not input_path.exists():
@@ -311,6 +329,17 @@ class DataManagement:
 
             tables_meta = backup_info.get("tables") or {}
             tables_in_backup = set(tables_meta.keys())
+
+            if only_tables is not None:
+                requested = set(only_tables)
+                missing_in_backup = requested - tables_in_backup
+                if missing_in_backup:
+                    logger.warning(
+                        "Requested tables not found in backup (skipped): %s",
+                        sorted(missing_in_backup),
+                    )
+                tables_in_backup = tables_in_backup & requested
+                logger.info("Partial upload — tables: %s", sorted(tables_in_backup))
 
             logger.info(
                 f"Starting data upload from backup created: {backup_info.get('timestamp', 'unknown')}"
@@ -552,6 +581,26 @@ def main() -> int:
         help="Also delete alembic_version (breaks migration stamp until you fix it)",
     )
 
+    upload_seed_parser = subparsers.add_parser(
+        "upload_seed",
+        help=f"Upload only seed tables ({', '.join(_SEED_TABLES)}) from a backup",
+    )
+    upload_seed_parser.add_argument(
+        "backup_subfolder",
+        help="Subfolder name under backups/",
+    )
+    upload_seed_parser.add_argument("--database-url", help="Database URL (defaults to env DATABASE_URL)")
+
+    upload_demo_parser = subparsers.add_parser(
+        "upload_demo",
+        help=f"Upload seed + demo tables ({', '.join(_DEMO_TABLES)}) from a backup",
+    )
+    upload_demo_parser.add_argument(
+        "backup_subfolder",
+        help="Subfolder name under backups/",
+    )
+    upload_demo_parser.add_argument("--database-url", help="Database URL (defaults to env DATABASE_URL)")
+
     args = parser.parse_args()
 
     if not args.mode:
@@ -562,20 +611,27 @@ def main() -> int:
         if args.mode == "list":
             return _run_list(args.backup_subfolder)
 
-        if args.mode == "upload":
+        if args.mode in ("upload", "upload_seed", "upload_demo"):
             root = _backups_root()
             if not root.is_dir():
-                print(_format_backups_root_missing("upload"))
+                print(_format_backups_root_missing(args.mode))
                 return 1
             name = args.backup_subfolder
             target = root / name
             if not target.is_dir():
-                print(_format_backup_subfolder_missing("upload", name))
+                print(_format_backup_subfolder_missing(args.mode, name))
                 return 1
             manager = DataManagement(database_url=getattr(args, "database_url", None))
             logger.info(f"Upload source: {target.resolve()}")
-            verify = not args.skip_verification
-            success = manager.upload_data(str(target), verify_structure=verify)
+            verify = not getattr(args, "skip_verification", False)
+            only: tuple[str, ...] | None = None
+            if args.mode == "upload_seed":
+                only = _SEED_TABLES
+            elif args.mode == "upload_demo":
+                only = _DEMO_TABLES
+            success = manager.upload_data(
+                str(target), verify_structure=verify, only_tables=only,
+            )
             if success:
                 stats = manager.get_database_stats()
                 logger.info(f"Final database stats: {stats}")

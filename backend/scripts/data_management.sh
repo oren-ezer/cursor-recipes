@@ -34,14 +34,16 @@ check_environment() {
 }
 
 show_usage() {
-    echo "Usage: $0 {dump|upload|list|stats|clean|help}"
+    echo "Usage: $0 {dump|upload|upload_seed|upload_demo|list|stats|clean|help}"
     echo ""
     echo "All data is stored under: ${BACKUPS_DIR}/<subfolder>/"
     echo ""
     echo "Commands:"
     echo "  dump [subfolder]   - Create backup in backups/<subfolder>/ (default name: backup_YYYYMMDD_HHMMSS)"
-    echo "  upload <subfolder> - Restore from backups/<subfolder>/ (subfolder name required)"
-    echo "  list <subfolder>   - Show backup_info and files for backups/<subfolder>/ (subfolder name required)"
+    echo "  upload <subfolder>      - Restore all tables from backups/<subfolder>/"
+    echo "  upload_seed <subfolder> - Restore only seed tables (users, tags, llm_configs)"
+    echo "  upload_demo <subfolder> - Restore seed + demo tables (+ recipes, recipe_tags)"
+    echo "  list <subfolder>        - Show backup_info and files for backups/<subfolder>/"
     echo "  stats              - Show database row counts"
     echo "  clean              - Delete all rows (FK-safe; keeps alembic_version by default)"
     echo "  help               - This message"
@@ -151,6 +153,54 @@ show_stats() {
     fi
 }
 
+partial_upload() {
+    local mode="$1"
+    local subfolder="$2"
+    if [ -z "$subfolder" ]; then
+        print_error "${mode} requires a backup subfolder name."
+        print_error "  Example: $0 ${mode} backup_20260228_214601"
+        print_error "  Backups live under: ${BACKUPS_DIR}/<subfolder>/"
+        exit 1
+    fi
+
+    local backup_path="${BACKUPS_DIR}/${subfolder}"
+
+    if [ ! -d "$BACKUPS_DIR" ]; then
+        print_error "Backups directory does not exist: ${BACKUPS_DIR}"
+        print_error "Run a dump first."
+        exit 1
+    fi
+
+    if [ ! -d "$backup_path" ]; then
+        print_error "Backup subfolder not found."
+        print_error "  Subfolder name: ${subfolder}"
+        print_error "  Expected path: ${backup_path}"
+        if [ -n "$(ls -A "$BACKUPS_DIR" 2>/dev/null)" ]; then
+            print_error "Existing subfolders under ${BACKUPS_DIR}:"
+            ls -1 "$BACKUPS_DIR" 2>/dev/null | sed 's/^/    /' || true
+        else
+            print_error "  (backups dir exists but is empty)"
+        fi
+        exit 1
+    fi
+
+    print_warning "This will replace ${mode} tables in the current database!"
+    read -p "Continue? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Cancelled"
+        exit 0
+    fi
+
+    cd "$BACKEND_DIR"
+    if uv run python scripts/data_management.py "${mode}" "$subfolder"; then
+        print_success "Partial restore (${mode}) from: ${backup_path}"
+    else
+        print_error "${mode} failed"
+        exit 1
+    fi
+}
+
 clean_database() {
     print_warning "This will delete ALL rows in every table (alembic_version is kept)."
     read -p "Continue? (y/N): " -n 1 -r
@@ -181,6 +231,14 @@ main() {
         upload|restore)
             check_environment
             restore_backup "$1"
+            ;;
+        upload_seed)
+            check_environment
+            partial_upload "upload_seed" "$1"
+            ;;
+        upload_demo)
+            check_environment
+            partial_upload "upload_demo" "$1"
             ;;
         list)
             list_one_backup "$1"
