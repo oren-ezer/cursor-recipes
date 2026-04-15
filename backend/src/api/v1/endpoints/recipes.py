@@ -8,6 +8,7 @@ from src.models.tag import TagCategory
 from pydantic import BaseModel
 from datetime import datetime
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -74,37 +75,33 @@ class RecipesResponse(BaseModel):
 
 @router.get("/", response_model=RecipesResponse)
 async def read_recipes(
+    request: Request,
     recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
     """
-    Get all public recipes with pagination using limit/offset.
-    
-    Args:
-        limit: Maximum number of records to return (1-1000)
-        offset: Number of records to skip
-        recipe_service: RecipeService instance with database session
-        
-    Returns:
-        List of public recipes with pagination info
-        
-    Raises:
-        HTTPException: If there's an error retrieving recipes
+    Get recipes with pagination.
+    Admins see all recipes (public + private); everyone else sees only public.
     """
     try:
-        # Get only public recipes with tags from service with pagination
-        result = recipe_service.get_all_public_recipes_with_tags(limit=limit, offset=offset)
-        
+        user = getattr(request.state, "user", None)
+        is_admin = user and user.get("is_superuser", False)
+
+        if is_admin:
+            result = recipe_service.get_all_recipes_with_tags(limit=limit, offset=offset)
+        else:
+            result = recipe_service.get_all_public_recipes_with_tags(limit=limit, offset=offset)
+
         return result
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error retrieving recipes: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve recipes: {str(e)}"
+            detail="Failed to retrieve recipes"
         )
 
 @router.get("/my", response_model=RecipesResponse)
@@ -153,45 +150,53 @@ async def read_my_recipes(
         logger.error(f"Error retrieving user recipes: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve user recipes: {str(e)}"
+            detail="Failed to retrieve user recipes"
         )
 
 @router.get("/{recipe_id}", response_model=RecipeResponse)
 async def read_recipe(
-    recipe_id: int, 
+    recipe_id: int,
+    request: Request,
     recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)]
 ):
     """
     Get a specific recipe by ID.
-    
-    Args:
-        recipe_id: The ID of the recipe to retrieve
-        recipe_service: RecipeService instance with database session
-        
-    Returns:
-        Recipe data
-        
-    Raises:
-        HTTPException: If recipe not found or there's an error retrieving it
+    Public recipes are visible to everyone; private recipes require
+    the owner or a superuser.
     """
     try:
         recipe_with_tags = recipe_service.get_recipe_with_tags(recipe_id)
-        
+
         if not recipe_with_tags:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Recipe with ID {recipe_id} not found"
             )
-        
+
+        if not recipe_with_tags.get("is_public", True):
+            user = getattr(request.state, "user", None)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required to view this recipe"
+                )
+            is_owner = user["uuid"] == recipe_with_tags.get("user_id")
+            is_superuser = user.get("is_superuser", False)
+            if not is_owner and not is_superuser:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to view this private recipe"
+                )
+
         return recipe_with_tags
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error retrieving recipe {recipe_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve recipe: {str(e)}"
+            detail="Failed to retrieve recipe"
         )
 
 @router.post("/", response_model=RecipeResponse, status_code=status.HTTP_201_CREATED)
@@ -230,7 +235,7 @@ async def create_recipe(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating recipe: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to create recipe: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create recipe")
 
 @router.put("/{recipe_id}", response_model=RecipeResponse)
 async def update_recipe(
@@ -275,7 +280,7 @@ async def update_recipe(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating recipe {recipe_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update recipe: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update recipe")
 
 @router.delete("/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_recipe(
@@ -316,7 +321,7 @@ async def delete_recipe(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error deleting recipe {recipe_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete recipe: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete recipe")
 
 
 @router.get("/{recipe_id}/export/json", response_model=Dict[str, Any])
@@ -353,7 +358,7 @@ async def export_recipe_json(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error exporting recipe {recipe_id} to JSON: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to export recipe: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to export recipe")
 
 
 @router.get("/{recipe_id}/export/pdf")
@@ -364,27 +369,40 @@ async def export_recipe_pdf(
 ):
     """
     Export a recipe to PDF format.
-    Available to all authenticated users.
+    Public recipes are available to any authenticated user; private recipes
+    require the owner or a superuser.
     """
     try:
-        # Check authentication
         user = request.state.user
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
         
-        # Export recipe
+        recipe = recipe_service.get_recipe(recipe_id)
+        if not recipe:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Recipe with ID {recipe_id} not found"
+            )
+
+        if not recipe.is_public:
+            is_owner = user["uuid"] == recipe.user_id
+            is_superuser = user.get("is_superuser", False)
+            if not is_owner and not is_superuser:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to export this private recipe"
+                )
+
         pdf_content = recipe_service.export_recipe_to_pdf(recipe_id)
         
-        # Get recipe name for filename
-        recipe = recipe_service.get_recipe(recipe_id)
-        filename = f"{recipe.title.replace(' ', '_')}.pdf" if recipe else f"recipe_{recipe_id}.pdf"
+        safe_title = re.sub(r"[^A-Za-z0-9._-]", "_", recipe.title) if recipe else ""
+        filename = f"{safe_title}.pdf" if safe_title else f"recipe_{recipe_id}.pdf"
         
-        # Return PDF as streaming response
         return StreamingResponse(
             iter([pdf_content]),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename={filename}"
+                "Content-Disposition": f'attachment; filename="{filename}"'
             }
         )
         
@@ -395,4 +413,4 @@ async def export_recipe_pdf(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error exporting recipe {recipe_id} to PDF: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to export recipe: {str(e)}") 
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to export recipe") 

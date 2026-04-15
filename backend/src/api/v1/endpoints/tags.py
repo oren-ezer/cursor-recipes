@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from typing import List, Dict, Any, Optional, Annotated
-from src.utils.dependencies import get_tag_service
+from src.utils.dependencies import get_tag_service, get_recipe_service_with_tags, get_current_user
 from src.services.tag_service import TagService
+from src.services.recipes_service import RecipeService
 from src.models.tag import TagCategory
 from pydantic import BaseModel
 from datetime import datetime
@@ -94,7 +95,7 @@ async def get_all_tags(
         logger.error(f"Error retrieving tags: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve tags: {str(e)}"
+            detail="Failed to retrieve tags"
         )
 
 @router.get("/grouped", response_model=Dict[str, List[TagResponse]])
@@ -125,7 +126,7 @@ async def get_tags_grouped_by_category(
         logger.error(f"Error retrieving grouped tags: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve grouped tags: {str(e)}"
+            detail="Failed to retrieve grouped tags"
         )
 
 @router.get("/search", response_model=TagsResponse)
@@ -158,7 +159,7 @@ async def search_tags(
         logger.error(f"Error searching tags: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to search tags: {str(e)}"
+            detail="Failed to search tags"
         )
 
 @router.get("/popular", response_model=PopularTagsResponse)
@@ -187,36 +188,53 @@ async def get_popular_tags(
         logger.error(f"Error retrieving popular tags: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve popular tags: {str(e)}"
+            detail="Failed to retrieve popular tags"
         )
 
 @router.get("/recipes/{recipe_id}/tags", response_model=List[TagResponse])
 async def get_tags_for_recipe(
     recipe_id: int,
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    request: Request,
+    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)]
 ):
     """
     Get all tags associated with a specific recipe.
-    
-    Args:
-        recipe_id: The ID of the recipe
-        tag_service: TagService instance with database session
-        
-    Returns:
-        List of tags associated with the recipe
-        
-    Raises:
-        HTTPException: If there's an error retrieving recipe tags
+    Public recipes are visible to everyone; private recipes require owner or admin.
     """
     try:
+        recipe = recipe_service.get_recipe(recipe_id)
+        if not recipe:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Recipe with ID {recipe_id} not found"
+            )
+
+        if not recipe.is_public:
+            user = getattr(request.state, "user", None)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required to view tags for this recipe"
+                )
+            is_owner = user["uuid"] == recipe.user_id
+            is_superuser = user.get("is_superuser", False)
+            if not is_owner and not is_superuser:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to view tags for this private recipe"
+                )
+
         tags = tag_service.get_tags_for_recipe(recipe_id)
         return tags
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error retrieving tags for recipe {recipe_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve recipe tags: {str(e)}"
+            detail="Failed to retrieve recipe tags"
         )
 
 
@@ -229,22 +247,29 @@ async def get_tags_for_recipe(
 async def update_recipe_tags(
     recipe_id: int,
     tag_data: TagUpdateRequest,
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Update tags for a recipe by adding and/or removing tags in a single operation.
-    
-    Args:
-        recipe_id: The ID of the recipe
-        tag_data: Tag update data with add_tag_ids and/or remove_tag_ids
-        tag_service: TagService instance with database session
-        
-    Returns:
-        Update result with added_tags, removed_tags, current_tags, warnings, and errors
-        
-    Raises:
-        HTTPException: If operation fails or validation errors occur
+    Requires auth; only the recipe owner or a superuser may modify tags.
     """
+    recipe = recipe_service.get_recipe(recipe_id)
+    if not recipe:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Recipe with ID {recipe_id} not found"
+        )
+
+    is_owner = current_user["uuid"] == recipe.user_id
+    is_superuser = current_user.get("is_superuser", False)
+    if not is_owner and not is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify tags for this recipe"
+        )
+
     try:
         result = tag_service.update_recipe_tags(
             recipe_id=recipe_id,
@@ -259,7 +284,7 @@ async def update_recipe_tags(
         logger.error(f"Error updating tags for recipe {recipe_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update recipe tags: {str(e)}"
+            detail="Failed to update recipe tags"
         )
 
 

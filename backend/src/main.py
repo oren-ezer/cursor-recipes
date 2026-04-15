@@ -47,7 +47,6 @@ async def auth_middleware(request: Request, call_next):
             ("/", "GET"),  # Root endpoint
             (f"{settings.API_V1_STR}/users/token", "POST"),  # Login
             (f"{settings.API_V1_STR}/users/register", "POST"),  # Register
-            (f"{settings.API_V1_STR}/recipes", "GET"),  # Public recipes list
             (f"{settings.API_V1_STR}/tags", "GET"),  # Public tags list
             (f"{settings.API_V1_STR}/tags/search", "GET"),  # Public tags search
             (f"{settings.API_V1_STR}/tags/popular", "GET"),  # Public popular tags
@@ -59,18 +58,13 @@ async def auth_middleware(request: Request, call_next):
             logger.info(f"Skipping auth for public endpoint: {request.method} {request.url.path}")
             return await call_next(request)
             
-        # Get the authorization header
         auth_header = request.headers.get("Authorization")
-        logger.info(f"Auth header: {auth_header}")
         
         if not auth_header or not auth_header.startswith("Bearer "):
-            logger.warning("No valid auth header found")
             request.state.user = None
             return await call_next(request)
             
-        # Extract the token
         token = auth_header.split(" ")[1]
-        logger.info(f"Token extracted: {token[:10]}...")
         
         # Get the current user using a database session
         from src.utils.database_session import engine

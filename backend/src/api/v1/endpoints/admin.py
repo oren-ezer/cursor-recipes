@@ -1,45 +1,50 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from src.core.config import settings
-from src.utils.dependencies import get_database_session, get_tag_service, get_recipe_service_with_tags
+from src.utils.dependencies import get_database_session, get_tag_service, get_recipe_service_with_tags, get_current_user
 from src.services.tag_service import TagService
 from src.services.recipes_service import RecipeService
 from src.models.tag import TagCategory
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Annotated, List
+from typing import Annotated, Dict, Any, List
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admins", tags=["admins"])
 
+
+def get_admin_user(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    """Verify that the current user is a superuser (admin)."""
+    if not current_user.get("is_superuser"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required"
+        )
+    return current_user
+
+
 @router.get("/config-test")
-async def test_config():
+async def test_config(admin: Dict[str, Any] = Depends(get_admin_user)):
     """
     Test endpoint to verify environment variables are loaded correctly.
+    Returns only boolean flags — no secrets or connection strings.
     """
     return {
         "database_url_configured": bool(settings.DATABASE_URL),
-        "database_url": settings.DATABASE_URL,
-        "database_url_length": len(settings.DATABASE_URL) if settings.DATABASE_URL else 0,
         "supabase_url_configured": bool(settings.SUPABASE_URL),
-        "supabase_url": settings.SUPABASE_URL,
         "supabase_key_configured": bool(settings.SUPABASE_KEY),
         "supabase_service_key_configured": bool(settings.SUPABASE_SERVICE_KEY),
-        "supabase_url_length": len(settings.SUPABASE_URL) if settings.SUPABASE_URL else 0,
-        "supabase_key_length": len(settings.SUPABASE_KEY) if settings.SUPABASE_KEY else 0,
-        "supabase_service_key_length": len(settings.SUPABASE_SERVICE_KEY) if settings.SUPABASE_SERVICE_KEY else 0
     }
 
 @router.get("/test-setup")
-async def test_setup():
+async def test_setup(admin: Dict[str, Any] = Depends(get_admin_user)):
     """
     Test endpoint to verify SQLModel setup without database connection.
     """
     try:
-        # Test that we can import and use SQLModel components
         from sqlmodel import SQLModel
         from src.models.user import User
         from src.models.recipe import Recipe
@@ -52,7 +57,6 @@ async def test_setup():
                 "user_model_imported": True,
                 "recipe_model_imported": True,
                 "database_url_configured": bool(settings.DATABASE_URL),
-                "database_url_length": len(settings.DATABASE_URL) if settings.DATABASE_URL else 0
             }
         }
     except Exception as e:
@@ -60,12 +64,11 @@ async def test_setup():
         return {
             "status": "error",
             "message": "SQLModel setup has issues",
-            "error": str(e)
         }
 
 @router.get("/test-db-connection")
 async def test_db_connection(
-    request: Request,
+    admin: Dict[str, Any] = Depends(get_admin_user),
     db: Session = Depends(get_database_session)
 ):
     """
@@ -74,7 +77,6 @@ async def test_db_connection(
     try:
         logger.info("Testing database connection...")
         
-        # Simple connection test - just try to execute a basic query
         db.execute(text("SELECT 1"))
         
         return {
@@ -88,8 +90,6 @@ async def test_db_connection(
         return {
             "status": "error",
             "message": "Failed to establish database connection",
-            "error": str(e),
-            "error_type": type(e).__name__
         }
 
 # Admin recipe endpoints
@@ -130,23 +130,13 @@ class RecipesResponse(BaseModel):
 @router.get("/recipes/", response_model=RecipesResponse)
 async def get_all_recipes(
     recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    admin: Dict[str, Any] = Depends(get_admin_user),
     limit: int = Query(1000, ge=1, le=10000, description="Maximum number of records to return"),
     offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
     """
     Get ALL recipes (public and private) for admin management.
-    This endpoint is intended for admin use only.
-    
-    Args:
-        limit: Maximum number of records to return (1-10000)
-        offset: Number of records to skip
-        recipe_service: RecipeService instance with database session
-        
-    Returns:
-        List of all recipes with pagination info
-        
-    Raises:
-        HTTPException: If there's an error retrieving recipes
+    Requires superuser authentication.
     """
     try:
         result = recipe_service.get_all_recipes_with_tags(limit=limit, offset=offset)
@@ -155,7 +145,7 @@ async def get_all_recipes(
         logger.error(f"Error retrieving all recipes for admin: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve recipes: {str(e)}"
+            detail="Failed to retrieve recipes"
         )
 
 # Admin tag endpoints
@@ -180,21 +170,10 @@ class TagUpdate(BaseModel):
 @router.get("/tags/{tag_id}", response_model=TagResponse)
 async def get_tag(
     tag_id: int,
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    admin: Dict[str, Any] = Depends(get_admin_user)
 ):
-    """
-    Get a specific tag by ID (admin only).
-    
-    Args:
-        tag_id: The ID of the tag to retrieve
-        tag_service: TagService instance with database session
-        
-    Returns:
-        Tag data
-        
-    Raises:
-        HTTPException: If tag not found or there's an error retrieving it
-    """
+    """Get a specific tag by ID (admin only)."""
     try:
         tag = tag_service.get_tag(tag_id)
         
@@ -212,27 +191,16 @@ async def get_tag(
         logger.error(f"Error retrieving tag {tag_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve tag: {str(e)}"
+            detail="Failed to retrieve tag"
         )
 
 @router.get("/tags/uuid/{tag_uuid}", response_model=TagResponse)
 async def get_tag_by_uuid(
     tag_uuid: str,
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    admin: Dict[str, Any] = Depends(get_admin_user)
 ):
-    """
-    Get a specific tag by UUID (admin only).
-    
-    Args:
-        tag_uuid: The UUID of the tag to retrieve
-        tag_service: TagService instance with database session
-        
-    Returns:
-        Tag data
-        
-    Raises:
-        HTTPException: If tag not found or there's an error retrieving it
-    """
+    """Get a specific tag by UUID (admin only)."""
     try:
         tag = tag_service.get_tag_by_uuid(tag_uuid)
         
@@ -250,27 +218,16 @@ async def get_tag_by_uuid(
         logger.error(f"Error retrieving tag by UUID {tag_uuid}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve tag: {str(e)}"
+            detail="Failed to retrieve tag"
         )
 
 @router.get("/tags/name/{tag_name}", response_model=TagResponse)
 async def get_tag_by_name(
     tag_name: str,
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    admin: Dict[str, Any] = Depends(get_admin_user)
 ):
-    """
-    Get a specific tag by name (admin only).
-    
-    Args:
-        tag_name: The name of the tag to retrieve
-        tag_service: TagService instance with database session
-        
-    Returns:
-        Tag data
-        
-    Raises:
-        HTTPException: If tag not found or there's an error retrieving it
-    """
+    """Get a specific tag by name (admin only)."""
     try:
         tag = tag_service.get_tag_by_name(tag_name)
         
@@ -288,27 +245,16 @@ async def get_tag_by_name(
         logger.error(f"Error retrieving tag by name {tag_name}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve tag: {str(e)}"
+            detail="Failed to retrieve tag"
         )
 
 @router.post("/tags/", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
 async def create_tag(
     tag_data: TagCreate,
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    admin: Dict[str, Any] = Depends(get_admin_user)
 ):
-    """
-    Create a new tag (admin only).
-    
-    Args:
-        tag_data: The tag data to create (name and category)
-        tag_service: TagService instance with database session
-        
-    Returns:
-        Created tag data
-        
-    Raises:
-        HTTPException: If creation fails or tag name already exists
-    """
+    """Create a new tag (admin only)."""
     try:
         # Convert string category to TagCategory enum
         try:
@@ -326,29 +272,17 @@ async def create_tag(
         logger.error(f"Error creating tag: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create tag: {str(e)}"
+            detail="Failed to create tag"
         )
 
 @router.put("/tags/{tag_id}", response_model=TagResponse)
 async def update_tag(
     tag_id: int,
     tag_data: TagUpdate,
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    admin: Dict[str, Any] = Depends(get_admin_user)
 ):
-    """
-    Update a tag by ID (admin only).
-    
-    Args:
-        tag_id: The ID of the tag to update
-        tag_data: The tag data to update (name and category)
-        tag_service: TagService instance with database session
-        
-    Returns:
-        Updated tag data
-        
-    Raises:
-        HTTPException: If tag not found, update fails, or name already exists
-    """
+    """Update a tag by ID (admin only)."""
     try:
         # Convert string category to TagCategory enum
         try:
@@ -369,7 +303,7 @@ async def update_tag(
         logger.error(f"Error updating tag {tag_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update tag: {str(e)}"
+            detail="Failed to update tag"
         )
 
 class TagDeleteResponse(BaseModel):
@@ -379,22 +313,10 @@ class TagDeleteResponse(BaseModel):
 @router.delete("/tags/{tag_id}", response_model=TagDeleteResponse)
 async def delete_tag(
     tag_id: int,
-    tag_service: Annotated[TagService, Depends(get_tag_service)]
+    tag_service: Annotated[TagService, Depends(get_tag_service)],
+    admin: Dict[str, Any] = Depends(get_admin_user)
 ):
-    """
-    Delete a tag by ID (admin only). 
-    If the tag is associated with recipes, those associations will be removed first.
-    
-    Args:
-        tag_id: The ID of the tag to delete
-        tag_service: TagService instance with database session
-        
-    Returns:
-        TagDeleteResponse with tag name and number of recipes affected
-        
-    Raises:
-        HTTPException: If tag not found or deletion fails
-    """
+    """Delete a tag by ID (admin only)."""
     try:
         result = tag_service.delete_tag(tag_id)
         return result
@@ -408,5 +330,5 @@ async def delete_tag(
         logger.error(f"Error deleting tag {tag_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete tag: {str(e)}"
+            detail="Failed to delete tag"
         )

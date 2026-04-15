@@ -78,7 +78,7 @@ Focus: Recipe and tags
 - #63 Create tag selection component - DONE
 
 ### Security (P1)
-- #89 Add CSRF protection
+- #89 Add CSRF protection - N/A (Since auth is purely Authorization: Bearer header-based (not cookie-based), the classic browser CSRF attack vector doesn't apply)
 - #90 Configure secure headers - DONE
 - #91 Implement input sanitization
 
@@ -103,14 +103,14 @@ Focus: Search, filters, and user profile
 Focus: Add AI based capabilities
 
 ### Backend (P1)
-- #1000 Design how to add AI related endpoint/s (as a separate endpoint/service or within existing ones?)
-- #1001 detailed planning for connecting to LLM capabilities - authentication, switching between models, data required for prompt, data parsing from response, etc.
-- #1002 add a designated AIService to support LLM calls while recieving the following parameters - LLM, system-prompt, user-prompt, output-format
-- #1003 - Add an admin page allowing the user to decide on the LLM model, configure system-prompt, input user prompt and view LLM response using the AIService
-- #1004 Add AI based Tag suggestions for specific recipes
+- #1000 Design how to add AI related endpoint/s (as a separate endpoint/service or within existing ones?) - DONE
+- #1001 detailed planning for connecting to LLM capabilities - authentication, switching between models, data required for prompt, data parsing from response, etc. - DONE
+- #1002 add a designated AIService to support LLM calls while recieving the following parameters - LLM, system-prompt, user-prompt, output-format - DONE
+- #1003 - Add an admin page allowing the user to decide on the LLM model, configure system-prompt, input user prompt and view LLM response using the AIService - DONE
+- #1004 Add AI based Tag suggestions for specific recipes - DONE
 - #1005 Add recipe search based on AI prompt coming from semi-structured user input
 - #1006 Add Recipe from pic/document based on AI capabilities (with/without OCR, with/withoput translation)
-- #1007 add AI based Nutrition facts for recipes
+- #1007 add AI based Nutrition facts for recipes - DONE
 - #110 add admin UI for AI and other endpoints - DONE
 
 ### Frontend (P1)
@@ -174,6 +174,12 @@ Focus: Recipe and tags
 - #55 Create user profile page component
 - #56 Implement profile editing functionality
 
+
+## Hardening Sprint 
+ - #9001 add more tests to increase coverage
+ - #9001 full security review and fixes
+ - #9002 full code review and fixes
+ - #9003 add full audit and monitoring 
 
 
 ## Backlog (P3)

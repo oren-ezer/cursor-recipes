@@ -303,7 +303,7 @@ async def create_config(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create configuration: {str(e)}"
+            detail="Failed to create configuration"
         )
 
 
@@ -360,7 +360,7 @@ async def update_config(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update configuration: {str(e)}"
+            detail="Failed to update configuration"
         )
 
 
@@ -386,6 +386,6 @@ async def delete_config(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete configuration: {str(e)}"
+            detail="Failed to delete configuration"
         )
 

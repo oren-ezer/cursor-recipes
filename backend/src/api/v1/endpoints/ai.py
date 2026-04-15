@@ -1,6 +1,10 @@
-"""AI-related API endpoints for LLM interactions."""
+"""AI-related API endpoints for LLM interactions.
 
-from fastapi import APIRouter, HTTPException, status, Depends
+All AI endpoints require authentication (Bearer token).
+The /test endpoint is restricted to superusers.
+"""
+
+from fastapi import APIRouter, HTTPException, Request, status, Depends
 from typing import Annotated
 import logging
 
@@ -24,6 +28,28 @@ from openai import AuthenticationError, RateLimitError, APIError
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+
+def _require_auth(request: Request) -> dict:
+    """Extract and validate the authenticated user from the request."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+    return user
+
+
+def _require_admin(request: Request) -> dict:
+    """Require an authenticated superuser."""
+    user = _require_auth(request)
+    if not user.get("is_superuser", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required"
+        )
+    return user
 
 
 def get_ai_service(db: Annotated[Session, Depends(get_db)]) -> AIService:
@@ -64,23 +90,15 @@ def calculate_cost(tokens: dict, model: str) -> float:
 
 @router.post("/test", response_model=AITestResponse)
 async def test_llm_call(
+    http_request: Request,
     request: AITestRequest,
     ai_service: Annotated[AIService, Depends(get_ai_service)]
 ):
     """
     Test endpoint for making LLM calls with custom prompts.
-    This endpoint is intended for admin testing and development.
-    
-    Args:
-        request: Test request with model, prompts, and parameters
-        ai_service: AI service dependency
-        
-    Returns:
-        LLM response with token usage and estimated cost
-        
-    Raises:
-        HTTPException: If API call fails or service unavailable
+    Restricted to administrators.
     """
+    _require_admin(http_request)
     try:
         logger.info(f"Testing LLM call with model={request.model}")
         
@@ -119,7 +137,7 @@ async def test_llm_call(
         logger.error(f"OpenAI API error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"AI service error: {str(e)}"
+            detail="AI service temporarily unavailable"
         )
     except Exception as e:
         logger.error(f"Unexpected error in AI test: {str(e)}")
@@ -131,22 +149,12 @@ async def test_llm_call(
 
 @router.post("/suggest-tags", response_model=TagSuggestionResponse)
 async def suggest_recipe_tags(
+    http_request: Request,
     request: TagSuggestionRequest,
     ai_service: Annotated[AIService, Depends(get_ai_service)]
 ):
-    """
-    Suggest relevant tags for a recipe based on its title and ingredients.
-    
-    Args:
-        request: Recipe information (title, ingredients, existing tags)
-        ai_service: AI service dependency
-        
-    Returns:
-        List of suggested tag names with confidence score
-        
-    Raises:
-        HTTPException: If API call fails
-    """
+    """Suggest relevant tags for a recipe based on its title and ingredients."""
+    _require_auth(http_request)
     try:
         logger.info(f"Suggesting tags for recipe: {request.recipe_title}")
         
@@ -174,22 +182,12 @@ async def suggest_recipe_tags(
 
 @router.post("/search", response_model=NaturalLanguageSearchResponse)
 async def natural_language_search(
+    http_request: Request,
     request: NaturalLanguageSearchRequest,
     ai_service: Annotated[AIService, Depends(get_ai_service)]
 ):
-    """
-    Convert a natural language query into structured search parameters.
-    
-    Args:
-        request: Natural language search query
-        ai_service: AI service dependency
-        
-    Returns:
-        Structured search parameters (keywords, tags, filters)
-        
-    Raises:
-        HTTPException: If parsing fails
-    """
+    """Convert a natural language query into structured search parameters."""
+    _require_auth(http_request)
     try:
         logger.info(f"Parsing search query: {request.query}")
         
@@ -207,22 +205,12 @@ async def natural_language_search(
 
 @router.post("/nutrition", response_model=NutritionResponse)
 async def calculate_nutrition(
+    http_request: Request,
     request: NutritionRequest,
     ai_service: Annotated[AIService, Depends(get_ai_service)]
 ):
-    """
-    Calculate estimated nutrition facts for a recipe based on ingredients.
-    
-    Args:
-        request: List of ingredients with amounts
-        ai_service: AI service dependency
-        
-    Returns:
-        Estimated nutrition facts per serving
-        
-    Raises:
-        HTTPException: If calculation fails
-    """
+    """Calculate estimated nutrition facts for a recipe based on ingredients."""
+    _require_auth(http_request)
     try:
         logger.info(f"Calculating nutrition for {len(request.ingredients)} ingredients")
         

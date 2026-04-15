@@ -1,11 +1,6 @@
 # implementation notes and questions
 
 ## How to
-- run the frontend
-    - cd to /Users/orenezer/my-data/repos/cursor/cursor-recipes/frontend
-    - run "npm run dev"
-- debug the frontend
-    - run the npm server from within the IDE
 - run the backend
     - cd to /Users/orenezer/my-data/repos/cursor/cursor-recipes/backend
     - run "uv run uvicorn src.main:app --reload"
@@ -18,6 +13,11 @@
     - cd to /Users/orenezer/my-data/repos/cursor/cursor-recipes/local-supabase/supabase
     - run "npx supabase start"
 
+- run the frontend
+    - cd to /Users/orenezer/my-data/repos/cursor/cursor-recipes/frontend
+    - run "npm run dev"
+- debug the frontend
+    - run the npm server from within the IDE
 - run frontend tests:
     - Run all tests 'npm run test:run'
     - Run tests with UI 'npm run test:ui'
