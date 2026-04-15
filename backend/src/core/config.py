@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     OPENAI_MAX_TOKENS: int = 1000
     OPENAI_TEMPERATURE: float = 0.7
     
+    # Image Storage Configuration
+    IMAGE_STORAGE_BACKEND: str = "database"  # "database", "filesystem", or "s3"
+    IMAGE_STORAGE_PATH: str = "./uploads/images"  # filesystem backend only
+    MAX_IMAGE_UPLOAD_SIZE_MB: int = 10
+    MAX_IMAGES_PER_UPLOAD: int = 5
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

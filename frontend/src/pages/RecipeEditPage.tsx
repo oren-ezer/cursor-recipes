@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, ApiError } from '../lib/api-client';
-import type { Recipe, Tag } from '../lib/api-client';
+import type { Recipe, Tag, ImageInfo } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
@@ -13,6 +13,8 @@ import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import TagSelector from '../components/ui/tag-selector';
+import ImageUploader from '../components/ImageUploader';
+import ImageThumbnailGrid from '../components/ImageThumbnailGrid';
 
 interface Ingredient {
   name: string;
@@ -42,6 +44,8 @@ const RecipeEditPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [existingImages, setExistingImages] = useState<ImageInfo[]>([]);
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [formData, setFormData] = useState<RecipeFormData>({
     title: '',
     description: '',
@@ -77,8 +81,11 @@ const RecipeEditPage: React.FC = () => {
       try {
         const data = await apiClient.getRecipe(parseInt(recipeId));
         setRecipe(data);
-        
-        // Populate form with existing data
+
+        apiClient.getRecipeImages(parseInt(recipeId)).then((res) => {
+          setExistingImages(res.images);
+        }).catch(() => {});
+
         setFormData({
           title: data.title,
           description: data.description,
@@ -118,6 +125,19 @@ const RecipeEditPage: React.FC = () => {
       ...prev,
       selectedTags: tags
     }));
+  };
+
+  const handleDeleteImage = async (imageId: string) => {
+    if (!confirm(t('image_upload.delete_confirm'))) return;
+    setDeletingImageId(imageId);
+    try {
+      await apiClient.deleteImage(imageId);
+      setExistingImages((prev) => prev.filter((img) => img.image_id !== imageId));
+    } catch {
+      setError(t('image_upload.delete_error'));
+    } finally {
+      setDeletingImageId(null);
+    }
   };
 
   const loadTagsWithLogging = async () => {
@@ -395,6 +415,35 @@ const RecipeEditPage: React.FC = () => {
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Image Upload */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('recipe.form.images')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {existingImages.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm text-muted-foreground mb-2">{t('recipe.form.current_image')}</p>
+                  <ImageThumbnailGrid
+                    images={existingImages}
+                    onDelete={handleDeleteImage}
+                    deletingId={deletingImageId}
+                  />
+                </div>
+              )}
+              <ImageUploader
+                recipeId={recipe?.id}
+                disabled={isSaving}
+                onUploadComplete={(images: ImageInfo[]) => {
+                  setExistingImages((prev) => [...prev, ...images]);
+                  if (images.length > 0) {
+                    handleInputChange('image_url', images[0].serving_url);
+                  }
+                }}
+              />
             </CardContent>
           </Card>
 

@@ -60,7 +60,7 @@ _SKIP_UPLOAD_TABLES = frozenset({"alembic_version"})
 
 # Subsets for partial uploads. Keep these in sync when adding new models.
 _SEED_TABLES = ("users", "tags", "llm_configs")
-_DEMO_TABLES = _SEED_TABLES + ("recipes", "recipe_tags")
+_DEMO_TABLES = _SEED_TABLES + ("recipes", "recipe_tags", "recipe_images")
 
 
 def _quote_ident(name: str) -> str:

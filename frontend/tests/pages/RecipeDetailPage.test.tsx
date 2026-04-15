@@ -19,6 +19,7 @@ vi.mock('../../src/lib/api-client', () => ({
     deleteRecipe: vi.fn(),
     exportRecipeToPdf: vi.fn(),
     exportRecipeToJson: vi.fn(),
+    getRecipeImages: vi.fn().mockResolvedValue({ images: [] }),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string) {
@@ -201,12 +202,14 @@ describe('RecipeDetailPage', () => {
       });
     });
 
-    it('should show image availability when image_url exists', async () => {
+    it('should display recipe image when image_url exists', async () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
         expect(screen.getByText('Image:')).toBeInTheDocument();
-        expect(screen.getByText('Available')).toBeInTheDocument();
+        const img = screen.getByAltText(mockRecipe.title);
+        expect(img).toBeInTheDocument();
+        expect(img).toHaveAttribute('src', mockRecipe.image_url);
       });
     });
   });

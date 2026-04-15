@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, ApiError } from '../lib/api-client';
-import type { Recipe } from '../lib/api-client';
+import type { Recipe, ImageInfo } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
@@ -12,6 +12,7 @@ import RecipeCard from '../components/RecipeCard';
 import ConfirmationModal from '../components/ui/confirmation-modal';
 import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
 import NutritionModal from '../components/nutrition-modal';
+import ImageThumbnailGrid from '../components/ImageThumbnailGrid';
 
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
@@ -25,6 +26,7 @@ const RecipeDetailPage: React.FC = () => {
   const [hasNavigated, setHasNavigated] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
+  const [recipeImages, setRecipeImages] = useState<ImageInfo[]>([]);
 
   // Nutrition state
   const [showNutritionModal, setShowNutritionModal] = useState(false);
@@ -108,7 +110,10 @@ const RecipeDetailPage: React.FC = () => {
         const data = await apiClient.getRecipe(parsedId);
         if (!isCancelled) {
           setRecipe(data);
-          setError(null); // Clear any previous errors
+          setError(null);
+          apiClient.getRecipeImages(parsedId).then((res) => {
+            if (!isCancelled) setRecipeImages(res.images);
+          }).catch(() => {});
         }
       } catch (err) {
         if (!isCancelled) {
@@ -427,10 +432,24 @@ const RecipeDetailPage: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                {recipe.image_url && (
-                  <div>
+                {(recipeImages.length > 0 || recipe.image_url) && (
+                  <div className="col-span-2">
                     <span className="font-medium">{t('recipe.detail.image')}:</span>
-                    <p className="text-blue-600 dark:text-blue-400">{t('recipe.detail.available')}</p>
+                    <div className="mt-2">
+                      {recipeImages.length > 0
+                        ? <ImageThumbnailGrid images={recipeImages} />
+                        : (
+                            <ImageThumbnailGrid
+                              images={[{
+                                image_id: 'legacy',
+                                serving_url: recipe.image_url!,
+                                filename: recipe.title,
+                                size_bytes: 0,
+                              }]}
+                            />
+                          )
+                      }
+                    </div>
                   </div>
                 )}
               </CardContent>

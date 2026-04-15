@@ -342,4 +342,60 @@ describe('ApiClient', () => {
       )
     })
   })
+
+  describe('Image Upload', () => {
+    it('should upload images with FormData', async () => {
+      apiClient.setToken('test-token')
+      const mockResponse = {
+        images: [
+          { image_id: 'uuid-1', serving_url: '/api/v1/images/uuid-1', filename: 'photo.png', size_bytes: 1024 },
+        ],
+      }
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      })
+
+      const file = new File([new Uint8Array(100)], 'photo.png', { type: 'image/png' })
+      const result = await apiClient.uploadImages([file])
+
+      expect(result).toEqual(mockResponse)
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/images/upload',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.any(FormData),
+        })
+      )
+
+      const callHeaders = mockFetch.mock.calls[0][1].headers
+      expect(callHeaders['Authorization']).toBe('Bearer test-token')
+      expect(callHeaders['Content-Type']).toBeUndefined()
+    })
+
+    it('should include recipe_id in FormData when provided', async () => {
+      apiClient.setToken('test-token')
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ images: [] }),
+      })
+
+      const file = new File([new Uint8Array(100)], 'photo.png', { type: 'image/png' })
+      await apiClient.uploadImages([file], 42)
+
+      const formData = mockFetch.mock.calls[0][1].body as FormData
+      expect(formData.get('recipe_id')).toBe('42')
+    })
+
+    it('should throw ApiError on upload failure', async () => {
+      apiClient.setToken('test-token')
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ detail: 'File too large' }),
+      })
+
+      const file = new File([new Uint8Array(100)], 'photo.png', { type: 'image/png' })
+      await expect(apiClient.uploadImages([file])).rejects.toThrow('File too large')
+    })
+  })
 })

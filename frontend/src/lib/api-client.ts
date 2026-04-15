@@ -365,6 +365,46 @@ class ApiClient {
     return userRecipes.length;
   }
 
+  // Image endpoints
+  async uploadImages(images: File[], recipeId?: number): Promise<ImageUploadResponse> {
+    const formData = new FormData();
+    images.forEach((file) => formData.append('images', file));
+    if (recipeId !== undefined) {
+      formData.append('recipe_id', String(recipeId));
+    }
+
+    const currentToken = this.token || localStorage.getItem('authToken');
+    const headers: Record<string, string> = {
+      'X-Requested-With': 'XMLHttpRequest',
+    };
+    if (currentToken) {
+      headers['Authorization'] = `Bearer ${currentToken}`;
+    }
+
+    const url = `${API_URL}/images/upload`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new ApiError(error.detail || 'Failed to upload images');
+    }
+
+    return response.json();
+  }
+
+  async getRecipeImages(recipeId: number): Promise<ImageUploadResponse> {
+    return this.request<ImageUploadResponse>(`/images/recipe/${recipeId}`);
+  }
+
+  async deleteImage(imageId: string): Promise<void> {
+    await this.request<void>(`/images/${imageId}`, { method: 'DELETE' });
+  }
+
   // AI-related methods
   async testAI(data: AITestRequest): Promise<AITestResponse> {
     return this.request<AITestResponse>('/ai/test', {
@@ -430,6 +470,18 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+}
+
+// Image types
+interface ImageInfo {
+  image_id: string;
+  serving_url: string;
+  filename: string;
+  size_bytes: number;
+}
+
+interface ImageUploadResponse {
+  images: ImageInfo[];
 }
 
 // AI-related types
@@ -554,6 +606,8 @@ export {
   type User, 
   type LoginResponse, 
   type PaginatedResponse,
+  type ImageInfo,
+  type ImageUploadResponse,
   type AITestRequest,
   type AITestResponse,
   type TagSuggestionRequest,

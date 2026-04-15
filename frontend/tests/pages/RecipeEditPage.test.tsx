@@ -17,6 +17,8 @@ vi.mock('../../src/lib/api-client', () => ({
   apiClient: {
     getRecipe: vi.fn(),
     updateRecipe: vi.fn(),
+    getRecipeImages: vi.fn().mockResolvedValue({ images: [] }),
+    deleteImage: vi.fn().mockResolvedValue(undefined),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string) {
@@ -267,14 +269,11 @@ describe('RecipeEditPage', () => {
       });
     });
 
-    it('should handle image URL change', async () => {
+    it('should display image upload section', async () => {
       renderWithRouter(<RecipeEditPage />);
-      
+
       await waitFor(() => {
-        const imageUrlInput = screen.getByDisplayValue('https://example.com/image.jpg');
-        fireEvent.change(imageUrlInput, { target: { value: 'https://example.com/new-image.jpg' } });
-        
-        expect(imageUrlInput).toHaveValue('https://example.com/new-image.jpg');
+        expect(screen.getByText('Recipe Images')).toBeInTheDocument();
       });
     });
 
@@ -754,12 +753,11 @@ describe('RecipeEditPage', () => {
         image_url: undefined,
       };
       vi.mocked(apiClient.getRecipe).mockResolvedValue(recipeWithNoImage);
-      
+
       renderWithRouter(<RecipeEditPage />);
-      
+
       await waitFor(() => {
-        const imageUrlInput = screen.getByLabelText(/image url/i);
-        expect(imageUrlInput).toHaveValue('');
+        expect(screen.getByText('Recipe Images')).toBeInTheDocument();
       });
     });
   });
