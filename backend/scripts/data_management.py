@@ -34,8 +34,10 @@ sys.path.insert(0, backend_dir)
 
 from sqlmodel import create_engine, Session, text
 from sqlalchemy import inspect, MetaData, insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.schema import sort_tables
 from src.core.config import settings
+from src.core.security import hash_password
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +59,8 @@ def _configure_logging() -> None:
 _SKIP_UPLOAD_TABLES = frozenset({"alembic_version"})
 
 # Subsets for partial uploads. Keep these in sync when adding new models.
-_SEED_TABLES = ("tags", "llm_configs")
-_DEMO_TABLES = _SEED_TABLES + ("users", "recipes", "recipe_tags")
+_SEED_TABLES = ("users", "tags", "llm_configs")
+_DEMO_TABLES = _SEED_TABLES + ("recipes", "recipe_tags")
 
 
 def _quote_ident(name: str) -> str:
@@ -91,6 +93,20 @@ def _get_table_object(metadata: MetaData, table_name: str):
         if fullname.split(".")[-1] == table_name:
             return metadata.tables[fullname]
     return None
+
+
+def _is_bcrypt_hash(value: str) -> bool:
+    return value.startswith(("$2b$", "$2a$", "$2y$")) and len(value) >= 59
+
+
+def _hash_cleartext_passwords(table_name: str, row: dict) -> None:
+    """If this is a users row with a plain-text password, hash it in-place."""
+    if table_name != "users":
+        return
+    pwd = row.get("hashed_password")
+    if pwd and not _is_bcrypt_hash(pwd):
+        row["hashed_password"] = hash_password(pwd)
+        logger.info("Hashed plain-text password for user %s", row.get("email", row.get("id")))
 
 
 def _coerce_row_datetimes(row: dict) -> None:
@@ -345,25 +361,31 @@ class DataManagement:
                 f"Starting data upload from backup created: {backup_info.get('timestamp', 'unknown')}"
             )
 
+            is_partial = only_tables is not None
             insert_order, delete_order = _fk_insert_delete_orders(self.engine)
             reflected = _reflect_metadata(self.engine)
 
             with Session(self.engine) as session:
-                logger.info("Clearing existing data (FK-safe order; alembic_version not modified)...")
+                if is_partial:
+                    logger.info(
+                        "Partial upload — using upsert (existing rows updated, "
+                        "FKs stay intact, extra DB rows kept)."
+                    )
+                else:
+                    logger.info("Clearing existing data (FK-safe order; alembic_version not modified)...")
+                    for table_name in delete_order:
+                        if table_name in _SKIP_UPLOAD_TABLES:
+                            continue
+                        if table_name not in tables_in_backup:
+                            continue
+                        safe = _quote_ident(table_name)
+                        r = session.execute(text(f"SELECT COUNT(*) FROM {safe}")).first()
+                        n = int(r[0]) if r else 0
+                        if n:
+                            session.execute(text(f"DELETE FROM {safe}"))
+                            logger.info(f"Cleared {n} records from {table_name}")
 
-                for table_name in delete_order:
-                    if table_name in _SKIP_UPLOAD_TABLES:
-                        continue
-                    if table_name not in tables_in_backup:
-                        continue
-                    safe = _quote_ident(table_name)
-                    r = session.execute(text(f"SELECT COUNT(*) FROM {safe}")).first()
-                    n = int(r[0]) if r else 0
-                    if n:
-                        session.execute(text(f"DELETE FROM {safe}"))
-                        logger.info(f"Cleared {n} records from {table_name}")
-
-                session.commit()
+                    session.commit()
 
                 for table_name in insert_order:
                     if table_name in _SKIP_UPLOAD_TABLES:
@@ -395,6 +417,8 @@ class DataManagement:
                         logger.info(f"No records to upload for {table_name}")
                         continue
 
+                    pk_cols = [c.name for c in table_obj.primary_key.columns]
+
                     uploaded_count = 0
                     for record_data in records:
                         try:
@@ -402,7 +426,21 @@ class DataManagement:
                             allowed = {c.name for c in table_obj.columns}
                             row = {k: v for k, v in row.items() if k in allowed}
                             _coerce_row_datetimes(row)
-                            session.execute(insert(table_obj).values(**row))
+                            _hash_cleartext_passwords(table_name, row)
+
+                            if is_partial and pk_cols:
+                                stmt = pg_insert(table_obj).values(**row)
+                                update_cols = {
+                                    k: v for k, v in row.items() if k not in pk_cols
+                                }
+                                stmt = stmt.on_conflict_do_update(
+                                    index_elements=pk_cols,
+                                    set_=update_cols,
+                                )
+                                session.execute(stmt)
+                            else:
+                                session.execute(insert(table_obj).values(**row))
+
                             uploaded_count += 1
                         except Exception as e:
                             logger.error(
