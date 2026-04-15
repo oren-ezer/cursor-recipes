@@ -5,7 +5,8 @@ from src.utils.dependencies import get_recipe_service_with_tags, get_current_use
 from src.services.recipes_service import RecipeService
 from src.services.tag_service import TagService
 from src.models.tag import TagCategory
-from pydantic import BaseModel
+from src.utils.sanitization import sanitize_text, sanitize_url, MAX_LENGTHS
+from pydantic import BaseModel, field_validator, Field
 from datetime import datetime
 import logging
 import re
@@ -15,8 +16,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
 class Ingredient(BaseModel):
-    name: str
-    amount: str
+    name: str = Field(..., max_length=MAX_LENGTHS["ingredient_name"])
+    amount: str = Field(..., max_length=MAX_LENGTHS["ingredient_amount"])
+
+    @field_validator("name", "amount")
+    @classmethod
+    def sanitize_fields(cls, v: str) -> str:
+        field_key = "ingredient_name" if len(v) <= MAX_LENGTHS["ingredient_name"] else "ingredient_amount"
+        return sanitize_text(v, max_length=MAX_LENGTHS.get(field_key))
 
 class TagInfo(BaseModel):
     id: int
@@ -24,30 +31,88 @@ class TagInfo(BaseModel):
     category: str
 
 class RecipeCreate(BaseModel):
-    title: str
-    description: Optional[str] = None
-    ingredients: List[Ingredient]
+    title: str = Field(..., min_length=1, max_length=MAX_LENGTHS["recipe_title"])
+    description: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["recipe_description"])
+    ingredients: List[Ingredient] = Field(..., min_length=1)
     instructions: List[str]
-    preparation_time: int
-    cooking_time: int
-    servings: int
+    preparation_time: int = Field(..., gt=0, le=4320)
+    cooking_time: int = Field(..., gt=0, le=4320)
+    servings: int = Field(..., gt=0, le=100)
     difficulty_level: str = "Easy"
     is_public: bool = True
-    image_url: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["image_url"])
     tag_ids: Optional[List[int]] = None
 
+    @field_validator("title")
+    @classmethod
+    def sanitize_title(cls, v: str) -> str:
+        return sanitize_text(v, max_length=MAX_LENGTHS["recipe_title"])
+
+    @field_validator("description")
+    @classmethod
+    def sanitize_description(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return sanitize_text(v, max_length=MAX_LENGTHS["recipe_description"])
+
+    @field_validator("instructions")
+    @classmethod
+    def sanitize_instructions(cls, v: list[str]) -> list[str]:
+        return [sanitize_text(inst, max_length=MAX_LENGTHS["instruction"]) for inst in v]
+
+    @field_validator("image_url")
+    @classmethod
+    def validate_image_url(cls, v: str | None) -> str | None:
+        if v is None or v == "":
+            return None
+        sanitized = sanitize_url(v)
+        if not sanitized:
+            raise ValueError("Invalid URL: only http and https schemes are allowed")
+        return sanitized
+
 class RecipeUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
+    title: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["recipe_title"])
+    description: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["recipe_description"])
     ingredients: Optional[List[Ingredient]] = None
     instructions: Optional[List[str]] = None
-    preparation_time: Optional[int] = None
-    cooking_time: Optional[int] = None
-    servings: Optional[int] = None
+    preparation_time: Optional[int] = Field(default=None, gt=0, le=4320)
+    cooking_time: Optional[int] = Field(default=None, gt=0, le=4320)
+    servings: Optional[int] = Field(default=None, gt=0, le=100)
     difficulty_level: Optional[str] = None
     is_public: Optional[bool] = None
-    image_url: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["image_url"])
     tag_ids: Optional[List[int]] = None
+
+    @field_validator("title")
+    @classmethod
+    def sanitize_title(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return sanitize_text(v, max_length=MAX_LENGTHS["recipe_title"])
+
+    @field_validator("description")
+    @classmethod
+    def sanitize_description(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return sanitize_text(v, max_length=MAX_LENGTHS["recipe_description"])
+
+    @field_validator("instructions")
+    @classmethod
+    def sanitize_instructions(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        return [sanitize_text(inst, max_length=MAX_LENGTHS["instruction"]) for inst in v]
+
+    @field_validator("image_url")
+    @classmethod
+    def validate_image_url(cls, v: str | None) -> str | None:
+        if v is None or v == "":
+            return None
+        sanitized = sanitize_url(v)
+        if not sanitized:
+            raise ValueError("Invalid URL: only http and https schemes are allowed")
+        return sanitized
 
 class RecipeResponse(BaseModel):
     id: int

@@ -125,6 +125,7 @@ const RegisterPage: React.FC = () => {
                 placeholder="John Doe"
                 value={formData.fullName}
                 onChange={handleChange}
+                maxLength={150}
                 disabled={isLoading}
               />
             </div>

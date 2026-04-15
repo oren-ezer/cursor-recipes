@@ -1,24 +1,28 @@
 """Pydantic models for AI-related API requests and responses."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any, List
+from src.utils.sanitization import sanitize_text, MAX_LENGTHS
 
 
 class AITestRequest(BaseModel):
-    """Request model for testing LLM calls."""
+    """Request model for testing LLM calls (admin only)."""
     
     model: str = Field(
         default="gpt-4o-mini",
+        max_length=MAX_LENGTHS["llm_model_name"],
         description="OpenAI model to use (e.g., gpt-4o, gpt-4o-mini, gpt-3.5-turbo)"
     )
     system_prompt: Optional[str] = Field(
         default=None,
+        max_length=MAX_LENGTHS["ai_prompt"],
         description="System prompt to set AI behavior/context"
     )
     user_prompt: str = Field(
         ...,
         description="User's prompt/question for the AI",
-        min_length=1
+        min_length=1,
+        max_length=MAX_LENGTHS["ai_prompt"]
     )
     temperature: Optional[float] = Field(
         default=0.7,
@@ -67,9 +71,26 @@ class AITestResponse(BaseModel):
 class TagSuggestionRequest(BaseModel):
     """Request model for AI tag suggestions."""
     
-    recipe_title: str = Field(..., min_length=1)
+    recipe_title: str = Field(..., min_length=1, max_length=MAX_LENGTHS["recipe_title"])
     ingredients: List[str] = Field(..., min_length=1)
     existing_tags: Optional[List[str]] = None
+
+    @field_validator("recipe_title")
+    @classmethod
+    def sanitize_recipe_title(cls, v: str) -> str:
+        return sanitize_text(v, max_length=MAX_LENGTHS["recipe_title"])
+
+    @field_validator("ingredients")
+    @classmethod
+    def sanitize_ingredients(cls, v: list[str]) -> list[str]:
+        return [sanitize_text(i, max_length=MAX_LENGTHS["ingredient_name"]) for i in v]
+
+    @field_validator("existing_tags")
+    @classmethod
+    def sanitize_existing_tags(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        return [sanitize_text(t, max_length=MAX_LENGTHS["tag_name"]) for t in v]
 
 
 class TagSuggestionResponse(BaseModel):
@@ -82,7 +103,12 @@ class TagSuggestionResponse(BaseModel):
 class NaturalLanguageSearchRequest(BaseModel):
     """Request model for natural language recipe search."""
     
-    query: str = Field(..., min_length=1, max_length=500)
+    query: str = Field(..., min_length=1, max_length=MAX_LENGTHS["ai_query"])
+
+    @field_validator("query")
+    @classmethod
+    def sanitize_query(cls, v: str) -> str:
+        return sanitize_text(v, max_length=MAX_LENGTHS["ai_query"])
 
 
 class NaturalLanguageSearchResponse(BaseModel):
@@ -98,15 +124,20 @@ class NaturalLanguageSearchResponse(BaseModel):
 class Ingredient(BaseModel):
     """Ingredient model for nutrition calculation."""
     
-    name: str
-    amount: str
+    name: str = Field(..., max_length=MAX_LENGTHS["ingredient_name"])
+    amount: str = Field(..., max_length=MAX_LENGTHS["ingredient_amount"])
+
+    @field_validator("name", "amount")
+    @classmethod
+    def sanitize_fields(cls, v: str) -> str:
+        return sanitize_text(v, max_length=MAX_LENGTHS["ingredient_name"])
 
 
 class NutritionRequest(BaseModel):
     """Request model for nutrition calculation."""
     
     ingredients: List[Ingredient] = Field(..., min_length=1)
-    servings: int = Field(default=1, gt=0, description="Number of servings the recipe yields; nutrition is per serving")
+    servings: int = Field(default=1, gt=0, le=100, description="Number of servings the recipe yields; nutrition is per serving")
 
 
 class NutritionResponse(BaseModel):

@@ -7,12 +7,13 @@ Provides CRUD operations for LLM configurations with proper authorization.
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Annotated, Dict, Any
 
 from src.utils.dependencies import get_database_session, get_current_user
 from src.services.llm_config_service import LLMConfigService
 from src.models.llm_config import LLMConfig, LLMConfigType, LLMProvider
+from src.utils.sanitization import sanitize_text, MAX_LENGTHS
 
 
 router = APIRouter(prefix="/llm-configs", tags=["LLM Configuration (Admin)"])
@@ -25,15 +26,22 @@ router = APIRouter(prefix="/llm-configs", tags=["LLM Configuration (Admin)"])
 class LLMConfigBase(BaseModel):
     """Base fields for LLM configuration."""
     config_type: LLMConfigType
-    service_name: Optional[str] = None
+    service_name: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_service_name"])
     provider: LLMProvider
-    model: str
+    model: str = Field(..., max_length=MAX_LENGTHS["llm_model_name"])
     temperature: float = Field(ge=0.0, le=2.0)
     max_tokens: int = Field(ge=1, le=4000)
-    system_prompt: Optional[str] = None
-    user_prompt_template: Optional[str] = None
-    response_format: Optional[str] = None
-    description: Optional[str] = None
+    system_prompt: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_system_prompt"])
+    user_prompt_template: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_user_prompt_template"])
+    response_format: Optional[str] = Field(default=None, max_length=50)
+    description: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_description"])
+
+    @field_validator("system_prompt", "user_prompt_template", "description")
+    @classmethod
+    def sanitize_text_fields(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return sanitize_text(v, strip_whitespace=False)
 
 
 class LLMConfigCreate(LLMConfigBase):
@@ -46,16 +54,23 @@ class LLMConfigUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     
     config_type: Optional[LLMConfigType] = None
-    service_name: Optional[str] = None
+    service_name: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_service_name"])
     provider: Optional[LLMProvider] = None
-    model: Optional[str] = None
+    model: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_model_name"])
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
     max_tokens: Optional[int] = Field(None, ge=1, le=4000)
-    system_prompt: Optional[str] = None
-    user_prompt_template: Optional[str] = None
-    response_format: Optional[str] = None
-    description: Optional[str] = None
+    system_prompt: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_system_prompt"])
+    user_prompt_template: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_user_prompt_template"])
+    response_format: Optional[str] = Field(default=None, max_length=50)
+    description: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_description"])
     is_active: Optional[bool] = None
+
+    @field_validator("system_prompt", "user_prompt_template", "description")
+    @classmethod
+    def sanitize_text_fields(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return sanitize_text(v, strip_whitespace=False)
 
 
 class LLMConfigResponse(BaseModel):

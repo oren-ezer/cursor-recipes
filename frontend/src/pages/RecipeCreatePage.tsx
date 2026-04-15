@@ -181,6 +181,11 @@ const RecipeCreatePage: React.FC = () => {
       return false;
     }
 
+    if (formData.image_url && !/^https?:\/\//i.test(formData.image_url)) {
+      setError('Image URL must start with http:// or https://');
+      return false;
+    }
+
     return true;
   };
 
@@ -244,6 +249,7 @@ const RecipeCreatePage: React.FC = () => {
                   onChange={(e) => handleInputChange('title', e.target.value)}
                   placeholder={t('recipe.form.title_placeholder')}
                   required
+                  maxLength={200}
                   disabled={isLoading}
                 />
               </div>
@@ -256,6 +262,7 @@ const RecipeCreatePage: React.FC = () => {
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   placeholder={t('recipe.form.description_placeholder')}
                   rows={3}
+                  maxLength={5000}
                   disabled={isLoading}
                 />
               </div>
@@ -267,6 +274,7 @@ const RecipeCreatePage: React.FC = () => {
                     id="preparation_time"
                     type="number"
                     min="1"
+                    max="4320"
                     value={formData.preparation_time}
                     onChange={(e) => handleInputChange('preparation_time', parseInt(e.target.value))}
                     required
@@ -280,6 +288,7 @@ const RecipeCreatePage: React.FC = () => {
                     id="cooking_time"
                     type="number"
                     min="1"
+                    max="4320"
                     value={formData.cooking_time}
                     onChange={(e) => handleInputChange('cooking_time', parseInt(e.target.value))}
                     required
@@ -293,6 +302,7 @@ const RecipeCreatePage: React.FC = () => {
                     id="servings"
                     type="number"
                     min="1"
+                    max="100"
                     value={formData.servings}
                     onChange={(e) => handleInputChange('servings', parseInt(e.target.value))}
                     required
@@ -328,6 +338,9 @@ const RecipeCreatePage: React.FC = () => {
                     value={formData.image_url}
                     onChange={(e) => handleInputChange('image_url', e.target.value)}
                     placeholder="https://example.com/image.jpg"
+                    maxLength={2048}
+                    pattern="https?://.*"
+                    title="URL must start with http:// or https://"
                     disabled={isLoading}
                   />
                 </div>
@@ -377,6 +390,7 @@ const RecipeCreatePage: React.FC = () => {
                       onChange={(e) => handleIngredientChange(index, 'name', e.target.value)}
                       placeholder={t('recipe.form.ingredient_placeholder')}
                       required
+                      maxLength={200}
                       disabled={isLoading}
                     />
                   </div>
@@ -388,6 +402,7 @@ const RecipeCreatePage: React.FC = () => {
                       onChange={(e) => handleIngredientChange(index, 'amount', e.target.value)}
                       placeholder={t('recipe.form.amount_placeholder')}
                       required
+                      maxLength={100}
                       disabled={isLoading}
                     />
                   </div>
@@ -432,6 +447,7 @@ const RecipeCreatePage: React.FC = () => {
                       placeholder={`${t('recipe.form.step')} ${index + 1}...`}
                       rows={2}
                       required
+                      maxLength={2000}
                       disabled={isLoading}
                     />
                   </div>

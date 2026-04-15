@@ -80,7 +80,7 @@ Focus: Recipe and tags
 ### Security (P1)
 - #89 Add CSRF protection - N/A (Since auth is purely Authorization: Bearer header-based (not cookie-based), the classic browser CSRF attack vector doesn't apply)
 - #90 Configure secure headers - DONE
-- #91 Implement input sanitization
+- #91 Implement input sanitization - DONE
 
 ## Sprint 4 - User Experience (Weeks 7-8)
 Focus: Search, filters, and user profile

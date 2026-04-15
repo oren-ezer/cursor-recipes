@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from src.utils.dependencies import get_user_service, get_current_user
 from src.services.user_service import UserService
-from pydantic import BaseModel, EmailStr
+from src.utils.sanitization import sanitize_text, MAX_LENGTHS
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List, Annotated, Dict, Any
 import logging
 from datetime import datetime
@@ -23,14 +24,28 @@ def get_admin_user(current_user: Dict[str, Any] = Depends(get_current_user)) -> 
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
-    full_name: Optional[str] = None
+    password: str = Field(..., min_length=8, max_length=128)
+    full_name: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["user_full_name"])
+
+    @field_validator("full_name")
+    @classmethod
+    def sanitize_full_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return sanitize_text(v, max_length=MAX_LENGTHS["user_full_name"])
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
-    password: Optional[str] = None
-    full_name: Optional[str] = None
+    password: Optional[str] = Field(default=None, min_length=8, max_length=128)
+    full_name: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["user_full_name"])
     is_active: Optional[bool] = None
+
+    @field_validator("full_name")
+    @classmethod
+    def sanitize_full_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return sanitize_text(v, max_length=MAX_LENGTHS["user_full_name"])
 
 class UserResponse(BaseModel):
     id: int

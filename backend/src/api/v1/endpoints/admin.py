@@ -6,7 +6,8 @@ from src.utils.dependencies import get_database_session, get_tag_service, get_re
 from src.services.tag_service import TagService
 from src.services.recipes_service import RecipeService
 from src.models.tag import TagCategory
-from pydantic import BaseModel
+from src.utils.sanitization import sanitize_text, MAX_LENGTHS
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Annotated, Dict, Any, List
 import logging
@@ -160,12 +161,22 @@ class TagResponse(BaseModel):
     updated_at: datetime
 
 class TagCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=2, max_length=MAX_LENGTHS["tag_name"])
     category: str
 
+    @field_validator("name")
+    @classmethod
+    def sanitize_name(cls, v: str) -> str:
+        return sanitize_text(v, max_length=MAX_LENGTHS["tag_name"])
+
 class TagUpdate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=2, max_length=MAX_LENGTHS["tag_name"])
     category: str
+
+    @field_validator("name")
+    @classmethod
+    def sanitize_name(cls, v: str) -> str:
+        return sanitize_text(v, max_length=MAX_LENGTHS["tag_name"])
 
 @router.get("/tags/{tag_id}", response_model=TagResponse)
 async def get_tag(
