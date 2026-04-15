@@ -182,3 +182,10 @@ cython_debug/
 
 # Backend scripts
 #backend/scripts/
+backend/scripts/backups/upload-users/alembic_version.json
+backend/scripts/backups/upload-users/backup_info.json
+backend/scripts/backups/upload-users/llm_configs.json
+backend/scripts/backups/upload-users/recipe_tags.json
+backend/scripts/backups/upload-users/recipes.json
+backend/scripts/backups/upload-users/tags.json
+backend/scripts/backups/upload-users/users.json
