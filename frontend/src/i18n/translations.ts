@@ -359,6 +359,19 @@ export const translations = {
     "image_upload.close": "Close",
     "image_upload.prev": "Previous image",
     "image_upload.next": "Next image",
+
+    // Recipe from Image (AI)
+    "recipe.from_image.section_title": "Create from Image",
+    "recipe.from_image.description": "Upload a photo of a recipe and let AI extract the details",
+    "recipe.from_image.upload_prompt": "Upload one or more images of a recipe to extract its details using AI",
+    "recipe.from_image.parse_button": "Extract Recipe with AI",
+    "recipe.from_image.parsing": "Analyzing images...",
+    "recipe.from_image.success": "Recipe extracted! Review and edit the details below.",
+    "recipe.from_image.error": "Failed to extract recipe from images. Please try again or enter details manually.",
+    "recipe.from_image.keep_images": "Attach uploaded images to this recipe",
+    "recipe.from_image.language_hint": "Recipe language (optional)",
+    "recipe.from_image.language_placeholder": "e.g. Hebrew, English, French",
+    "recipe.from_image.or_manual": "Or fill in the recipe details manually below",
   },
   he: {
     "app.title": "אפליקציית מתכונים",
@@ -724,6 +737,19 @@ export const translations = {
     "image_upload.close": "סגור",
     "image_upload.prev": "תמונה קודמת",
     "image_upload.next": "תמונה הבאה",
+
+    // Recipe from Image (AI)
+    "recipe.from_image.section_title": "יצירה מתמונה",
+    "recipe.from_image.description": "העלה תמונה של מתכון ותן ל-AI לחלץ את הפרטים",
+    "recipe.from_image.upload_prompt": "העלה תמונה אחת או יותר של מתכון כדי לחלץ את פרטיו באמצעות AI",
+    "recipe.from_image.parse_button": "חלץ מתכון עם AI",
+    "recipe.from_image.parsing": "מנתח תמונות...",
+    "recipe.from_image.success": "המתכון חולץ! בדוק וערוך את הפרטים למטה.",
+    "recipe.from_image.error": "חילוץ המתכון מהתמונות נכשל. נסה שוב או הזן פרטים ידנית.",
+    "recipe.from_image.keep_images": "צרף את התמונות שהועלו למתכון זה",
+    "recipe.from_image.language_hint": "שפת המתכון (אופציונלי)",
+    "recipe.from_image.language_placeholder": "למשל עברית, אנגלית, צרפתית",
+    "recipe.from_image.or_manual": "או מלא את פרטי המתכון ידנית למטה",
   }
 };
 

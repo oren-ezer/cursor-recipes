@@ -65,9 +65,11 @@ class RecipeCreate(BaseModel):
     def validate_image_url(cls, v: str | None) -> str | None:
         if v is None or v == "":
             return None
+        if v.startswith("/api/"):
+            return v
         sanitized = sanitize_url(v)
         if not sanitized:
-            raise ValueError("Invalid URL: only http and https schemes are allowed")
+            raise ValueError("Invalid URL: only http/https URLs or internal /api/ paths are allowed")
         return sanitized
 
 class RecipeUpdate(BaseModel):
@@ -109,9 +111,11 @@ class RecipeUpdate(BaseModel):
     def validate_image_url(cls, v: str | None) -> str | None:
         if v is None or v == "":
             return None
+        if v.startswith("/api/"):
+            return v
         sanitized = sanitize_url(v)
         if not sanitized:
-            raise ValueError("Invalid URL: only http and https schemes are allowed")
+            raise ValueError("Invalid URL: only http/https URLs or internal /api/ paths are allowed")
         return sanitized
 
 class RecipeResponse(BaseModel):

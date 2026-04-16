@@ -150,3 +150,38 @@ class NutritionResponse(BaseModel):
     fiber_g: Optional[float] = None
     sodium_mg: Optional[float] = None
 
+
+class RecipeFromImageRequest(BaseModel):
+    """Request model for extracting a recipe from uploaded images."""
+
+    image_ids: List[str] = Field(
+        ...,
+        min_length=1,
+        description="UUIDs of previously uploaded images to parse",
+    )
+    language_hint: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="Hint about the recipe language (e.g. 'Hebrew', 'English')",
+    )
+
+
+class RecipeFromImageIngredient(BaseModel):
+    """Single ingredient extracted from an image."""
+
+    name: str
+    amount: str
+
+
+class RecipeFromImageResponse(BaseModel):
+    """Structured recipe data extracted from image(s) by AI."""
+
+    title: str = ""
+    description: str = ""
+    ingredients: List[RecipeFromImageIngredient] = Field(default_factory=list)
+    instructions: List[str] = Field(default_factory=list)
+    preparation_time: int = 30
+    cooking_time: int = 30
+    servings: int = 4
+    difficulty_level: str = "Easy"
+

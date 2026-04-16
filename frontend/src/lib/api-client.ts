@@ -405,6 +405,13 @@ class ApiClient {
     await this.request<void>(`/images/${imageId}`, { method: 'DELETE' });
   }
 
+  async associateImagesWithRecipe(imageIds: string[], recipeId: number): Promise<ImageUploadResponse> {
+    return this.request<ImageUploadResponse>('/images/associate', {
+      method: 'PATCH',
+      body: JSON.stringify({ image_ids: imageIds, recipe_id: recipeId }),
+    });
+  }
+
   // AI-related methods
   async testAI(data: AITestRequest): Promise<AITestResponse> {
     return this.request<AITestResponse>('/ai/test', {
@@ -431,6 +438,15 @@ class ApiClient {
     return this.request<NutritionResponse>('/ai/nutrition', {
       method: 'POST',
       body: JSON.stringify({ ingredients, servings }),
+    });
+  }
+
+  async parseRecipeFromImages(imageIds: string[], languageHint?: string): Promise<RecipeFromImageResponse> {
+    const body: RecipeFromImageRequest = { image_ids: imageIds };
+    if (languageHint) body.language_hint = languageHint;
+    return this.request<RecipeFromImageResponse>('/ai/parse-recipe-images', {
+      method: 'POST',
+      body: JSON.stringify(body),
     });
   }
 
@@ -539,6 +555,28 @@ interface NutritionResponse {
   sodium_mg?: number;
 }
 
+// Recipe from Image types
+interface RecipeFromImageRequest {
+  image_ids: string[];
+  language_hint?: string;
+}
+
+interface RecipeFromImageIngredient {
+  name: string;
+  amount: string;
+}
+
+interface RecipeFromImageResponse {
+  title: string;
+  description: string;
+  ingredients: RecipeFromImageIngredient[];
+  instructions: string[];
+  preparation_time: number;
+  cooking_time: number;
+  servings: number;
+  difficulty_level: string;
+}
+
 // LLM Configuration types
 interface LLMConfig {
   id: number;
@@ -618,5 +656,7 @@ export {
   type LLMConfig,
   type LLMConfigCreate,
   type LLMConfigUpdate,
-  type EffectiveLLMConfig
+  type EffectiveLLMConfig,
+  type RecipeFromImageResponse,
+  type RecipeFromImageIngredient,
 };

@@ -200,6 +200,7 @@ Nice to have features that can be implemented as needed:
 - #106 add admin endpoint - DONE
 - #107 add multiplicity to image uploads
 - #108 add AI support for creating a recipe by understanding its text using OCR (using translation or not?) based on an uploaded image
+- #111 add "serving suggestions" to recipes
 
 ## Tests Backlog (P3)
 ### Gaps Identified in the fronend code base (14.8.2025):

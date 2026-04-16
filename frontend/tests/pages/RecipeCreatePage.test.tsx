@@ -16,6 +16,11 @@ vi.mock('../../src/contexts/AuthContext', () => ({
 vi.mock('../../src/lib/api-client', () => ({
   apiClient: {
     createRecipe: vi.fn(),
+    parseRecipeFromImages: vi.fn().mockResolvedValue({
+      title: '', description: '', ingredients: [], instructions: [],
+      preparation_time: 30, cooking_time: 30, servings: 4, difficulty_level: 'Easy',
+    }),
+    associateImagesWithRecipe: vi.fn().mockResolvedValue({ images: [] }),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string) {
@@ -231,8 +236,8 @@ describe('RecipeCreatePage', () => {
       expect(screen.getByLabelText(/servings/i)).toBeInTheDocument();
       expect(screen.getByText(/difficulty level/i)).toBeInTheDocument();
       
-      // Additional Settings (part of Basic Information)
-      expect(screen.getByLabelText(/image url/i)).toBeInTheDocument();
+      // Image upload section and visibility
+      expect(screen.getByText('Create from Image')).toBeInTheDocument();
       expect(screen.getByLabelText(/make this recipe public/i)).toBeInTheDocument();
     });
 
@@ -289,13 +294,10 @@ describe('RecipeCreatePage', () => {
       expect(servingsInput).toHaveValue(6);
     });
 
-    it('should handle image URL change', () => {
+    it('should display image upload section', () => {
       renderWithRouter(<RecipeCreatePage />);
-      
-      const imageUrlInput = screen.getByLabelText(/image url/i);
-      fireEvent.change(imageUrlInput, { target: { value: 'https://example.com/image.jpg' } });
-      
-      expect(imageUrlInput).toHaveValue('https://example.com/image.jpg');
+
+      expect(screen.getByText('Create from Image')).toBeInTheDocument();
     });
 
     it('should handle public/private toggle', () => {

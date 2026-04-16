@@ -139,6 +139,50 @@ async def get_recipe_images(
     )
 
 
+class AssociateImagesRequest(BaseModel):
+    image_ids: List[str]
+    recipe_id: int
+
+
+@router.patch("/associate", response_model=ImageUploadResponse)
+async def associate_images_with_recipe(
+    http_request: Request,
+    request: AssociateImagesRequest,
+    storage: Annotated[ImageStorageBackend, Depends(get_image_storage)] = None,
+    db: Annotated[Session, Depends(get_database_session)] = None,
+):
+    """Associate previously uploaded images with a recipe."""
+    _require_auth(http_request)
+
+    results: List[ImageInfo] = []
+    for idx, image_id in enumerate(request.image_ids):
+        image_row = db.exec(
+            select(RecipeImage).where(RecipeImage.uuid == image_id)
+        ).first()
+        if not image_row:
+            continue
+        image_row.recipe_id = request.recipe_id
+        if idx == 0:
+            image_row.is_primary = True
+        db.add(image_row)
+        results.append(ImageInfo(
+            image_id=image_row.uuid,
+            serving_url=storage.get_serving_url(image_row.uuid),
+            filename=image_row.filename,
+            size_bytes=image_row.size_bytes,
+        ))
+
+    if results:
+        recipe = db.exec(select(Recipe).where(Recipe.id == request.recipe_id)).first()
+        if recipe:
+            recipe.image_url = results[0].serving_url
+            db.add(recipe)
+
+    db.commit()
+    logger.info(f"Associated {len(results)} image(s) with recipe {request.recipe_id}")
+    return ImageUploadResponse(images=results)
+
+
 @router.delete("/{image_uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_image(
     image_uuid: str,

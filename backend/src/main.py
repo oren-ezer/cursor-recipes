@@ -108,10 +108,15 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 # Request Validation Error Handler
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    # You can customize the error details further if needed, e.g., by iterating through exc.errors()
+    safe_errors = []
+    for err in exc.errors():
+        safe_err = {k: v for k, v in err.items() if k != "ctx"}
+        if "ctx" in err:
+            safe_err["ctx"] = {k: str(v) for k, v in err["ctx"].items()}
+        safe_errors.append(safe_err)
     return JSONResponse(
         status_code=422,
-        content={"detail": "Validation Error", "errors": exc.errors()},
+        content={"detail": "Validation Error", "errors": safe_errors},
     )
 
 # Import and include routers

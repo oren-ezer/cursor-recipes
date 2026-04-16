@@ -51,7 +51,8 @@ class AIService:
         model: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        response_format: Optional[str] = None
+        response_format: Optional[str] = None,
+        image_urls: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Make a generic LLM call with configuration fallback and error handling.
@@ -70,6 +71,8 @@ class AIService:
             temperature: Temperature for completion (0.0-2.0, overrides config)
             max_tokens: Maximum tokens to generate (overrides config)
             response_format: 'json' for JSON mode, None for text (overrides config)
+            image_urls: Optional list of image URLs (base64 data URIs or http URLs)
+                        for vision models. Sent as image_url content parts.
             
         Returns:
             Dict containing:
@@ -112,7 +115,17 @@ class AIService:
         messages = []
         if effective_system_prompt:
             messages.append({"role": "system", "content": effective_system_prompt})
-        messages.append({"role": "user", "content": user_prompt})
+
+        if image_urls:
+            user_content: List[Dict[str, Any]] = [{"type": "text", "text": user_prompt}]
+            for url in image_urls:
+                user_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": url, "detail": "high"},
+                })
+            messages.append({"role": "user", "content": user_content})
+        else:
+            messages.append({"role": "user", "content": user_prompt})
         
         try:
             logger.info(
@@ -363,4 +376,85 @@ Return as JSON with: calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg (al
         except Exception as e:
             logger.error(f"Error calculating nutrition: {str(e)}")
             return {}
+
+    async def parse_recipe_from_images(
+        self,
+        image_data_uris: List[str],
+        language_hint: Optional[str] = None,
+        config_override: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extract a recipe from one or more images using a vision-capable model.
+
+        The images can contain handwritten or printed recipes, photos of food,
+        preparation steps, etc. The LLM uses OCR + understanding to produce
+        structured recipe data.
+
+        Args:
+            image_data_uris: List of base64 data URIs (data:image/...;base64,...)
+            language_hint: Optional hint about the language (e.g. "Hebrew", "English")
+            config_override: Optional runtime configuration overrides
+
+        Returns:
+            Dict with recipe fields: title, description, ingredients, instructions,
+            preparation_time, cooking_time, servings, difficulty_level
+        """
+        config = self.config_service.get_effective_config(
+            service_name="recipe_from_image",
+            override_params=config_override,
+        )
+
+        system_prompt = config.get("system_prompt") or (
+            "You are a culinary AI that extracts recipes from images. "
+            "Analyze the provided image(s) which may contain handwritten or printed recipes, "
+            "photos of prepared food, or cooking steps. "
+            "Extract all recipe information and return it as a JSON object with these fields:\n"
+            '- "title": string (recipe name)\n'
+            '- "description": string (brief description)\n'
+            '- "ingredients": array of objects with "name" and "amount" strings\n'
+            '- "instructions": array of step strings\n'
+            '- "preparation_time": integer (minutes, estimate if not stated)\n'
+            '- "cooking_time": integer (minutes, estimate if not stated)\n'
+            '- "servings": integer (estimate if not stated)\n'
+            '- "difficulty_level": string ("Easy", "Medium", or "Hard")\n'
+            "IMPORTANT: Keep the recipe in its original language. Do NOT translate. "
+            "If the recipe is in Hebrew, return all text fields in Hebrew. "
+            "If it is in French, return in French, etc. "
+            "If information is unclear, make reasonable estimates."
+        )
+
+        user_prompt_template = config.get("user_prompt_template")
+        if user_prompt_template:
+            lang = language_hint or "auto-detect"
+            user_prompt = user_prompt_template.replace("{language_hint}", lang)
+        else:
+            lang_note = f" The recipe may be in {language_hint}." if language_hint else ""
+            user_prompt = (
+                f"Please analyze the attached image(s) and extract the recipe.{lang_note} "
+                "Return a complete JSON object with all recipe fields."
+            )
+
+        try:
+            response = await self.call_llm(
+                user_prompt=user_prompt,
+                service_name="recipe_from_image",
+                system_prompt=system_prompt,
+                image_urls=image_data_uris,
+                response_format="json",
+                **({
+                    k: v
+                    for k, v in (config_override or {}).items()
+                    if k in ["model", "temperature", "max_tokens"]
+                }),
+            )
+
+            content = response["content"]
+            if isinstance(content, dict):
+                return content
+            logger.warning(f"Unexpected response format for recipe parsing: {content}")
+            return {}
+
+        except Exception as e:
+            logger.error(f"Error parsing recipe from images: {str(e)}")
+            raise
 

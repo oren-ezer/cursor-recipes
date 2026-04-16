@@ -507,3 +507,140 @@ class TestCalculateNutrition:
         config_calls = mock_config_service.get_effective_config.call_args_list
         service_names = [c[1].get("service_name", c[0][0] if c[0] else None) for c in config_calls]
         assert "nutrition_calculation" in service_names
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# call_llm with image_urls (vision)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestCallLLMWithImages:
+    @pytest.mark.asyncio
+    async def test_image_urls_sent_as_content_parts(self, ai_service, mock_config_service):
+        mock_config_service.get_effective_config.return_value = _make_effective_config()
+        ai_service.client.chat.completions.create = AsyncMock(
+            return_value=_mock_openai_response(content="vision result")
+        )
+
+        await ai_service.call_llm(
+            user_prompt="Describe this image",
+            image_urls=["data:image/png;base64,AAAA"],
+        )
+
+        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
+        assert isinstance(user_msg["content"], list)
+        assert user_msg["content"][0] == {"type": "text", "text": "Describe this image"}
+        assert user_msg["content"][1]["type"] == "image_url"
+        assert user_msg["content"][1]["image_url"]["url"] == "data:image/png;base64,AAAA"
+
+    @pytest.mark.asyncio
+    async def test_multiple_images_sent(self, ai_service, mock_config_service):
+        mock_config_service.get_effective_config.return_value = _make_effective_config()
+        ai_service.client.chat.completions.create = AsyncMock(
+            return_value=_mock_openai_response(content="multi image")
+        )
+
+        await ai_service.call_llm(
+            user_prompt="Describe",
+            image_urls=["data:image/png;base64,A", "data:image/jpeg;base64,B"],
+        )
+
+        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
+        assert len(user_msg["content"]) == 3  # text + 2 images
+
+    @pytest.mark.asyncio
+    async def test_no_images_sends_plain_string(self, ai_service, mock_config_service):
+        mock_config_service.get_effective_config.return_value = _make_effective_config()
+        ai_service.client.chat.completions.create = AsyncMock(
+            return_value=_mock_openai_response(content="text result")
+        )
+
+        await ai_service.call_llm(user_prompt="Just text")
+
+        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
+        assert isinstance(user_msg["content"], str)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# parse_recipe_from_images
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestParseRecipeFromImages:
+    @pytest.mark.asyncio
+    async def test_returns_parsed_recipe(self, ai_service, mock_config_service):
+        recipe_json = {
+            "title": "Chocolate Cake",
+            "description": "A rich cake",
+            "ingredients": [{"name": "flour", "amount": "2 cups"}],
+            "instructions": ["Mix ingredients", "Bake at 350F"],
+            "preparation_time": 20,
+            "cooking_time": 45,
+            "servings": 8,
+            "difficulty_level": "Medium",
+        }
+        import json
+        mock_config_service.get_effective_config.return_value = _make_effective_config(
+            response_format="json"
+        )
+        ai_service.client.chat.completions.create = AsyncMock(
+            return_value=_mock_openai_response(content=json.dumps(recipe_json))
+        )
+
+        result = await ai_service.parse_recipe_from_images(
+            image_data_uris=["data:image/png;base64,AAAA"]
+        )
+        assert result["title"] == "Chocolate Cake"
+        assert len(result["ingredients"]) == 1
+        assert len(result["instructions"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_uses_recipe_from_image_service_name(self, ai_service, mock_config_service):
+        mock_config_service.get_effective_config.return_value = _make_effective_config(
+            response_format="json"
+        )
+        ai_service.client.chat.completions.create = AsyncMock(
+            return_value=_mock_openai_response(content='{}')
+        )
+
+        await ai_service.parse_recipe_from_images(
+            image_data_uris=["data:image/png;base64,AAAA"]
+        )
+
+        config_calls = mock_config_service.get_effective_config.call_args_list
+        service_names = [c[1].get("service_name", c[0][0] if c[0] else None) for c in config_calls]
+        assert "recipe_from_image" in service_names
+
+    @pytest.mark.asyncio
+    async def test_passes_language_hint(self, ai_service, mock_config_service):
+        mock_config_service.get_effective_config.return_value = _make_effective_config(
+            response_format="json"
+        )
+        ai_service.client.chat.completions.create = AsyncMock(
+            return_value=_mock_openai_response(content='{}')
+        )
+
+        await ai_service.parse_recipe_from_images(
+            image_data_uris=["data:image/png;base64,AAAA"],
+            language_hint="Hebrew",
+        )
+
+        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
+        text_content = user_msg["content"][0]["text"] if isinstance(user_msg["content"], list) else user_msg["content"]
+        assert "Hebrew" in text_content
+
+    @pytest.mark.asyncio
+    async def test_raises_on_api_error(self, ai_service, mock_config_service):
+        mock_config_service.get_effective_config.return_value = _make_effective_config(
+            response_format="json"
+        )
+        ai_service.client.chat.completions.create = AsyncMock(
+            side_effect=Exception("API failed")
+        )
+
+        with pytest.raises(Exception, match="API failed"):
+            await ai_service.parse_recipe_from_images(
+                image_data_uris=["data:image/png;base64,AAAA"]
+            )

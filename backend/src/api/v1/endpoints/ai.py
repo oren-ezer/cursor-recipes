@@ -16,14 +16,20 @@ from src.models.ai_models import (
     NaturalLanguageSearchRequest,
     NaturalLanguageSearchResponse,
     NutritionRequest,
-    NutritionResponse
+    NutritionResponse,
+    RecipeFromImageRequest,
+    RecipeFromImageResponse,
+    RecipeFromImageIngredient,
 )
 from src.services.ai_service import AIService
 from src.services.llm_config_service import LLMConfigService
+from src.services.image_storage import ImageStorageBackend
+from src.utils.dependencies import get_image_storage
 from src.core.config import settings
 from src.utils.database_session import get_db
 from sqlmodel import Session
 from openai import AuthenticationError, RateLimitError, APIError
+import base64
 
 logger = logging.getLogger(__name__)
 
@@ -224,5 +230,80 @@ async def calculate_nutrition(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to calculate nutrition facts"
+        )
+
+
+@router.post("/parse-recipe-images", response_model=RecipeFromImageResponse)
+async def parse_recipe_from_images(
+    http_request: Request,
+    request: RecipeFromImageRequest,
+    ai_service: Annotated[AIService, Depends(get_ai_service)],
+    storage: Annotated[ImageStorageBackend, Depends(get_image_storage)],
+):
+    """
+    Extract recipe data from previously uploaded images using AI vision.
+
+    Accepts image UUIDs (from the /images/upload endpoint), reads the binary
+    data, and sends them to a vision-capable LLM for OCR + recipe extraction.
+    """
+    _require_auth(http_request)
+
+    image_data_uris: list[str] = []
+    for image_id in request.image_ids:
+        try:
+            file_bytes, content_type = storage.retrieve(image_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Image not found: {image_id}",
+            )
+        b64 = base64.b64encode(file_bytes).decode("utf-8")
+        image_data_uris.append(f"data:{content_type};base64,{b64}")
+
+    try:
+        logger.info(f"Parsing recipe from {len(image_data_uris)} image(s)")
+
+        result = await ai_service.parse_recipe_from_images(
+            image_data_uris=image_data_uris,
+            language_hint=request.language_hint,
+        )
+
+        ingredients = [
+            RecipeFromImageIngredient(name=ing.get("name", ""), amount=ing.get("amount", ""))
+            for ing in result.get("ingredients", [])
+        ]
+
+        return RecipeFromImageResponse(
+            title=result.get("title", ""),
+            description=result.get("description", ""),
+            ingredients=ingredients,
+            instructions=result.get("instructions", []),
+            preparation_time=result.get("preparation_time", 30),
+            cooking_time=result.get("cooking_time", 30),
+            servings=result.get("servings", 4),
+            difficulty_level=result.get("difficulty_level", "Easy"),
+        )
+
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="AI service authentication failed. Please check API key configuration.",
+        )
+    except RateLimitError:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="AI service rate limit exceeded. Please try again later.",
+        )
+    except APIError as e:
+        logger.error(f"OpenAI API error during image parsing: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI service temporarily unavailable",
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error parsing recipe from images: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to parse recipe from images",
         )
 

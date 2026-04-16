@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
-import { apiClient, ApiError, type Tag } from '../lib/api-client';
-// import type { Recipe } from '../lib/api-client'; // Not used yet
+import { apiClient, ApiError, type Tag, type ImageInfo } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
@@ -14,6 +13,8 @@ import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import TagSelector from '../components/ui/tag-selector';
+import ImageUploader from '../components/ImageUploader';
+import ImageThumbnailGrid from '../components/ImageThumbnailGrid';
 
 interface Ingredient {
   name: string;
@@ -40,6 +41,11 @@ const RecipeCreatePage: React.FC = () => {
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<ImageInfo[]>([]);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseSuccess, setParseSuccess] = useState(false);
+  const [keepImages, setKeepImages] = useState(true);
+  const [languageHint, setLanguageHint] = useState('');
   const [formData, setFormData] = useState<RecipeFormData>({
     title: '',
     description: '',
@@ -115,6 +121,40 @@ const RecipeCreatePage: React.FC = () => {
     }
   };
 
+  const handleParseImages = async () => {
+    if (uploadedImages.length === 0) return;
+    setIsParsing(true);
+    setError(null);
+    setParseSuccess(false);
+    try {
+      const imageIds = uploadedImages.map((img) => img.image_id);
+      const result = await apiClient.parseRecipeFromImages(
+        imageIds,
+        languageHint || undefined,
+      );
+      setFormData((prev) => ({
+        ...prev,
+        title: result.title || prev.title,
+        description: result.description || prev.description,
+        ingredients: result.ingredients.length > 0
+          ? result.ingredients.map((ing) => ({ name: ing.name, amount: ing.amount }))
+          : prev.ingredients,
+        instructions: result.instructions.length > 0
+          ? result.instructions
+          : prev.instructions,
+        preparation_time: result.preparation_time || prev.preparation_time,
+        cooking_time: result.cooking_time || prev.cooking_time,
+        servings: result.servings || prev.servings,
+        difficulty_level: result.difficulty_level || prev.difficulty_level,
+      }));
+      setParseSuccess(true);
+    } catch {
+      setError(t('recipe.from_image.error'));
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
   const handleIngredientChange = (index: number, field: 'name' | 'amount', value: string) => {
     const newIngredients = [...formData.ingredients];
     newIngredients[index] = { ...newIngredients[index], [field]: value };
@@ -181,11 +221,6 @@ const RecipeCreatePage: React.FC = () => {
       return false;
     }
 
-    if (formData.image_url && !/^https?:\/\//i.test(formData.image_url)) {
-      setError('Image URL must start with http:// or https://');
-      return false;
-    }
-
     return true;
   };
 
@@ -204,16 +239,31 @@ const RecipeCreatePage: React.FC = () => {
       const cleanIngredients = formData.ingredients.filter(ing => ing.name.trim() && ing.amount.trim());
       const cleanInstructions = formData.instructions.filter(inst => inst.trim());
 
+      const primaryImageUrl = keepImages && uploadedImages.length > 0
+        ? uploadedImages[0].serving_url
+        : (formData.image_url || undefined);
+
       const recipeData = {
         ...formData,
         ingredients: cleanIngredients,
         instructions: cleanInstructions,
-        image_url: formData.image_url || undefined,
+        image_url: primaryImageUrl,
         tag_ids: formData.selectedTags.map(tag => tag.id),
       };
 
       const createdRecipe = await apiClient.createRecipe(recipeData);
-      
+
+      if (keepImages && uploadedImages.length > 0) {
+        try {
+          await apiClient.associateImagesWithRecipe(
+            uploadedImages.map((img) => img.image_id),
+            createdRecipe.id,
+          );
+        } catch {
+          // Non-critical: recipe is created, images just won't be linked
+        }
+      }
+
       navigate(`/recipes/${createdRecipe.id}`, {
         state: { message: 'Recipe created successfully!' }
       });
@@ -235,6 +285,78 @@ const RecipeCreatePage: React.FC = () => {
         description={t('recipe.create.description')}
       >
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Create from Image */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('recipe.from_image.section_title')}</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {t('recipe.from_image.upload_prompt')}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {uploadedImages.length > 0 && (
+                <ImageThumbnailGrid images={uploadedImages} />
+              )}
+
+              <ImageUploader
+                disabled={isLoading || isParsing}
+                onUploadComplete={(images: ImageInfo[]) => {
+                  setUploadedImages((prev) => [...prev, ...images]);
+                  setParseSuccess(false);
+                }}
+              />
+
+              {uploadedImages.length > 0 && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="language_hint">{t('recipe.from_image.language_hint')}</Label>
+                    <Input
+                      id="language_hint"
+                      value={languageHint}
+                      onChange={(e) => setLanguageHint(e.target.value)}
+                      placeholder={t('recipe.from_image.language_placeholder')}
+                      maxLength={50}
+                      disabled={isLoading || isParsing}
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleParseImages}
+                    disabled={isLoading || isParsing || uploadedImages.length === 0}
+                    className="w-full"
+                  >
+                    {isParsing ? t('recipe.from_image.parsing') : t('recipe.from_image.parse_button')}
+                  </Button>
+
+                  {parseSuccess && (
+                    <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                      {t('recipe.from_image.success')}
+                    </p>
+                  )}
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="keep_images"
+                      checked={keepImages}
+                      onChange={(e) => setKeepImages(e.target.checked)}
+                      disabled={isLoading}
+                      className="rounded"
+                    />
+                    <Label htmlFor="keep_images">{t('recipe.from_image.keep_images')}</Label>
+                  </div>
+                </>
+              )}
+
+              {uploadedImages.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center">
+                  {t('recipe.from_image.or_manual')}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -311,39 +433,22 @@ const RecipeCreatePage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="difficulty">{t('recipe.form.difficulty')}</Label>
-                  <Select
-                    value={formData.difficulty_level}
-                    onValueChange={(value) => handleInputChange('difficulty_level', value)}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Easy">{t('difficulty.easy')}</SelectItem>
-                      <SelectItem value="Medium">{t('difficulty.medium')}</SelectItem>
-                      <SelectItem value="Hard">{t('difficulty.hard')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="image_url">{t('recipe.form.image_url')}</Label>
-                  <Input
-                    id="image_url"
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) => handleInputChange('image_url', e.target.value)}
-                    placeholder="https://example.com/image.jpg"
-                    maxLength={2048}
-                    pattern="https?://.*"
-                    title="URL must start with http:// or https://"
-                    disabled={isLoading}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="difficulty">{t('recipe.form.difficulty')}</Label>
+                <Select
+                  value={formData.difficulty_level}
+                  onValueChange={(value) => handleInputChange('difficulty_level', value)}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Easy">{t('difficulty.easy')}</SelectItem>
+                    <SelectItem value="Medium">{t('difficulty.medium')}</SelectItem>
+                    <SelectItem value="Hard">{t('difficulty.hard')}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
