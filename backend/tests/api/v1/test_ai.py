@@ -30,6 +30,7 @@ def mock_ai_service():
     svc.suggest_tags = AsyncMock()
     svc.parse_natural_language_search = AsyncMock()
     svc.calculate_nutrition = AsyncMock()
+    svc.parse_recipe_from_images = AsyncMock()
     return svc
 
 
@@ -474,3 +475,80 @@ class TestNutritionEndpoint:
         assert resp.status_code == status.HTTP_200_OK
         call_kwargs = mock_svc.calculate_nutrition.call_args[1]
         assert call_kwargs["servings"] == 1
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# POST /ai/parse-recipe-images
+# ──────────────────────────────────────────────────────────────────────────────
+
+TINY_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f"
+    b"\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def _parse_files(*names):
+    from io import BytesIO
+    return [("images", (name, BytesIO(TINY_PNG), "image/png")) for name in names]
+
+
+class TestParseRecipeFromImagesEndpoint:
+    def test_requires_auth(self, client_with_ai):
+        client, _ = client_with_ai
+        resp = client.post(
+            f"{AI_PREFIX}/parse-recipe-images",
+            files=_parse_files("recipe.png"),
+        )
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_requires_images(self, client_with_ai):
+        client, _ = client_with_ai
+        with patch("src.main._get_current_user_from_token", new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = _fake_user()
+            resp = client.post(
+                f"{AI_PREFIX}/parse-recipe-images",
+                headers=_auth_headers(),
+            )
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_rejects_unsupported_type(self, client_with_ai):
+        client, _ = client_with_ai
+        from io import BytesIO
+        with patch("src.main._get_current_user_from_token", new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = _fake_user()
+            resp = client.post(
+                f"{AI_PREFIX}/parse-recipe-images",
+                files=[("images", ("notes.txt", BytesIO(b"hello"), "text/plain"))],
+                headers=_auth_headers(),
+            )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_parses_multipart_images(self, client_with_ai):
+        client, mock_svc = client_with_ai
+        mock_svc.parse_recipe_from_images.return_value = {
+            "title": "Hummus",
+            "description": "Creamy",
+            "ingredients": [{"name": "chickpeas", "amount": "1 cup"}],
+            "instructions": ["Blend"],
+            "preparation_time": 10,
+            "cooking_time": 0,
+            "servings": 4,
+            "difficulty_level": "Easy",
+        }
+        with patch("src.main._get_current_user_from_token", new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = _fake_user()
+            resp = client.post(
+                f"{AI_PREFIX}/parse-recipe-images",
+                data={"language_hint": "Hebrew"},
+                files=_parse_files("recipe.png"),
+                headers=_auth_headers(),
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        body = resp.json()
+        assert body["title"] == "Hummus"
+        assert body["ingredients"][0]["name"] == "chickpeas"
+        call_kwargs = mock_svc.parse_recipe_from_images.call_args[1]
+        assert call_kwargs["language_hint"] == "Hebrew"
+        assert len(call_kwargs["image_data_uris"]) == 1
+        assert call_kwargs["image_data_uris"][0].startswith("data:image/png;base64,")

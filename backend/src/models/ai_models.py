@@ -151,21 +151,6 @@ class NutritionResponse(BaseModel):
     sodium_mg: Optional[float] = None
 
 
-class RecipeFromImageRequest(BaseModel):
-    """Request model for extracting a recipe from uploaded images."""
-
-    image_ids: List[str] = Field(
-        ...,
-        min_length=1,
-        description="UUIDs of previously uploaded images to parse",
-    )
-    language_hint: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Hint about the recipe language (e.g. 'Hebrew', 'English')",
-    )
-
-
 class RecipeFromImageIngredient(BaseModel):
     """Single ingredient extracted from an image."""
 

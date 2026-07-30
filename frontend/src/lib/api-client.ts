@@ -438,13 +438,35 @@ class ApiClient {
     });
   }
 
-  async parseRecipeFromImages(imageIds: string[], languageHint?: string): Promise<RecipeFromImageResponse> {
-    const body: RecipeFromImageRequest = { image_ids: imageIds };
-    if (languageHint) body.language_hint = languageHint;
-    return this.request<RecipeFromImageResponse>('/ai/parse-recipe-images', {
+  async parseRecipeFromImages(images: File[], languageHint?: string): Promise<RecipeFromImageResponse> {
+    const formData = new FormData();
+    images.forEach((file) => formData.append('images', file));
+    if (languageHint) {
+      formData.append('language_hint', languageHint);
+    }
+
+    const currentToken = this.token || localStorage.getItem('authToken');
+    const headers: Record<string, string> = {
+      'X-Requested-With': 'XMLHttpRequest',
+    };
+    if (currentToken) {
+      headers['Authorization'] = `Bearer ${currentToken}`;
+    }
+
+    const url = `${API_URL}/ai/parse-recipe-images`;
+    const response = await fetch(url, {
       method: 'POST',
-      body: JSON.stringify(body),
+      headers,
+      body: formData,
+      credentials: 'include',
     });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new ApiError(error.detail || 'Failed to parse recipe from images');
+    }
+
+    return response.json();
   }
 
   // LLM Configuration endpoints (admin only)
@@ -554,11 +576,6 @@ interface NutritionResponse {
 }
 
 // Recipe from Image types
-interface RecipeFromImageRequest {
-  image_ids: string[];
-  language_hint?: string;
-}
-
 interface RecipeFromImageIngredient {
   name: string;
   amount: string;

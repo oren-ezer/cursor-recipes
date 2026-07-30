@@ -1,15 +1,17 @@
 """
-AI Service for LLM interactions using OpenAI API.
+AI Service for LLM interactions across multiple providers.
 
 This service provides a unified interface for making LLM calls with proper
 error handling, rate limiting, and response parsing. Configurations are managed
-through LLMConfigService with a fallback hierarchy.
+through LLMConfigService with a fallback hierarchy. Provider SDKs are selected
+from the effective config's ``provider`` field.
 """
 
 from typing import Optional, Dict, Any, List
 from sqlmodel import Session
-from openai import AsyncOpenAI, OpenAIError, APIError, RateLimitError, AuthenticationError
+from openai import AuthenticationError, RateLimitError, APIError
 from src.services.llm_config_service import LLMConfigService
+from src.services.llm_providers import LLMProviderBackend, create_provider_backends
 from src.core.config import settings
 import logging
 import json
@@ -18,31 +20,47 @@ logger = logging.getLogger(__name__)
 
 
 class AIService:
-    """Service for interacting with OpenAI's LLM API with database-driven configuration."""
-    
+    """Service for interacting with LLMs using database-driven multi-provider config."""
+
     def __init__(
-        self, 
+        self,
         db: Session,
-        llm_config_service: LLMConfigService
+        llm_config_service: LLMConfigService,
     ):
         """
-        Initialize the AI service with database configuration support.
-        
+        Initialize the AI service with available provider backends.
+
         Args:
             db: Database session for configuration lookups
             llm_config_service: Service for managing LLM configurations
         """
-        if not settings.OPENAI_API_KEY:
-            raise ValueError("OpenAI API key is required")
-        
-        self.client = AsyncOpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            organization=settings.OPENAI_ORG_ID if settings.OPENAI_ORG_ID else None
-        )
         self.config_service = llm_config_service
-        
-        logger.info("AIService initialized with database configuration support")
-    
+        self._backends = create_provider_backends(settings)
+        if not self._backends:
+            raise ValueError(
+                "At least one LLM API key is required "
+                "(OPENAI_API_KEY, GOOGLE_API_KEY, or ANTHROPIC_API_KEY)"
+            )
+
+        # Back-compat for code/tests that still reference service.client (OpenAI)
+        openai_backend = self._backends.get("OPENAI")
+        self.client = getattr(openai_backend, "client", None)
+
+        logger.info(
+            "AIService initialized with providers: %s",
+            ", ".join(sorted(self._backends.keys())),
+        )
+
+    def _get_backend(self, provider: str) -> LLMProviderBackend:
+        key = (provider or "OPENAI").upper()
+        backend = self._backends.get(key)
+        if not backend:
+            available = ", ".join(sorted(self._backends.keys())) or "none"
+            raise ValueError(
+                f"LLM provider '{key}' is not configured. Available: {available}"
+            )
+        return backend
+
     async def call_llm(
         self,
         user_prompt: str,
@@ -56,13 +74,13 @@ class AIService:
     ) -> Dict[str, Any]:
         """
         Make a generic LLM call with configuration fallback and error handling.
-        
+
         Configuration hierarchy (highest to lowest priority):
         1. Runtime parameters (function arguments)
         2. Service-specific configuration (from database)
         3. Global configuration (from database)
         4. Environment variable defaults
-        
+
         Args:
             user_prompt: The user's prompt/question
             service_name: Name of the service for config lookup (e.g., "tag_suggestion")
@@ -73,20 +91,19 @@ class AIService:
             response_format: 'json' for JSON mode, None for text (overrides config)
             image_urls: Optional list of image URLs (base64 data URIs or http URLs)
                         for vision models. Sent as image_url content parts.
-            
+
         Returns:
             Dict containing:
                 - content: The LLM response
                 - tokens_used: Token usage information
                 - model: Model used
                 - finish_reason: Completion finish reason
-                
+
         Raises:
             AuthenticationError: Invalid API key
             RateLimitError: Rate limit exceeded
             APIError: General API error
         """
-        # Get effective configuration with fallback hierarchy
         override_params = {}
         if model is not None:
             override_params["model"] = model
@@ -98,21 +115,20 @@ class AIService:
             override_params["response_format"] = response_format
         if system_prompt is not None:
             override_params["system_prompt"] = system_prompt
-        
+
         config = self.config_service.get_effective_config(
             service_name=service_name,
-            override_params=override_params
+            override_params=override_params,
         )
-        
-        # Use system prompt from config if not provided directly
+
         effective_system_prompt = system_prompt or config.get("system_prompt")
         effective_model = config["model"]
         effective_temperature = config["temperature"]
         effective_max_tokens = config["max_tokens"]
         effective_response_format = config.get("response_format")
-        
-        # Build messages
-        messages = []
+        effective_provider = (config.get("provider") or "OPENAI").upper()
+
+        messages: List[Dict[str, Any]] = []
         if effective_system_prompt:
             messages.append({"role": "system", "content": effective_system_prompt})
 
@@ -126,57 +142,47 @@ class AIService:
             messages.append({"role": "user", "content": user_content})
         else:
             messages.append({"role": "user", "content": user_prompt})
-        
+
+        response_format_param = None
+        if effective_response_format == "json":
+            response_format_param = {"type": "json_object"}
+            if effective_system_prompt and "json" not in effective_system_prompt.lower():
+                messages[0]["content"] += "\n\nProvide your response in valid JSON format."
+
         try:
+            backend = self._get_backend(effective_provider)
             logger.info(
-                f"Calling OpenAI API - service={service_name}, model={effective_model}, "
-                f"max_tokens={effective_max_tokens}, temp={effective_temperature}"
+                "Calling LLM - provider=%s service=%s model=%s max_tokens=%s temp=%s",
+                effective_provider,
+                service_name,
+                effective_model,
+                effective_max_tokens,
+                effective_temperature,
             )
-            
-            # Prepare request parameters
-            request_params = {
-                "model": effective_model,
-                "messages": messages,
-                "temperature": effective_temperature,
-                "max_tokens": effective_max_tokens
-            }
-            
-            # Add JSON mode if requested
-            if effective_response_format == "json":
-                request_params["response_format"] = {"type": "json_object"}
-                # Ensure system prompt mentions JSON
-                if effective_system_prompt and "json" not in effective_system_prompt.lower():
-                    messages[0]["content"] += "\n\nProvide your response in valid JSON format."
-            
-            # Make the API call
-            response = await self.client.chat.completions.create(**request_params)
-            
-            # Extract response
-            content = response.choices[0].message.content
-            
-            # Parse JSON if requested
-            if effective_response_format == "json":
+
+            result = await backend.call(
+                messages=messages,
+                model=effective_model,
+                temperature=effective_temperature,
+                max_tokens=effective_max_tokens,
+                response_format=response_format_param,
+            )
+
+            content = result["content"]
+            if effective_response_format == "json" and isinstance(content, str):
                 try:
                     content = json.loads(content)
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse JSON response: {e}")
-                    # Return as text if JSON parsing fails
-                    pass
-            
-            result = {
-                "content": content,
-                "tokens_used": {
-                    "prompt": response.usage.prompt_tokens,
-                    "completion": response.usage.completion_tokens,
-                    "total": response.usage.total_tokens
-                },
-                "model": response.model,
-                "finish_reason": response.choices[0].finish_reason
-            }
-            
-            logger.info(f"LLM call successful. Tokens used: {result['tokens_used']['total']}")
+
+            result = {**result, "content": content}
+
+            logger.info(
+                "LLM call successful. Tokens used: %s",
+                result["tokens_used"].get("total"),
+            )
             return result
-            
+
         except AuthenticationError as e:
             logger.error(f"OpenAI authentication error: {str(e)}")
             raise
@@ -187,9 +193,9 @@ class AIService:
             logger.error(f"OpenAI API error: {str(e)}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error calling OpenAI: {str(e)}")
+            logger.error(f"Unexpected error calling LLM: {str(e)}")
             raise
-    
+
     async def suggest_tags(
         self, 
         recipe_title: str, 

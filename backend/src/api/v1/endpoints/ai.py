@@ -4,8 +4,8 @@ All AI endpoints require authentication (Bearer token).
 The /test endpoint is restricted to superusers.
 """
 
-from fastapi import APIRouter, HTTPException, Request, status, Depends
-from typing import Annotated
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status, Depends
+from typing import Annotated, List, Optional
 import logging
 
 from src.models.ai_models import (
@@ -17,19 +17,18 @@ from src.models.ai_models import (
     NaturalLanguageSearchResponse,
     NutritionRequest,
     NutritionResponse,
-    RecipeFromImageRequest,
     RecipeFromImageResponse,
     RecipeFromImageIngredient,
 )
 from src.services.ai_service import AIService
 from src.services.llm_config_service import LLMConfigService
-from src.services.image_storage import ImageStorageBackend
-from src.utils.dependencies import get_image_storage
 from src.core.config import settings
 from src.utils.database_session import get_db
 from sqlmodel import Session
 from openai import AuthenticationError, RateLimitError, APIError
 import base64
+
+ALLOWED_PARSE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 logger = logging.getLogger(__name__)
 
@@ -236,36 +235,62 @@ async def calculate_nutrition(
 @router.post("/parse-recipe-images", response_model=RecipeFromImageResponse)
 async def parse_recipe_from_images(
     http_request: Request,
-    request: RecipeFromImageRequest,
     ai_service: Annotated[AIService, Depends(get_ai_service)],
-    storage: Annotated[ImageStorageBackend, Depends(get_image_storage)],
+    images: List[UploadFile] = File(..., description="Recipe image files to parse (not stored)"),
+    language_hint: Optional[str] = Form(
+        None, description="Hint about the recipe language (e.g. 'Hebrew', 'English')"
+    ),
 ):
     """
-    Extract recipe data from previously uploaded images using AI vision.
+    Extract recipe data from image files using AI vision.
 
-    Accepts image UUIDs (from the /images/upload endpoint), reads the binary
-    data, and sends them to a vision-capable LLM for OCR + recipe extraction.
+    Accepts multipart image uploads in-memory only — files are NOT saved to
+    recipe_images. After the user creates the recipe, the client can upload the
+    same files via /images/upload with the new recipe_id.
     """
     _require_auth(http_request)
 
+    if not images:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least one image is required",
+        )
+
+    if len(images) > settings.MAX_IMAGES_PER_UPLOAD:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum {settings.MAX_IMAGES_PER_UPLOAD} images per request",
+        )
+
+    max_bytes = settings.MAX_IMAGE_UPLOAD_SIZE_MB * 1024 * 1024
     image_data_uris: list[str] = []
-    for image_id in request.image_ids:
-        try:
-            file_bytes, content_type = storage.retrieve(image_id)
-        except ValueError:
+    for upload in images:
+        if upload.content_type not in ALLOWED_PARSE_CONTENT_TYPES:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Image not found: {image_id}",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"File '{upload.filename}' has unsupported type '{upload.content_type}'. "
+                    f"Allowed: {', '.join(sorted(ALLOWED_PARSE_CONTENT_TYPES))}"
+                ),
+            )
+        file_bytes = await upload.read()
+        if len(file_bytes) > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"File '{upload.filename}' exceeds "
+                    f"{settings.MAX_IMAGE_UPLOAD_SIZE_MB} MB limit"
+                ),
             )
         b64 = base64.b64encode(file_bytes).decode("utf-8")
-        image_data_uris.append(f"data:{content_type};base64,{b64}")
+        image_data_uris.append(f"data:{upload.content_type};base64,{b64}")
 
     try:
         logger.info(f"Parsing recipe from {len(image_data_uris)} image(s)")
 
         result = await ai_service.parse_recipe_from_images(
             image_data_uris=image_data_uris,
-            language_hint=request.language_hint,
+            language_hint=language_hint,
         )
 
         ingredients = [

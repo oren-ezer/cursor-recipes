@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, List
 import json
 import logging
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, AuthenticationError, RateLimitError, APIError
 from anthropic import AsyncAnthropic
 from google import genai
 
@@ -129,21 +129,24 @@ class GoogleBackend(LLMProviderBackend):
 
         effective_max = max_tokens + self.THINKING_TOKEN_BUDGET
 
-        config = types.GenerateContentConfig(
-            temperature=temperature,
-            max_output_tokens=effective_max,
-            system_instruction=system_instruction,
-            thinking_config=types.ThinkingConfig(
+        config_kwargs: Dict[str, Any] = {
+            "temperature": temperature,
+            "max_output_tokens": effective_max,
+            "system_instruction": system_instruction,
+            "thinking_config": types.ThinkingConfig(
                 thinking_budget=self.THINKING_TOKEN_BUDGET,
             ),
-        )
+        }
+        # Intentionally do not set response_mime_type=application/json:
+        # it degrades Gemini vision/OCR quality for recipe-from-image.
 
-        print(
-            f"[GoogleBackend] calling model={model} "
-            f"max_output_tokens={effective_max} "
-            f"thinking_budget={self.THINKING_TOKEN_BUDGET} "
-            f"temperature={temperature}",
-            flush=True,
+        config = types.GenerateContentConfig(**config_kwargs)
+
+        logger.info(
+            "GoogleBackend calling model=%s max_output_tokens=%s thinking_budget=%s",
+            model,
+            effective_max,
+            self.THINKING_TOKEN_BUDGET,
         )
 
         response = await self.client.aio.models.generate_content(
@@ -166,13 +169,14 @@ class GoogleBackend(LLMProviderBackend):
         except ValueError:
             content_text = ""
 
-        print(
-            f"[GoogleBackend] response model={response.model_version or model} "
-            f"prompt={usage.prompt_token_count if usage else 0} "
-            f"candidates={candidate_tokens} thoughts={thoughts_tokens} "
-            f"total={usage.total_token_count if usage else 0} "
-            f"finish={finish} content_len={len(content_text)}",
-            flush=True,
+        logger.info(
+            "GoogleBackend response model=%s prompt=%s candidates=%s thoughts=%s finish=%s content_len=%s",
+            response.model_version or model,
+            usage.prompt_token_count if usage else 0,
+            candidate_tokens,
+            thoughts_tokens,
+            finish,
+            len(content_text),
         )
 
         if not content_text and finish.upper() == "MAX_TOKENS":
@@ -181,10 +185,6 @@ class GoogleBackend(LLMProviderBackend):
                 f"({thoughts_tokens} thinking, {candidate_tokens} candidate). "
                 f"Increase max_tokens in the LLM config for this service."
             )
-
-        if content_text:
-            preview = content_text[:500].replace('\n', ' ')
-            print(f"[GoogleBackend] content preview: {preview}", flush=True)
 
         return {
             "content": content_text,
@@ -310,3 +310,18 @@ class AnthropicBackend(LLMProviderBackend):
                         "source": {"type": "url", "url": url},
                     })
         return {"role": msg["role"], "content": anthropic_parts}
+
+
+def create_provider_backends(settings) -> Dict[str, LLMProviderBackend]:
+    """Build available provider backends from settings API keys."""
+    backends: Dict[str, LLMProviderBackend] = {}
+    if getattr(settings, "OPENAI_API_KEY", None):
+        backends["OPENAI"] = OpenAIBackend(
+            api_key=settings.OPENAI_API_KEY,
+            organization=getattr(settings, "OPENAI_ORG_ID", None) or None,
+        )
+    if getattr(settings, "GOOGLE_API_KEY", None):
+        backends["GOOGLE"] = GoogleBackend(api_key=settings.GOOGLE_API_KEY)
+    if getattr(settings, "ANTHROPIC_API_KEY", None):
+        backends["ANTHROPIC"] = AnthropicBackend(api_key=settings.ANTHROPIC_API_KEY)
+    return backends

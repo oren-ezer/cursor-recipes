@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     OPENAI_DEFAULT_MODEL: str = "gpt-4o-mini"
     OPENAI_MAX_TOKENS: int = 1000
     OPENAI_TEMPERATURE: float = 0.7
+
+    # Google / Anthropic (optional multi-provider)
+    GOOGLE_API_KEY: Optional[str] = None
+    ANTHROPIC_API_KEY: Optional[str] = None
     
     # Image Storage Configuration
     IMAGE_STORAGE_BACKEND: str = "database"  # "database", "filesystem", or "s3"

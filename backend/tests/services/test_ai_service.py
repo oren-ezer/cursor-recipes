@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from src.services.ai_service import AIService
 from openai import AuthenticationError, RateLimitError, APIError
 
@@ -19,23 +19,19 @@ def _make_effective_config(**overrides):
     return base
 
 
-def _mock_openai_response(content="Hello!", prompt_tokens=10, completion_tokens=20,
-                           model="gpt-4o-mini", finish_reason="stop"):
-    """Build a mock that mimics openai ChatCompletion response."""
-    choice = Mock()
-    choice.message.content = content
-    choice.finish_reason = finish_reason
-
-    usage = Mock()
-    usage.prompt_tokens = prompt_tokens
-    usage.completion_tokens = completion_tokens
-    usage.total_tokens = prompt_tokens + completion_tokens
-
-    response = Mock()
-    response.choices = [choice]
-    response.usage = usage
-    response.model = model
-    return response
+def _backend_response(content="Hello!", prompt_tokens=10, completion_tokens=20,
+                      model="gpt-4o-mini", finish_reason="stop"):
+    """Normalized provider-backend response dict."""
+    return {
+        "content": content,
+        "tokens_used": {
+            "prompt": prompt_tokens,
+            "completion": completion_tokens,
+            "total": prompt_tokens + completion_tokens,
+        },
+        "model": model,
+        "finish_reason": finish_reason,
+    }
 
 
 @pytest.fixture
@@ -47,15 +43,14 @@ def mock_config_service():
 
 @pytest.fixture
 def ai_service(mock_config_service):
-    """Create AIService with mocked OpenAI client and config service."""
+    """Create AIService with mocked provider backend and config service."""
     with patch.object(AIService, "__init__", lambda self, *a, **kw: None):
         service = AIService.__new__(AIService)
+    mock_backend = Mock()
+    mock_backend.call = AsyncMock(return_value=_backend_response())
+    mock_backend.supports_vision = Mock(return_value=True)
+    service._backends = {"OPENAI": mock_backend}
     service.client = Mock()
-    service.client.chat = Mock()
-    service.client.chat.completions = Mock()
-    service.client.chat.completions.create = AsyncMock(
-        return_value=_mock_openai_response()
-    )
     service.config_service = mock_config_service
     return service
 
@@ -65,34 +60,28 @@ def ai_service(mock_config_service):
 # ---------------------------------------------------------------------------
 
 class TestAIServiceInit:
-    def test_raises_without_api_key(self):
+    def test_raises_without_any_api_key(self):
         mock_db = Mock()
         mock_config_svc = Mock()
-        with patch("src.services.ai_service.settings") as mock_settings:
-            mock_settings.OPENAI_API_KEY = None
-            with pytest.raises(ValueError, match="OpenAI API key is required"):
+        with patch("src.services.ai_service.create_provider_backends", return_value={}):
+            with pytest.raises(ValueError, match="At least one LLM API key"):
                 AIService(db=mock_db, llm_config_service=mock_config_svc)
 
-    def test_creates_client_with_api_key(self):
+    def test_creates_backends_from_settings(self):
         mock_db = Mock()
         mock_config_svc = Mock()
+        mock_openai_backend = Mock()
+        mock_openai_backend.client = Mock()
         with patch("src.services.ai_service.settings") as mock_settings, \
-             patch("src.services.ai_service.AsyncOpenAI") as mock_openai:
-            mock_settings.OPENAI_API_KEY = "sk-test-key"
-            mock_settings.OPENAI_ORG_ID = "org-test"
+             patch(
+                 "src.services.ai_service.create_provider_backends",
+                 return_value={"OPENAI": mock_openai_backend},
+             ) as mock_factory:
             svc = AIService(db=mock_db, llm_config_service=mock_config_svc)
-            mock_openai.assert_called_once_with(api_key="sk-test-key", organization="org-test")
+            mock_factory.assert_called_once_with(mock_settings)
             assert svc.config_service is mock_config_svc
-
-    def test_creates_client_without_org(self):
-        mock_db = Mock()
-        mock_config_svc = Mock()
-        with patch("src.services.ai_service.settings") as mock_settings, \
-             patch("src.services.ai_service.AsyncOpenAI") as mock_openai:
-            mock_settings.OPENAI_API_KEY = "sk-test-key"
-            mock_settings.OPENAI_ORG_ID = None
-            AIService(db=mock_db, llm_config_service=mock_config_svc)
-            mock_openai.assert_called_once_with(api_key="sk-test-key", organization=None)
+            assert svc._backends["OPENAI"] is mock_openai_backend
+            assert svc.client is mock_openai_backend.client
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +104,7 @@ class TestCallLLM:
     async def test_passes_system_prompt(self, ai_service, mock_config_service):
         await ai_service.call_llm(user_prompt="Hi", system_prompt="Be helpful")
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         messages = call_kwargs["messages"]
         assert len(messages) == 2
         assert messages[0]["role"] == "system"
@@ -126,7 +115,7 @@ class TestCallLLM:
     async def test_no_system_prompt_only_user_message(self, ai_service, mock_config_service):
         await ai_service.call_llm(user_prompt="Hi")
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         messages = call_kwargs["messages"]
         assert len(messages) == 1
         assert messages[0]["role"] == "user"
@@ -138,10 +127,35 @@ class TestCallLLM:
         )
         await ai_service.call_llm(user_prompt="Test")
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         assert call_kwargs["model"] == "gpt-4o"
         assert call_kwargs["temperature"] == 0.3
         assert call_kwargs["max_tokens"] == 500
+
+    @pytest.mark.asyncio
+    async def test_routes_to_google_backend(self, ai_service, mock_config_service):
+        google_backend = Mock()
+        google_backend.call = AsyncMock(
+            return_value=_backend_response(model="gemini-2.5-flash")
+        )
+        ai_service._backends["GOOGLE"] = google_backend
+        mock_config_service.get_effective_config.return_value = _make_effective_config(
+            provider="GOOGLE", model="gemini-2.5-flash"
+        )
+
+        result = await ai_service.call_llm(user_prompt="Hi")
+
+        google_backend.call.assert_awaited_once()
+        ai_service._backends["OPENAI"].call.assert_not_called()
+        assert result["model"] == "gemini-2.5-flash"
+
+    @pytest.mark.asyncio
+    async def test_missing_provider_raises(self, ai_service, mock_config_service):
+        mock_config_service.get_effective_config.return_value = _make_effective_config(
+            provider="GOOGLE", model="gemini-2.5-pro"
+        )
+        with pytest.raises(ValueError, match="GOOGLE"):
+            await ai_service.call_llm(user_prompt="Hi")
 
     @pytest.mark.asyncio
     async def test_runtime_overrides_passed_to_config_service(self, ai_service, mock_config_service):
@@ -162,14 +176,14 @@ class TestCallLLM:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
         )
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{"key": "value"}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{"key": "value"}')
         )
 
         result = await ai_service.call_llm(user_prompt="Give JSON")
 
         assert result["content"] == {"key": "value"}
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         assert call_kwargs["response_format"] == {"type": "json_object"}
 
     @pytest.mark.asyncio
@@ -177,8 +191,8 @@ class TestCallLLM:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
         )
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content="not valid json{")
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content="not valid json{")
         )
         result = await ai_service.call_llm(user_prompt="Give JSON")
         assert result["content"] == "not valid json{"
@@ -190,18 +204,18 @@ class TestCallLLM:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json", system_prompt="Be helpful"
         )
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{}')
         )
         await ai_service.call_llm(user_prompt="test", system_prompt="Be helpful")
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         system_content = call_kwargs["messages"][0]["content"]
         assert "json" in system_content.lower()
 
     @pytest.mark.asyncio
     async def test_authentication_error_propagates(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
+        ai_service._backends["OPENAI"].call = AsyncMock(
             side_effect=AuthenticationError(
                 message="Invalid API key",
                 response=Mock(status_code=401),
@@ -213,7 +227,7 @@ class TestCallLLM:
 
     @pytest.mark.asyncio
     async def test_rate_limit_error_propagates(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
+        ai_service._backends["OPENAI"].call = AsyncMock(
             side_effect=RateLimitError(
                 message="Rate limited",
                 response=Mock(status_code=429),
@@ -225,7 +239,7 @@ class TestCallLLM:
 
     @pytest.mark.asyncio
     async def test_api_error_propagates(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
+        ai_service._backends["OPENAI"].call = AsyncMock(
             side_effect=APIError(
                 message="Server error",
                 request=Mock(),
@@ -237,7 +251,7 @@ class TestCallLLM:
 
     @pytest.mark.asyncio
     async def test_unexpected_exception_propagates(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
+        ai_service._backends["OPENAI"].call = AsyncMock(
             side_effect=RuntimeError("Something broke")
         )
         with pytest.raises(RuntimeError, match="Something broke"):
@@ -257,8 +271,8 @@ class TestCallLLM:
 class TestSuggestTags:
     @pytest.mark.asyncio
     async def test_returns_tags_from_json_response(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(
                 content='{"tags": ["italian", "pasta", "dinner"]}'
             )
         )
@@ -275,8 +289,8 @@ class TestSuggestTags:
 
     @pytest.mark.asyncio
     async def test_returns_empty_list_on_unexpected_format(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content="Just some text, no JSON")
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content="Just some text, no JSON")
         )
         mock_config_service.get_effective_config.return_value = _make_effective_config()
 
@@ -287,7 +301,7 @@ class TestSuggestTags:
 
     @pytest.mark.asyncio
     async def test_returns_empty_list_on_exception(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
+        ai_service._backends["OPENAI"].call = AsyncMock(
             side_effect=RuntimeError("boom")
         )
 
@@ -298,8 +312,8 @@ class TestSuggestTags:
 
     @pytest.mark.asyncio
     async def test_passes_existing_tags_in_prompt(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{"tags": ["vegan"]}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{"tags": ["vegan"]}')
         )
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
@@ -311,7 +325,7 @@ class TestSuggestTags:
             existing_tags=["vegetarian"]
         )
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
         assert "vegetarian" in user_msg["content"]
 
@@ -321,8 +335,8 @@ class TestSuggestTags:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             user_prompt_template=template, response_format="json"
         )
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{"tags": ["quick"]}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{"tags": ["quick"]}')
         )
 
         await ai_service.suggest_tags(
@@ -331,7 +345,7 @@ class TestSuggestTags:
             existing_tags=["italian"]
         )
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
         assert "Quick Pasta" in user_msg["content"]
         assert "pasta, sauce" in user_msg["content"]
@@ -339,8 +353,8 @@ class TestSuggestTags:
 
     @pytest.mark.asyncio
     async def test_uses_tag_suggestion_service_name(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{"tags": []}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{"tags": []}')
         )
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
@@ -366,8 +380,8 @@ class TestParseNaturalLanguageSearch:
             "max_cook_time": 30,
             "difficulty": "Easy"
         }
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{"keywords":["quick","pasta"],"tags":["italian"],"max_prep_time":15,"max_cook_time":30,"difficulty":"Easy"}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{"keywords":["quick","pasta"],"tags":["italian"],"max_prep_time":15,"max_cook_time":30,"difficulty":"Easy"}')
         )
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
@@ -381,15 +395,15 @@ class TestParseNaturalLanguageSearch:
 
     @pytest.mark.asyncio
     async def test_returns_empty_dict_on_unexpected_format(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content="just text")
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content="just text")
         )
         result = await ai_service.parse_natural_language_search("something")
         assert result == {}
 
     @pytest.mark.asyncio
     async def test_returns_empty_dict_on_exception(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
+        ai_service._backends["OPENAI"].call = AsyncMock(
             side_effect=RuntimeError("fail")
         )
         result = await ai_service.parse_natural_language_search("something")
@@ -397,15 +411,15 @@ class TestParseNaturalLanguageSearch:
 
     @pytest.mark.asyncio
     async def test_query_included_in_prompt(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{}')
         )
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
         )
         await ai_service.parse_natural_language_search("vegan dinner ideas")
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
         assert "vegan dinner ideas" in user_msg["content"]
 
@@ -418,8 +432,8 @@ class TestCalculateNutrition:
     @pytest.mark.asyncio
     async def test_returns_nutrition_dict(self, ai_service, mock_config_service):
         nutrition_json = '{"calories":350,"protein_g":25,"carbs_g":40,"fat_g":10,"fiber_g":5,"sodium_mg":600}'
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content=nutrition_json)
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content=nutrition_json)
         )
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
@@ -436,8 +450,8 @@ class TestCalculateNutrition:
 
     @pytest.mark.asyncio
     async def test_returns_empty_dict_on_unexpected_format(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content="non-json text")
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content="non-json text")
         )
         result = await ai_service.calculate_nutrition(
             ingredients=[{"name": "flour", "amount": "1 cup"}]
@@ -446,7 +460,7 @@ class TestCalculateNutrition:
 
     @pytest.mark.asyncio
     async def test_returns_empty_dict_on_exception(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
+        ai_service._backends["OPENAI"].call = AsyncMock(
             side_effect=RuntimeError("fail")
         )
         result = await ai_service.calculate_nutrition(
@@ -456,8 +470,8 @@ class TestCalculateNutrition:
 
     @pytest.mark.asyncio
     async def test_ingredients_formatted_in_prompt(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{}')
         )
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
@@ -467,7 +481,7 @@ class TestCalculateNutrition:
             servings=4
         )
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
         assert "butter" in user_msg["content"]
         assert "50g" in user_msg["content"]
@@ -479,23 +493,23 @@ class TestCalculateNutrition:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             user_prompt_template=template, response_format="json"
         )
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{}')
         )
         await ai_service.calculate_nutrition(
             ingredients=[{"name": "egg", "amount": "2"}],
             servings=1
         )
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
         assert "egg" in user_msg["content"]
         assert "Servings: 1" in user_msg["content"]
 
     @pytest.mark.asyncio
     async def test_uses_nutrition_service_name(self, ai_service, mock_config_service):
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{}')
         )
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
@@ -517,8 +531,8 @@ class TestCallLLMWithImages:
     @pytest.mark.asyncio
     async def test_image_urls_sent_as_content_parts(self, ai_service, mock_config_service):
         mock_config_service.get_effective_config.return_value = _make_effective_config()
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content="vision result")
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content="vision result")
         )
 
         await ai_service.call_llm(
@@ -526,7 +540,7 @@ class TestCallLLMWithImages:
             image_urls=["data:image/png;base64,AAAA"],
         )
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
         assert isinstance(user_msg["content"], list)
         assert user_msg["content"][0] == {"type": "text", "text": "Describe this image"}
@@ -536,8 +550,8 @@ class TestCallLLMWithImages:
     @pytest.mark.asyncio
     async def test_multiple_images_sent(self, ai_service, mock_config_service):
         mock_config_service.get_effective_config.return_value = _make_effective_config()
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content="multi image")
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content="multi image")
         )
 
         await ai_service.call_llm(
@@ -545,20 +559,20 @@ class TestCallLLMWithImages:
             image_urls=["data:image/png;base64,A", "data:image/jpeg;base64,B"],
         )
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
         assert len(user_msg["content"]) == 3  # text + 2 images
 
     @pytest.mark.asyncio
     async def test_no_images_sends_plain_string(self, ai_service, mock_config_service):
         mock_config_service.get_effective_config.return_value = _make_effective_config()
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content="text result")
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content="text result")
         )
 
         await ai_service.call_llm(user_prompt="Just text")
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
         assert isinstance(user_msg["content"], str)
 
@@ -584,8 +598,8 @@ class TestParseRecipeFromImages:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
         )
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content=json.dumps(recipe_json))
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content=json.dumps(recipe_json))
         )
 
         result = await ai_service.parse_recipe_from_images(
@@ -600,8 +614,8 @@ class TestParseRecipeFromImages:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
         )
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{}')
         )
 
         await ai_service.parse_recipe_from_images(
@@ -617,8 +631,8 @@ class TestParseRecipeFromImages:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
         )
-        ai_service.client.chat.completions.create = AsyncMock(
-            return_value=_mock_openai_response(content='{}')
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content='{}')
         )
 
         await ai_service.parse_recipe_from_images(
@@ -626,7 +640,7 @@ class TestParseRecipeFromImages:
             language_hint="Hebrew",
         )
 
-        call_kwargs = ai_service.client.chat.completions.create.call_args[1]
+        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
         user_msg = [m for m in call_kwargs["messages"] if m["role"] == "user"][0]
         text_content = user_msg["content"][0]["text"] if isinstance(user_msg["content"], list) else user_msg["content"]
         assert "Hebrew" in text_content
@@ -636,7 +650,7 @@ class TestParseRecipeFromImages:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
         )
-        ai_service.client.chat.completions.create = AsyncMock(
+        ai_service._backends["OPENAI"].call = AsyncMock(
             side_effect=Exception("API failed")
         )
 

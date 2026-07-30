@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
-import { apiClient, ApiError, type Tag, type ImageInfo } from '../lib/api-client';
+import { apiClient, ApiError, type Tag } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
@@ -14,8 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import TagSelector from '../components/ui/tag-selector';
 import ImageUploader from '../components/ImageUploader';
-import ImageThumbnailGrid from '../components/ImageThumbnailGrid';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 
 interface Ingredient {
   name: string;
@@ -41,7 +40,7 @@ const RecipeCreatePage: React.FC = () => {
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadedImages, setUploadedImages] = useState<ImageInfo[]>([]);
+  const [fromImageFiles, setFromImageFiles] = useState<File[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [parseSuccess, setParseSuccess] = useState(false);
@@ -59,6 +58,17 @@ const RecipeCreatePage: React.FC = () => {
     is_public: true,
     selectedTags: [],
   });
+
+  const fromImagePreviews = useMemo(
+    () => fromImageFiles.map((file) => ({ name: file.name, url: URL.createObjectURL(file) })),
+    [fromImageFiles]
+  );
+
+  useEffect(() => {
+    return () => {
+      fromImagePreviews.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+  }, [fromImagePreviews]);
 
   // Redirect if not authenticated
   React.useEffect(() => {
@@ -122,14 +132,13 @@ const RecipeCreatePage: React.FC = () => {
   };
 
   const handleParseImages = async () => {
-    if (uploadedImages.length === 0) return;
+    if (fromImageFiles.length === 0) return;
     setIsParsing(true);
     setError(null);
     setParseSuccess(false);
     try {
-      const imageIds = uploadedImages.map((img) => img.image_id);
       const result = await apiClient.parseRecipeFromImages(
-        imageIds,
+        fromImageFiles,
         languageHint || undefined,
       );
       setFormData((prev) => ({
@@ -153,6 +162,11 @@ const RecipeCreatePage: React.FC = () => {
     } finally {
       setIsParsing(false);
     }
+  };
+
+  const removeFromImageFile = (index: number) => {
+    setFromImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setParseSuccess(false);
   };
 
   const handleIngredientChange = (index: number, field: 'name' | 'amount', value: string) => {
@@ -253,9 +267,13 @@ const RecipeCreatePage: React.FC = () => {
 
       const createdRecipe = await apiClient.createRecipe(recipeData);
 
-      if (pendingFiles.length > 0) {
+      const imagesToAttach = [
+        ...pendingFiles,
+        ...(keepImages ? fromImageFiles : []),
+      ];
+      if (imagesToAttach.length > 0) {
         try {
-          await apiClient.uploadImages(pendingFiles, createdRecipe.id);
+          await apiClient.uploadImages(imagesToAttach, createdRecipe.id);
         } catch {
           // Recipe created; image upload failed — user can add images on edit
         }
@@ -300,21 +318,42 @@ const RecipeCreatePage: React.FC = () => {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {uploadedImages.length > 0 && (
-                <ImageThumbnailGrid images={uploadedImages} />
+              {fromImagePreviews.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {fromImagePreviews.map((preview, index) => (
+                    <div key={`${preview.name}-${index}`} className="relative group rounded-md overflow-hidden border border-purple-200 dark:border-purple-800">
+                      <img
+                        src={preview.url}
+                        alt={preview.name}
+                        className="w-full h-28 object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeFromImageFile(index)}
+                        disabled={isLoading || isParsing}
+                        className="absolute top-1 right-1 rtl:right-auto rtl:left-1 rounded-full bg-destructive/80 text-destructive-foreground p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label={t('image_upload.remove')}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      <p className="text-xs truncate px-2 py-1 bg-white/80 dark:bg-black/40">{preview.name}</p>
+                    </div>
+                  ))}
+                </div>
               )}
 
               <div className="rounded-lg border border-dashed border-purple-300 dark:border-purple-700 bg-white/60 dark:bg-purple-950/20 p-1">
                 <ImageUploader
+                  deferUpload
                   disabled={isLoading || isParsing}
-                  onUploadComplete={(images: ImageInfo[]) => {
-                    setUploadedImages((prev) => [...prev, ...images]);
+                  onFilesReady={(files) => {
+                    setFromImageFiles((prev) => [...prev, ...files]);
                     setParseSuccess(false);
                   }}
                 />
               </div>
 
-              {uploadedImages.length > 0 && (
+              {fromImageFiles.length > 0 && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="language_hint">{t('recipe.from_image.language_hint')}</Label>
@@ -331,7 +370,7 @@ const RecipeCreatePage: React.FC = () => {
                   <Button
                     type="button"
                     onClick={handleParseImages}
-                    disabled={isLoading || isParsing || uploadedImages.length === 0}
+                    disabled={isLoading || isParsing || fromImageFiles.length === 0}
                     className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 shadow-sm"
                   >
                     {isParsing ? (
@@ -367,7 +406,7 @@ const RecipeCreatePage: React.FC = () => {
                 </>
               )}
 
-              {uploadedImages.length === 0 && (
+              {fromImageFiles.length === 0 && (
                 <p className="text-sm text-purple-700/60 dark:text-purple-300/60 text-center">
                   {t('recipe.from_image.or_manual')}
                 </p>
