@@ -11,7 +11,11 @@ const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export interface ImageUploaderProps {
   onUploadComplete?: (images: ImageInfo[]) => void;
+  /** Required when uploading immediately (deferUpload=false). */
   recipeId?: number;
+  /** When true, files stay local and onFilesReady is called instead of uploading. */
+  deferUpload?: boolean;
+  onFilesReady?: (files: File[]) => void;
   maxFiles?: number;
   maxSizeMb?: number;
   className?: string;
@@ -26,6 +30,8 @@ interface PreviewFile {
 const ImageUploader: React.FC<ImageUploaderProps> = ({
   onUploadComplete,
   recipeId,
+  deferUpload = false,
+  onFilesReady,
   maxFiles = MAX_FILES,
   maxSizeMb = MAX_FILE_SIZE_MB,
   className,
@@ -91,6 +97,19 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   const handleUpload = useCallback(async () => {
     if (previews.length === 0) return;
+
+    if (deferUpload) {
+      onFilesReady?.(previews.map((p) => p.file));
+      previews.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      setPreviews([]);
+      return;
+    }
+
+    if (recipeId === undefined) {
+      setError(t('image_upload.error'));
+      return;
+    }
+
     setUploading(true);
     setError(null);
 
@@ -106,7 +125,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     } finally {
       setUploading(false);
     }
-  }, [previews, recipeId, onUploadComplete, t]);
+  }, [previews, recipeId, deferUpload, onFilesReady, onUploadComplete, t]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -142,7 +161,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Drop zone */}
       <div
         onDragEnter={handleDrag}
         onDragOver={handleDrag}
@@ -177,7 +195,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         />
       </div>
 
-      {/* Previews */}
       {previews.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {previews.map((p, i) => (
@@ -204,7 +221,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         </div>
       )}
 
-      {/* Upload button */}
       {previews.length > 0 && (
         <Button
           onClick={handleUpload}
@@ -219,13 +235,14 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           ) : (
             <>
               <Upload className="h-4 w-4" />
-              {t('image_upload.title')} ({previews.length})
+              {deferUpload
+                ? `${t('image_upload.add_files')} (${previews.length})`
+                : `${t('image_upload.title')} (${previews.length})`}
             </>
           )}
         </Button>
       )}
 
-      {/* Uploaded images */}
       {uploadedImages.length > 0 && (
         <div className="space-y-2">
           <p className="text-sm font-medium text-green-600">
@@ -249,7 +266,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <p className="text-sm text-destructive" role="alert">
           {error}

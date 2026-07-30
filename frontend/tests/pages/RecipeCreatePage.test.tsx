@@ -20,7 +20,8 @@ vi.mock('../../src/lib/api-client', () => ({
       title: '', description: '', ingredients: [], instructions: [],
       preparation_time: 30, cooking_time: 30, servings: 4, difficulty_level: 'Easy',
     }),
-    associateImagesWithRecipe: vi.fn().mockResolvedValue({ images: [] }),
+    uploadImages: vi.fn().mockResolvedValue({ images: [] }),
+    getAllTags: vi.fn().mockResolvedValue([]),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string) {

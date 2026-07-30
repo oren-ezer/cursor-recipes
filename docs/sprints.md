@@ -190,7 +190,7 @@ Nice to have features that can be implemented as needed:
 - #16 enhance login handling: forgot-my-password using user's email
 - #19 on registration send confirmation email and wait for approval 
 - #28 Implement ingredient search functionality - DONE
-- #29 Add recipe image upload to Supabase Storage 
+- #29 Add recipe image upload - DONE
 - #72 Implement advanced search filters
 - #77 Implement shopping list feature
 - #88 Implement rating system for recipes
@@ -198,7 +198,7 @@ Nice to have features that can be implemented as needed:
 - #104 add monitoring support including app health and performance
 - #105 add secure token storage (now could only use httpOnly cookies)
 - #106 add admin endpoint - DONE
-- #107 add multiplicity to image uploads
+- #107 add multiplicity to image uploads - DONE
 - #108 add AI support for creating a recipe by understanding its text using OCR (using translation or not?) based on an uploaded image
 - #111 add "serving suggestions" to recipes
 

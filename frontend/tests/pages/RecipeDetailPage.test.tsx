@@ -206,10 +206,10 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Image:')).toBeInTheDocument();
-        const img = screen.getByAltText(mockRecipe.title);
-        expect(img).toBeInTheDocument();
-        expect(img).toHaveAttribute('src', mockRecipe.image_url);
+        expect(screen.getByText('Image')).toBeInTheDocument();
+        const imgs = screen.getAllByAltText(mockRecipe.title);
+        expect(imgs.length).toBeGreaterThan(0);
+        expect(imgs.some((img) => img.getAttribute('src') === mockRecipe.image_url)).toBe(true);
       });
     });
   });

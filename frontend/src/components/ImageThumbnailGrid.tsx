@@ -7,13 +7,18 @@ interface ImageThumbnailGridProps {
   images: ImageInfo[];
   /** When provided, a delete button appears on each thumbnail */
   onDelete?: (imageId: string) => void;
+  /** When provided, a set-primary control appears on non-primary thumbnails */
+  onSetPrimary?: (imageId: string) => void;
   deletingId?: string | null;
+  settingPrimaryId?: string | null;
 }
 
 const ImageThumbnailGrid: React.FC<ImageThumbnailGridProps> = ({
   images,
   onDelete,
+  onSetPrimary,
   deletingId,
+  settingPrimaryId,
 }) => {
   const { t } = useLanguage();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -37,12 +42,32 @@ const ImageThumbnailGrid: React.FC<ImageThumbnailGridProps> = ({
               />
             </button>
 
+            {img.is_primary && (
+              <span className="absolute bottom-1 left-1 rtl:left-auto rtl:right-1 rounded bg-primary/90 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                {t('image_upload.primary_badge')}
+              </span>
+            )}
+
+            {onSetPrimary && !img.is_primary && (
+              <button
+                type="button"
+                onClick={() => onSetPrimary(img.image_id)}
+                disabled={settingPrimaryId === img.image_id}
+                className="absolute bottom-1 left-1 rtl:left-auto rtl:right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/80 disabled:opacity-50"
+                aria-label={t('image_upload.set_primary')}
+              >
+                {settingPrimaryId === img.image_id
+                  ? '…'
+                  : t('image_upload.set_primary')}
+              </button>
+            )}
+
             {onDelete && (
               <button
                 type="button"
                 onClick={() => onDelete(img.image_id)}
                 disabled={deletingId === img.image_id}
-                className="absolute top-1 right-1 rounded-full bg-red-600/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-700 disabled:opacity-50"
+                className="absolute top-1 right-1 rtl:right-auto rtl:left-1 rounded-full bg-red-600/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-700 disabled:opacity-50"
                 aria-label={t('image_upload.delete')}
               >
                 {deletingId === img.image_id ? (

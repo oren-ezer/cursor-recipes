@@ -357,7 +357,7 @@ describe('ApiClient', () => {
       })
 
       const file = new File([new Uint8Array(100)], 'photo.png', { type: 'image/png' })
-      const result = await apiClient.uploadImages([file])
+      const result = await apiClient.uploadImages([file], 1)
 
       expect(result).toEqual(mockResponse)
       expect(mockFetch).toHaveBeenCalledWith(
@@ -367,6 +367,9 @@ describe('ApiClient', () => {
           body: expect.any(FormData),
         })
       )
+
+      const formData = mockFetch.mock.calls[0][1].body as FormData
+      expect(formData.get('recipe_id')).toBe('1')
 
       const callHeaders = mockFetch.mock.calls[0][1].headers
       expect(callHeaders['Authorization']).toBe('Bearer test-token')
@@ -395,7 +398,7 @@ describe('ApiClient', () => {
       })
 
       const file = new File([new Uint8Array(100)], 'photo.png', { type: 'image/png' })
-      await expect(apiClient.uploadImages([file])).rejects.toThrow('File too large')
+      await expect(apiClient.uploadImages([file], 1)).rejects.toThrow('File too large')
     })
   })
 })

@@ -42,6 +42,7 @@ const RecipeCreatePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<ImageInfo[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [parseSuccess, setParseSuccess] = useState(false);
   const [keepImages, setKeepImages] = useState(true);
@@ -239,28 +240,21 @@ const RecipeCreatePage: React.FC = () => {
       const cleanIngredients = formData.ingredients.filter(ing => ing.name.trim() && ing.amount.trim());
       const cleanInstructions = formData.instructions.filter(inst => inst.trim());
 
-      const primaryImageUrl = keepImages && uploadedImages.length > 0
-        ? uploadedImages[0].serving_url
-        : (formData.image_url || undefined);
-
       const recipeData = {
         ...formData,
         ingredients: cleanIngredients,
         instructions: cleanInstructions,
-        image_url: primaryImageUrl,
+        image_url: formData.image_url || undefined,
         tag_ids: formData.selectedTags.map(tag => tag.id),
       };
 
       const createdRecipe = await apiClient.createRecipe(recipeData);
 
-      if (keepImages && uploadedImages.length > 0) {
+      if (pendingFiles.length > 0) {
         try {
-          await apiClient.associateImagesWithRecipe(
-            uploadedImages.map((img) => img.image_id),
-            createdRecipe.id,
-          );
+          await apiClient.uploadImages(pendingFiles, createdRecipe.id);
         } catch {
-          // Non-critical: recipe is created, images just won't be linked
+          // Recipe created; image upload failed — user can add images on edit
         }
       }
 
@@ -285,6 +279,27 @@ const RecipeCreatePage: React.FC = () => {
         description={t('recipe.create.description')}
       >
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Recipe Images (uploaded after create) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('recipe.form.images')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {pendingFiles.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {pendingFiles.length} {t('image_upload.add_files').toLowerCase()}
+                </p>
+              )}
+              <ImageUploader
+                deferUpload
+                disabled={isLoading || isParsing}
+                onFilesReady={(files) => {
+                  setPendingFiles((prev) => [...prev, ...files]);
+                }}
+              />
+            </CardContent>
+          </Card>
+
           {/* Create from Image */}
           <Card>
             <CardHeader>

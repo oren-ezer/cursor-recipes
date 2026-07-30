@@ -2,7 +2,7 @@
 
 from typing import Optional
 from sqlmodel import Field
-from sqlalchemy import Column, LargeBinary, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Integer, LargeBinary, UniqueConstraint
 from .base import BaseModel
 import uuid
 
@@ -18,7 +18,14 @@ class RecipeImage(BaseModel, table=True):
         unique=True,
         index=True,
     )
-    recipe_id: Optional[int] = Field(default=None, foreign_key="recipes.id")
+    recipe_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("recipes.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
     filename: str
     content_type: str
     size_bytes: int

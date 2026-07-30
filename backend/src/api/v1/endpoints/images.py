@@ -1,6 +1,6 @@
 """Image upload and serving endpoints."""
 
-from typing import Annotated, List, Optional
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -26,6 +26,7 @@ class ImageInfo(BaseModel):
     serving_url: str
     filename: str
     size_bytes: int
+    is_primary: bool = False
 
 
 class ImageUploadResponse(BaseModel):
@@ -42,16 +43,56 @@ def _require_auth(request: Request) -> dict:
     return user
 
 
+def _require_recipe_owner(db: Session, recipe_id: int, user: dict) -> Recipe:
+    recipe = db.exec(select(Recipe).where(Recipe.id == recipe_id)).first()
+    if not recipe:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Recipe not found",
+        )
+    is_owner = user.get("uuid") == recipe.user_id
+    is_superuser = bool(user.get("is_superuser"))
+    if not is_owner and not is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify images for this recipe",
+        )
+    return recipe
+
+
+def _to_image_info(row: RecipeImage, storage: ImageStorageBackend) -> ImageInfo:
+    return ImageInfo(
+        image_id=row.uuid,
+        serving_url=storage.get_serving_url(row.uuid),
+        filename=row.filename,
+        size_bytes=row.size_bytes,
+        is_primary=row.is_primary,
+    )
+
+
+def _clear_primaries(db: Session, recipe_id: int) -> None:
+    existing = db.exec(
+        select(RecipeImage).where(
+            RecipeImage.recipe_id == recipe_id,
+            RecipeImage.is_primary == True,  # noqa: E712
+        )
+    ).all()
+    for img in existing:
+        img.is_primary = False
+        db.add(img)
+
+
 @router.post("/upload", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_images(
     http_request: Request,
     images: List[UploadFile] = File(..., description="Image files to upload"),
-    recipe_id: Optional[int] = Form(None),
+    recipe_id: int = Form(..., description="Recipe to associate images with"),
     storage: Annotated[ImageStorageBackend, Depends(get_image_storage)] = None,
     db: Annotated[Session, Depends(get_database_session)] = None,
 ):
-    """Upload one or more images. Optionally associate them with a recipe."""
-    _require_auth(http_request)
+    """Upload one or more images and associate them with a recipe."""
+    user = _require_auth(http_request)
+    recipe = _require_recipe_owner(db, recipe_id, user)
 
     if not images:
         raise HTTPException(
@@ -65,6 +106,14 @@ async def upload_images(
         )
 
     max_bytes = settings.MAX_IMAGE_UPLOAD_SIZE_MB * 1024 * 1024
+
+    has_primary = db.exec(
+        select(RecipeImage).where(
+            RecipeImage.recipe_id == recipe_id,
+            RecipeImage.is_primary == True,  # noqa: E712
+        )
+    ).first() is not None
+
     results: List[ImageInfo] = []
 
     for idx, upload in enumerate(images):
@@ -82,35 +131,38 @@ async def upload_images(
                 detail=f"File '{upload.filename}' exceeds {settings.MAX_IMAGE_UPLOAD_SIZE_MB} MB limit",
             )
 
-        stored = storage.store(file_bytes, upload.filename or "image", upload.content_type)
+        stored = storage.store(
+            file_bytes,
+            upload.filename or "image",
+            upload.content_type,
+            recipe_id,
+        )
 
         image_row = db.exec(
             select(RecipeImage).where(RecipeImage.uuid == stored.image_id)
         ).first()
+        make_primary = not has_primary and idx == 0
         if image_row:
-            if recipe_id is not None:
-                image_row.recipe_id = recipe_id
-            if idx == 0:
+            if make_primary:
                 image_row.is_primary = True
+                has_primary = True
+                recipe.image_url = storage.get_serving_url(stored.image_id)
+                db.add(recipe)
             db.add(image_row)
-
-        results.append(
-            ImageInfo(
-                image_id=stored.image_id,
-                serving_url=storage.get_serving_url(stored.image_id),
-                filename=upload.filename or "image",
-                size_bytes=len(file_bytes),
+            results.append(_to_image_info(image_row, storage))
+        else:
+            results.append(
+                ImageInfo(
+                    image_id=stored.image_id,
+                    serving_url=storage.get_serving_url(stored.image_id),
+                    filename=upload.filename or "image",
+                    size_bytes=len(file_bytes),
+                    is_primary=make_primary,
+                )
             )
-        )
-
-    if recipe_id is not None and results:
-        recipe = db.exec(select(Recipe).where(Recipe.id == recipe_id)).first()
-        if recipe:
-            recipe.image_url = results[0].serving_url
-            db.add(recipe)
 
     db.commit()
-    logger.info(f"Uploaded {len(results)} image(s)")
+    logger.info(f"Uploaded {len(results)} image(s) for recipe {recipe_id}")
     return ImageUploadResponse(images=results)
 
 
@@ -127,60 +179,40 @@ async def get_recipe_images(
         .order_by(RecipeImage.is_primary.desc(), RecipeImage.created_at)
     ).all()
     return ImageUploadResponse(
-        images=[
-            ImageInfo(
-                image_id=row.uuid,
-                serving_url=storage.get_serving_url(row.uuid),
-                filename=row.filename,
-                size_bytes=row.size_bytes,
-            )
-            for row in rows
-        ]
+        images=[_to_image_info(row, storage) for row in rows]
     )
 
 
-class AssociateImagesRequest(BaseModel):
-    image_ids: List[str]
-    recipe_id: int
-
-
-@router.patch("/associate", response_model=ImageUploadResponse)
-async def associate_images_with_recipe(
+@router.patch("/{image_uuid}/primary", response_model=ImageInfo)
+async def set_primary_image(
+    image_uuid: str,
     http_request: Request,
-    request: AssociateImagesRequest,
     storage: Annotated[ImageStorageBackend, Depends(get_image_storage)] = None,
     db: Annotated[Session, Depends(get_database_session)] = None,
 ):
-    """Associate previously uploaded images with a recipe."""
-    _require_auth(http_request)
+    """Mark an image as the primary image for its recipe."""
+    user = _require_auth(http_request)
 
-    results: List[ImageInfo] = []
-    for idx, image_id in enumerate(request.image_ids):
-        image_row = db.exec(
-            select(RecipeImage).where(RecipeImage.uuid == image_id)
-        ).first()
-        if not image_row:
-            continue
-        image_row.recipe_id = request.recipe_id
-        if idx == 0:
-            image_row.is_primary = True
-        db.add(image_row)
-        results.append(ImageInfo(
-            image_id=image_row.uuid,
-            serving_url=storage.get_serving_url(image_row.uuid),
-            filename=image_row.filename,
-            size_bytes=image_row.size_bytes,
-        ))
+    image_row = db.exec(
+        select(RecipeImage).where(RecipeImage.uuid == image_uuid)
+    ).first()
+    if not image_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image not found",
+        )
 
-    if results:
-        recipe = db.exec(select(Recipe).where(Recipe.id == request.recipe_id)).first()
-        if recipe:
-            recipe.image_url = results[0].serving_url
-            db.add(recipe)
-
+    recipe = _require_recipe_owner(db, image_row.recipe_id, user)
+    _clear_primaries(db, image_row.recipe_id)
+    image_row.is_primary = True
+    db.add(image_row)
+    recipe.image_url = storage.get_serving_url(image_row.uuid)
+    db.add(recipe)
     db.commit()
-    logger.info(f"Associated {len(results)} image(s) with recipe {request.recipe_id}")
-    return ImageUploadResponse(images=results)
+    db.refresh(image_row)
+
+    logger.info(f"Set image {image_uuid} as primary for recipe {image_row.recipe_id}")
+    return _to_image_info(image_row, storage)
 
 
 @router.delete("/{image_uuid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -191,7 +223,7 @@ async def delete_image(
     db: Annotated[Session, Depends(get_database_session)] = None,
 ):
     """Delete a stored image by its UUID."""
-    _require_auth(http_request)
+    user = _require_auth(http_request)
 
     image_row = db.exec(
         select(RecipeImage).where(RecipeImage.uuid == image_uuid)
@@ -204,11 +236,12 @@ async def delete_image(
 
     recipe_id = image_row.recipe_id
     was_primary = image_row.is_primary
+    _require_recipe_owner(db, recipe_id, user)
 
     storage.delete(image_uuid)
     db.flush()
 
-    if recipe_id is not None and was_primary:
+    if was_primary:
         next_image = db.exec(
             select(RecipeImage)
             .where(RecipeImage.recipe_id == recipe_id)

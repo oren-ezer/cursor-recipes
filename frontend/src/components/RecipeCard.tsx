@@ -222,9 +222,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           </div>
           <div className="flex items-center justify-between">
             <span>{t('recipe.card.serves')}: {recipe.servings}</span>
-            {recipe.image_url && (
-              <span className="text-blue-600 dark:text-blue-400">{t('recipe.card.has_image')}</span>
-            )}
           </div>
           {/* Tags for default view */}
           {recipe.tags && recipe.tags.length > 0 && (
@@ -245,7 +242,21 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   };
 
   return (
-    <Card className={`hover:shadow-lg transition-shadow ${className}`}>
+    <Card className={`hover:shadow-lg transition-shadow overflow-hidden ${className}`}>
+      {recipe.image_url && (
+        <button
+          type="button"
+          onClick={handleView}
+          className="block w-full aspect-[16/10] overflow-hidden bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-label={recipe.title}
+        >
+          <img
+            src={recipe.image_url}
+            alt={recipe.title}
+            className="h-full w-full object-cover"
+          />
+        </button>
+      )}
       <CardHeader className="pb-3">
         <CardTitle className="text-lg line-clamp-2">{recipe.title}</CardTitle>
         <CardDescription className="line-clamp-2">

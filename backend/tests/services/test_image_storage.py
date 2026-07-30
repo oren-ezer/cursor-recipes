@@ -34,7 +34,7 @@ class TestDatabaseStorage:
 
     @patch("src.services.image_storage.uuid.uuid4", return_value=FAKE_UUID)
     def test_store_inserts_row_and_returns_stored_image(self, _mock_uuid, storage, db):
-        result = storage.store(FAKE_BYTES, "photo.jpg", "image/jpeg")
+        result = storage.store(FAKE_BYTES, "photo.jpg", "image/jpeg", recipe_id=7)
 
         assert isinstance(result, StoredImage)
         assert result.image_id == FAKE_UUID
@@ -48,6 +48,7 @@ class TestDatabaseStorage:
         assert saved_image.filename == "photo.jpg"
         assert saved_image.content_type == "image/jpeg"
         assert saved_image.size_bytes == len(FAKE_BYTES)
+        assert saved_image.recipe_id == 7
 
     def test_retrieve_returns_bytes_and_content_type(self, storage, db):
         mock_image = Mock()
@@ -105,7 +106,7 @@ class TestFileSystemStorage:
 
     @patch("src.services.image_storage.uuid.uuid4", return_value=FAKE_UUID)
     def test_store_writes_file_and_inserts_row(self, _mock_uuid, storage, db, tmp_path):
-        result = storage.store(FAKE_BYTES, "photo.jpg", "image/jpeg")
+        result = storage.store(FAKE_BYTES, "photo.jpg", "image/jpeg", recipe_id=3)
 
         assert result.image_id == FAKE_UUID
         assert result.storage_backend == "filesystem"
@@ -118,6 +119,7 @@ class TestFileSystemStorage:
         saved = db.add.call_args[0][0]
         assert saved.data is None
         assert saved.storage_ref == f"{FAKE_UUID}.jpg"
+        assert saved.recipe_id == 3
 
     def test_retrieve_reads_file(self, storage, db, tmp_path):
         (tmp_path / "test.png").write_bytes(FAKE_BYTES)
@@ -165,7 +167,7 @@ class TestS3Storage:
     def test_store_raises(self):
         s = S3Storage()
         with pytest.raises(NotImplementedError, match="S3 storage backend"):
-            s.store(b"x", "f.jpg", "image/jpeg")
+            s.store(b"x", "f.jpg", "image/jpeg", recipe_id=1)
 
     def test_retrieve_raises(self):
         s = S3Storage()

@@ -334,7 +334,11 @@ const RecipeDetailPage: React.FC = () => {
     );
   }
 
-  const isOwner = isAuthenticated && user && recipe.user_id && String(user.id) === String(recipe.user_id);
+  const isOwner = isAuthenticated && user && recipe.user_id && (
+    String(user.uuid) === String(recipe.user_id) ||
+    String(user.id) === String(recipe.user_id) ||
+    Boolean(user.is_superuser)
+  );
 
   return (
     <MainLayout>
@@ -432,26 +436,6 @@ const RecipeDetailPage: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                {(recipeImages.length > 0 || recipe.image_url) && (
-                  <div className="col-span-2">
-                    <span className="font-medium">{t('recipe.detail.image')}:</span>
-                    <div className="mt-2">
-                      {recipeImages.length > 0
-                        ? <ImageThumbnailGrid images={recipeImages} />
-                        : (
-                            <ImageThumbnailGrid
-                              images={[{
-                                image_id: 'legacy',
-                                serving_url: recipe.image_url!,
-                                filename: recipe.title,
-                                size_bytes: 0,
-                              }]}
-                            />
-                          )
-                      }
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -494,6 +478,30 @@ const RecipeDetailPage: React.FC = () => {
                 </ul>
               </CardContent>
             </Card>
+
+            {/* Images — bottom-right quarter when tags + ingredients fill the other cells */}
+            {(recipeImages.length > 0 || recipe.image_url) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t('recipe.detail.image')}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recipeImages.length > 0 ? (
+                    <ImageThumbnailGrid images={recipeImages} />
+                  ) : (
+                    <ImageThumbnailGrid
+                      images={[{
+                        image_id: 'legacy',
+                        serving_url: recipe.image_url!,
+                        filename: recipe.title,
+                        size_bytes: 0,
+                        is_primary: true,
+                      }]}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Instructions */}

@@ -366,12 +366,10 @@ class ApiClient {
   }
 
   // Image endpoints
-  async uploadImages(images: File[], recipeId?: number): Promise<ImageUploadResponse> {
+  async uploadImages(images: File[], recipeId: number): Promise<ImageUploadResponse> {
     const formData = new FormData();
     images.forEach((file) => formData.append('images', file));
-    if (recipeId !== undefined) {
-      formData.append('recipe_id', String(recipeId));
-    }
+    formData.append('recipe_id', String(recipeId));
 
     const currentToken = this.token || localStorage.getItem('authToken');
     const headers: Record<string, string> = {
@@ -405,10 +403,9 @@ class ApiClient {
     await this.request<void>(`/images/${imageId}`, { method: 'DELETE' });
   }
 
-  async associateImagesWithRecipe(imageIds: string[], recipeId: number): Promise<ImageUploadResponse> {
-    return this.request<ImageUploadResponse>('/images/associate', {
+  async setPrimaryImage(imageId: string): Promise<ImageInfo> {
+    return this.request<ImageInfo>(`/images/${imageId}/primary`, {
       method: 'PATCH',
-      body: JSON.stringify({ image_ids: imageIds, recipe_id: recipeId }),
     });
   }
 
@@ -494,6 +491,7 @@ interface ImageInfo {
   serving_url: string;
   filename: string;
   size_bytes: number;
+  is_primary?: boolean;
 }
 
 interface ImageUploadResponse {

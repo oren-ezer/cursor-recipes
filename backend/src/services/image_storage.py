@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Tuple
 import uuid
 import logging
 
@@ -26,7 +26,9 @@ class ImageStorageBackend(ABC):
     """Abstract base for image storage backends."""
 
     @abstractmethod
-    def store(self, file_bytes: bytes, filename: str, content_type: str) -> StoredImage:
+    def store(
+        self, file_bytes: bytes, filename: str, content_type: str, recipe_id: int
+    ) -> StoredImage:
         ...
 
     @abstractmethod
@@ -50,10 +52,13 @@ class DatabaseStorage(ImageStorageBackend):
         self.db = db
         self.api_prefix = api_prefix.rstrip("/")
 
-    def store(self, file_bytes: bytes, filename: str, content_type: str) -> StoredImage:
+    def store(
+        self, file_bytes: bytes, filename: str, content_type: str, recipe_id: int
+    ) -> StoredImage:
         image_uuid = str(uuid.uuid4())
         image = RecipeImage(
             uuid=image_uuid,
+            recipe_id=recipe_id,
             filename=filename,
             content_type=content_type,
             size_bytes=len(file_bytes),
@@ -100,7 +105,9 @@ class FileSystemStorage(ImageStorageBackend):
         self.api_prefix = api_prefix.rstrip("/")
         self.base_path.mkdir(parents=True, exist_ok=True)
 
-    def store(self, file_bytes: bytes, filename: str, content_type: str) -> StoredImage:
+    def store(
+        self, file_bytes: bytes, filename: str, content_type: str, recipe_id: int
+    ) -> StoredImage:
         image_uuid = str(uuid.uuid4())
         ext = Path(filename).suffix or ".bin"
         relative_path = f"{image_uuid}{ext}"
@@ -110,6 +117,7 @@ class FileSystemStorage(ImageStorageBackend):
 
         image = RecipeImage(
             uuid=image_uuid,
+            recipe_id=recipe_id,
             filename=filename,
             content_type=content_type,
             size_bytes=len(file_bytes),
@@ -156,7 +164,9 @@ class FileSystemStorage(ImageStorageBackend):
 class S3Storage(ImageStorageBackend):
     """Stub for future S3/MinIO/Supabase Storage integration."""
 
-    def store(self, file_bytes: bytes, filename: str, content_type: str) -> StoredImage:
+    def store(
+        self, file_bytes: bytes, filename: str, content_type: str, recipe_id: int
+    ) -> StoredImage:
         raise NotImplementedError("S3 storage backend is not yet implemented")
 
     def retrieve(self, image_id: str) -> Tuple[bytes, str]:

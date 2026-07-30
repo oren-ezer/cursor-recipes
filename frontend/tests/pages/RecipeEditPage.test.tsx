@@ -19,6 +19,8 @@ vi.mock('../../src/lib/api-client', () => ({
     updateRecipe: vi.fn(),
     getRecipeImages: vi.fn().mockResolvedValue({ images: [] }),
     deleteImage: vi.fn().mockResolvedValue(undefined),
+    setPrimaryImage: vi.fn(),
+    uploadImages: vi.fn().mockResolvedValue({ images: [] }),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string) {

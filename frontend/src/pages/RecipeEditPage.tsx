@@ -46,6 +46,7 @@ const RecipeEditPage: React.FC = () => {
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [existingImages, setExistingImages] = useState<ImageInfo[]>([]);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+  const [settingPrimaryId, setSettingPrimaryId] = useState<string | null>(null);
   const [formData, setFormData] = useState<RecipeFormData>({
     title: '',
     description: '',
@@ -132,11 +133,46 @@ const RecipeEditPage: React.FC = () => {
     setDeletingImageId(imageId);
     try {
       await apiClient.deleteImage(imageId);
-      setExistingImages((prev) => prev.filter((img) => img.image_id !== imageId));
+      const remaining = existingImages.filter((img) => img.image_id !== imageId);
+      // Refresh from server so primary promotion is reflected
+      if (recipeId) {
+        try {
+          const res = await apiClient.getRecipeImages(parseInt(recipeId));
+          setExistingImages(res.images);
+          const primary = res.images.find((img) => img.is_primary);
+          if (primary) {
+            handleInputChange('image_url', primary.serving_url);
+          } else if (remaining.length === 0) {
+            handleInputChange('image_url', '');
+          }
+        } catch {
+          setExistingImages(remaining);
+        }
+      } else {
+        setExistingImages(remaining);
+      }
     } catch {
       setError(t('image_upload.delete_error'));
     } finally {
       setDeletingImageId(null);
+    }
+  };
+
+  const handleSetPrimaryImage = async (imageId: string) => {
+    setSettingPrimaryId(imageId);
+    try {
+      const updated = await apiClient.setPrimaryImage(imageId);
+      setExistingImages((prev) =>
+        prev.map((img) => ({
+          ...img,
+          is_primary: img.image_id === updated.image_id,
+        }))
+      );
+      handleInputChange('image_url', updated.serving_url);
+    } catch {
+      setError(t('image_upload.set_primary_error'));
+    } finally {
+      setSettingPrimaryId(null);
     }
   };
 
@@ -430,16 +466,28 @@ const RecipeEditPage: React.FC = () => {
                   <ImageThumbnailGrid
                     images={existingImages}
                     onDelete={handleDeleteImage}
+                    onSetPrimary={handleSetPrimaryImage}
                     deletingId={deletingImageId}
+                    settingPrimaryId={settingPrimaryId}
                   />
                 </div>
               )}
               <ImageUploader
                 recipeId={recipe?.id}
-                disabled={isSaving}
+                disabled={isSaving || !recipe?.id}
                 onUploadComplete={(images: ImageInfo[]) => {
-                  setExistingImages((prev) => [...prev, ...images]);
-                  if (images.length > 0) {
+                  setExistingImages((prev) => {
+                    const merged = [...prev, ...images];
+                    return merged.map((img) => ({
+                      ...img,
+                      is_primary: img.is_primary ?? false,
+                    }));
+                  });
+                  const primary = images.find((img) => img.is_primary) || images[0];
+                  if (primary?.is_primary) {
+                    handleInputChange('image_url', primary.serving_url);
+                  } else if (!formData.image_url && images[0]) {
+                    // First images for a recipe with no primary yet — backend sets first as primary
                     handleInputChange('image_url', images[0].serving_url);
                   }
                 }}

@@ -176,19 +176,23 @@ describe('RecipeCard', () => {
       expect(screen.getByText('Hard')).toHaveClass('text-red-600')
     })
 
-    it('should show image indicator when recipe has image', () => {
+    it('should show recipe image when recipe has image_url', () => {
       const recipeWithImage = createMockRecipe({
         image_url: 'https://example.com/image.jpg'
       })
 
       renderRecipeCard({ recipe: recipeWithImage })
 
-      expect(screen.getByText('Has image')).toBeInTheDocument()
+      const img = screen.getByRole('img', { name: recipeWithImage.title })
+      expect(img).toBeInTheDocument()
+      expect(img).toHaveAttribute('src', 'https://example.com/image.jpg')
+      expect(screen.queryByText('Has image')).not.toBeInTheDocument()
     })
 
-    it('should not show image indicator when recipe has no image', () => {
+    it('should not show recipe image when recipe has no image', () => {
       renderRecipeCard({ recipe: defaultRecipe })
 
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
       expect(screen.queryByText('Has image')).not.toBeInTheDocument()
     })
   })

@@ -31,6 +31,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser({ 
             id: decodedToken.user_id, 
             email: decodedToken.sub,
+            uuid: decodedToken.uuid,
             is_superuser: decodedToken.is_superuser 
           }); 
         } else {
@@ -64,6 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser({ 
           id: decodedToken.user_id, 
           email: decodedToken.sub,
+          uuid: decodedToken.uuid,
           is_superuser: decodedToken.is_superuser 
         });
       } catch (error) {

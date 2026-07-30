@@ -96,12 +96,12 @@ describe('ImageUploader', () => {
   it('calls apiClient.uploadImages and shows success', async () => {
     mockUploadImages.mockResolvedValueOnce({
       images: [
-        { image_id: 'uuid-1', serving_url: '/api/v1/images/uuid-1', filename: 'photo.png', size_bytes: 1024 },
+        { image_id: 'uuid-1', serving_url: '/api/v1/images/uuid-1', filename: 'photo.png', size_bytes: 1024, is_primary: true },
       ],
     })
 
     const onComplete = vi.fn()
-    render(<ImageUploader onUploadComplete={onComplete} />)
+    render(<ImageUploader recipeId={42} onUploadComplete={onComplete} />)
 
     const input = screen.getByTestId('file-input')
     fireEvent.change(input, { target: { files: [createMockFile('photo.png')] } })
@@ -111,6 +111,7 @@ describe('ImageUploader', () => {
 
     await waitFor(() => {
       expect(mockUploadImages).toHaveBeenCalledTimes(1)
+      expect(mockUploadImages).toHaveBeenCalledWith(expect.any(Array), 42)
       expect(screen.getByText(/uploaded successfully/i)).toBeInTheDocument()
       expect(onComplete).toHaveBeenCalledWith([
         expect.objectContaining({ image_id: 'uuid-1' }),
@@ -121,7 +122,7 @@ describe('ImageUploader', () => {
   it('shows error message on upload failure', async () => {
     mockUploadImages.mockRejectedValueOnce(new Error('Network error'))
 
-    render(<ImageUploader />)
+    render(<ImageUploader recipeId={1} />)
     const input = screen.getByTestId('file-input')
     fireEvent.change(input, { target: { files: [createMockFile('photo.png')] } })
 

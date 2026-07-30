@@ -10,3 +10,10 @@
     - (cd backend && uv run pytest --cov=src --cov-report=term-missing)
 - run the frontend tests with coverage from curesor-recipes:
     - npm run test:coverage --prefix frontend
+
+
+Use in Swagger and on the webapp:
+
+username: orenadmin@gmail.com
+password: orenadmin@1234
+same pattern for all users

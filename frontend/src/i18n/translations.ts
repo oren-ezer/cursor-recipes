@@ -359,6 +359,10 @@ export const translations = {
     "image_upload.close": "Close",
     "image_upload.prev": "Previous image",
     "image_upload.next": "Next image",
+    "image_upload.primary_badge": "Primary",
+    "image_upload.set_primary": "Set as primary",
+    "image_upload.set_primary_error": "Failed to set primary image",
+    "image_upload.add_files": "Add images",
 
     // Recipe from Image (AI)
     "recipe.from_image.section_title": "Create from Image",
@@ -737,6 +741,10 @@ export const translations = {
     "image_upload.close": "סגור",
     "image_upload.prev": "תמונה קודמת",
     "image_upload.next": "תמונה הבאה",
+    "image_upload.primary_badge": "ראשית",
+    "image_upload.set_primary": "הגדר כראשית",
+    "image_upload.set_primary_error": "הגדרת התמונה הראשית נכשלה",
+    "image_upload.add_files": "הוסף תמונות",
 
     // Recipe from Image (AI)
     "recipe.from_image.section_title": "יצירה מתמונה",
