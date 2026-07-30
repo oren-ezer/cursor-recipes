@@ -1288,7 +1288,7 @@ const AdminPage: React.FC = () => {
                           <Input
                             type="number"
                             min="1"
-                            max="4000"
+                            max="16384"
                             value={llmFormData.max_tokens}
                             onChange={(e) => setLlmFormData({ ...llmFormData, max_tokens: parseInt(e.target.value) })}
                           />

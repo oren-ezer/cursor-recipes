@@ -41,7 +41,7 @@ class LLMConfig(SQLModel, table=True):
     provider: LLMProvider = Field(default=LLMProvider.OPENAI)
     model: str = Field(default="gpt-4o-mini")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=1000, ge=1, le=4000)
+    max_tokens: int = Field(default=1000, ge=1, le=16384)
     
     # Prompts (optional - use defaults if not set)
     system_prompt: Optional[str] = Field(default=None)

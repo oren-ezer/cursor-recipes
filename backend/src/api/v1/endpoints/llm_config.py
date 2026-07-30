@@ -30,7 +30,7 @@ class LLMConfigBase(BaseModel):
     provider: LLMProvider
     model: str = Field(..., max_length=MAX_LENGTHS["llm_model_name"])
     temperature: float = Field(ge=0.0, le=2.0)
-    max_tokens: int = Field(ge=1, le=4000)
+    max_tokens: int = Field(ge=1, le=16384)
     system_prompt: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_system_prompt"])
     user_prompt_template: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_user_prompt_template"])
     response_format: Optional[str] = Field(default=None, max_length=50)
@@ -58,7 +58,7 @@ class LLMConfigUpdate(BaseModel):
     provider: Optional[LLMProvider] = None
     model: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_model_name"])
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
-    max_tokens: Optional[int] = Field(None, ge=1, le=4000)
+    max_tokens: Optional[int] = Field(None, ge=1, le=16384)
     system_prompt: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_system_prompt"])
     user_prompt_template: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["llm_user_prompt_template"])
     response_format: Optional[str] = Field(default=None, max_length=50)

@@ -176,15 +176,28 @@ class TestCallLLM:
         mock_config_service.get_effective_config.return_value = _make_effective_config(
             response_format="json"
         )
-        ai_service._backends["OPENAI"].call = AsyncMock(
-            return_value=_backend_response(content='{"key": "value"}')
-        )
+        mock_backend = ai_service._backends["OPENAI"]
+        mock_backend.call = AsyncMock(return_value=_backend_response(content='{"key": "value"}'))
 
         result = await ai_service.call_llm(user_prompt="Give JSON")
 
         assert result["content"] == {"key": "value"}
-        call_kwargs = ai_service._backends["OPENAI"].call.call_args[1]
+        call_kwargs = mock_backend.call.call_args[1]
         assert call_kwargs["response_format"] == {"type": "json_object"}
+
+    @pytest.mark.asyncio
+    async def test_json_markdown_fence_is_stripped(self, ai_service, mock_config_service):
+        mock_config_service.get_effective_config.return_value = _make_effective_config(
+            response_format="json"
+        )
+        fenced = '```json\n{"title": "Hummus", "servings": 4}\n```'
+        ai_service._backends["OPENAI"].call = AsyncMock(
+            return_value=_backend_response(content=fenced)
+        )
+
+        result = await ai_service.call_llm(user_prompt="Give JSON")
+
+        assert result["content"] == {"title": "Hummus", "servings": 4}
 
     @pytest.mark.asyncio
     async def test_json_parse_failure_returns_raw_string(self, ai_service, mock_config_service):

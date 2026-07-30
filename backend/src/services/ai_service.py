@@ -19,6 +19,40 @@ import json
 logger = logging.getLogger(__name__)
 
 
+def _parse_json_content(content: str) -> Any:
+    """Parse JSON from an LLM string, tolerating markdown code fences."""
+    text = content.strip()
+    if not text:
+        raise json.JSONDecodeError("Empty content", content, 0)
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Strip ```json ... ``` or ``` ... ``` wrappers Gemini often returns
+    if text.startswith("```"):
+        lines = text.splitlines()
+        # Drop opening fence (``` or ```json)
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        # Drop closing fence
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+        return json.loads(text)
+
+    # Fallback: extract outermost {...} or [...]
+    start_obj, end_obj = text.find("{"), text.rfind("}")
+    start_arr, end_arr = text.find("["), text.rfind("]")
+    if start_obj != -1 and end_obj > start_obj and (start_arr == -1 or start_obj < start_arr):
+        return json.loads(text[start_obj : end_obj + 1])
+    if start_arr != -1 and end_arr > start_arr:
+        return json.loads(text[start_arr : end_arr + 1])
+
+    raise json.JSONDecodeError("No JSON object found", content, 0)
+
+
 class AIService:
     """Service for interacting with LLMs using database-driven multi-provider config."""
 
@@ -171,7 +205,7 @@ class AIService:
             content = result["content"]
             if effective_response_format == "json" and isinstance(content, str):
                 try:
-                    content = json.loads(content)
+                    content = _parse_json_content(content)
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse JSON response: {e}")
 
