@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, X, ImageIcon, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { apiClient, type ImageInfo } from '../lib/api-client';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -41,7 +41,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [previews, setPreviews] = useState<PreviewFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadedImages, setUploadedImages] = useState<ImageInfo[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -116,7 +115,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     try {
       const files = previews.map((p) => p.file);
       const response = await apiClient.uploadImages(files, recipeId);
-      setUploadedImages(response.images);
       onUploadComplete?.(response.images);
       previews.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       setPreviews([]);
@@ -241,29 +239,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             </>
           )}
         </Button>
-      )}
-
-      {uploadedImages.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-green-600">
-            {t('image_upload.success')}
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {uploadedImages.map((img) => (
-              <div key={img.image_id} className="rounded-lg overflow-hidden border">
-                <img
-                  src={img.serving_url}
-                  alt={img.filename}
-                  className="w-full h-32 object-cover"
-                />
-                <div className="flex items-center gap-1 px-2 py-1">
-                  <ImageIcon className="h-3 w-3 text-muted-foreground" />
-                  <p className="text-xs truncate">{img.filename}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
 
       {error && (

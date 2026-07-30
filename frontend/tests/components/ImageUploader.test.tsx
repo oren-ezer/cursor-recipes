@@ -93,7 +93,7 @@ describe('ImageUploader', () => {
     })
   })
 
-  it('calls apiClient.uploadImages and shows success', async () => {
+  it('calls apiClient.uploadImages and invokes onUploadComplete', async () => {
     mockUploadImages.mockResolvedValueOnce({
       images: [
         { image_id: 'uuid-1', serving_url: '/api/v1/images/uuid-1', filename: 'photo.png', size_bytes: 1024, is_primary: true },
@@ -112,7 +112,6 @@ describe('ImageUploader', () => {
     await waitFor(() => {
       expect(mockUploadImages).toHaveBeenCalledTimes(1)
       expect(mockUploadImages).toHaveBeenCalledWith(expect.any(Array), 42)
-      expect(screen.getByText(/uploaded successfully/i)).toBeInTheDocument()
       expect(onComplete).toHaveBeenCalledWith([
         expect.objectContaining({ image_id: 'uuid-1' }),
       ])

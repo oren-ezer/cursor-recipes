@@ -80,6 +80,11 @@ const mockRecipe = {
   is_public: true,
   created_at: '2023-01-01T00:00:00Z',
   updated_at: '2023-01-01T00:00:00Z',
+  tags: [
+    { id: 1, name: 'tag1', category: 'cuisine' },
+    { id: 2, name: 'tag2', category: 'cuisine' },
+    { id: 3, name: 'tag3', category: 'cuisine' },
+  ],
 };
 
 const mockUpdatedRecipe = {
@@ -199,9 +204,7 @@ describe('RecipeEditPage', () => {
         expect(screen.getByDisplayValue('45')).toBeInTheDocument(); // cooking time
         expect(screen.getByDisplayValue('4')).toBeInTheDocument(); // servings
         expect(screen.getByText(/difficulty level/i)).toBeInTheDocument();
-        
-        // Additional Settings
-        expect(screen.getByDisplayValue('https://example.com/image.jpg')).toBeInTheDocument();
+
         expect(screen.getByLabelText(/make this recipe public/i)).toBeChecked();
       });
     });
@@ -356,9 +359,9 @@ describe('RecipeEditPage', () => {
         expect(nameInputs.length).toBe(3);
       });
       
-      // Then remove one
+      // Then remove one ingredient (tag remove buttons are "Remove {name} tag")
       await waitFor(() => {
-        const removeButtons = screen.getAllByRole('button', { name: /remove/i });
+        const removeButtons = screen.getAllByRole('button', { name: /^Remove$/i });
         expect(removeButtons.length).toBeGreaterThan(0);
         fireEvent.click(removeButtons[0]);
       });
@@ -485,7 +488,7 @@ describe('RecipeEditPage', () => {
       
       await waitFor(() => {
         expect(screen.getByText('Recipe title is required')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /back to my recipes/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /update recipe/i })).toBeInTheDocument();
       });
     });
 
@@ -505,7 +508,7 @@ describe('RecipeEditPage', () => {
       
       await waitFor(() => {
         expect(screen.getByText('All ingredients must have both name and amount')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /back to my recipes/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /update recipe/i })).toBeInTheDocument();
       });
     });
 
@@ -525,7 +528,7 @@ describe('RecipeEditPage', () => {
       
       await waitFor(() => {
         expect(screen.getByText('All instructions must not be empty')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /back to my recipes/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /update recipe/i })).toBeInTheDocument();
       });
     });
 
@@ -545,7 +548,7 @@ describe('RecipeEditPage', () => {
       
       await waitFor(() => {
         expect(screen.getByText('Preparation and cooking times must be greater than 0')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /back to my recipes/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /update recipe/i })).toBeInTheDocument();
       });
     });
 
@@ -565,7 +568,7 @@ describe('RecipeEditPage', () => {
       
       await waitFor(() => {
         expect(screen.getByText('Servings must be greater than 0')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /back to my recipes/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /update recipe/i })).toBeInTheDocument();
       });
     });
   });
@@ -605,15 +608,18 @@ describe('RecipeEditPage', () => {
           servings: 4,
           difficulty_level: 'Medium',
           is_public: true,
-          image_url: 'https://example.com/image.jpg',
-          selectedTags: [],
-          tag_ids: [],
+          selectedTags: [
+            { id: 1, name: 'tag1', category: 'cuisine' },
+            { id: 2, name: 'tag2', category: 'cuisine' },
+            { id: 3, name: 'tag3', category: 'cuisine' },
+          ],
+          tag_ids: [1, 2, 3],
         });
       });
       
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/recipes/123', {
-          state: { message: 'Recipe updated successfully!' }
+          state: { message: 'Recipe updated successfully!', from: undefined },
         });
       });
     });
@@ -665,14 +671,13 @@ describe('RecipeEditPage', () => {
   });
 
   describe('Form State Management', () => {
-    it('should show error page when form validation fails', async () => {
+    it('should show inline error on the form when validation fails', async () => {
       const mockNavigate = vi.fn();
       vi.mocked(useNavigate).mockReturnValue(mockNavigate);
       
       renderWithRouter(<RecipeEditPage />);
       
       await waitFor(() => {
-        // Submit with invalid data to trigger error
         const titleInput = screen.getByDisplayValue('Test Recipe');
         fireEvent.change(titleInput, { target: { value: '' } });
         
@@ -681,35 +686,10 @@ describe('RecipeEditPage', () => {
       });
       
       await waitFor(() => {
-        // Should show error page with error message
         expect(screen.getByText('Recipe title is required')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /back to my recipes/i })).toBeInTheDocument();
-      });
-    });
-
-    it('should navigate back to my recipes when error page button is clicked', async () => {
-      const mockNavigate = vi.fn();
-      vi.mocked(useNavigate).mockReturnValue(mockNavigate);
-      
-      renderWithRouter(<RecipeEditPage />);
-      
-      await waitFor(() => {
-        // Submit with invalid data to trigger error
-        const titleInput = screen.getByDisplayValue('Test Recipe');
-        fireEvent.change(titleInput, { target: { value: '' } });
-        
-        const form = document.querySelector('form');
-        fireEvent.submit(form!);
-      });
-      
-      await waitFor(() => {
-        // Click the back button on error page
-        const backButton = screen.getByRole('button', { name: /back to my recipes/i });
-        fireEvent.click(backButton);
-      });
-      
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/recipes/my');
+        // Form remains available — not a full-page error
+        expect(screen.getByRole('button', { name: /update recipe/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /back to my recipes/i })).not.toBeInTheDocument();
       });
     });
   });

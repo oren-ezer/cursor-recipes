@@ -25,7 +25,7 @@ export const useRecipeDeletion = (options: UseRecipeDeletionOptions = {}) => {
     onError,
     onNavigate,
     navigateAfterDelete = false,
-    navigateTo = '/recipes/my',
+    navigateTo = '/my-recipes',
     showSuccessModal: enableSuccessModal = false
   } = options;
 

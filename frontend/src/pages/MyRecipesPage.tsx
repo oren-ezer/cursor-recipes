@@ -137,6 +137,7 @@ const MyRecipesPage: React.FC = () => {
                   key={recipe.id}
                   recipe={recipe}
                   variant="my-recipes"
+                  navFrom="my-recipes"
                   onDelete={handleDeleteRecipe}
                 />
               ))}

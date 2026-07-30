@@ -39,6 +39,24 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+vi.mock('../../src/components/ui/tag-selector', () => ({
+  default: ({ onChange }: { onChange: (tags: any[]) => void }) => (
+    <button
+      type="button"
+      data-testid="mock-set-tags"
+      onClick={() =>
+        onChange([
+          { id: 1, name: 'tag1' },
+          { id: 2, name: 'tag2' },
+          { id: 3, name: 'tag3' },
+        ])
+      }
+    >
+      Set tags
+    </button>
+  ),
+}));
+
 // Mock Select component with better structure
 vi.mock('../../src/components/ui/select', () => ({
   Select: ({ children, value, onValueChange, disabled }: any) => (
@@ -552,6 +570,8 @@ describe('RecipeCreatePage', () => {
       
       const instructionInput = screen.getByPlaceholderText(/Step 1\.\.\./i);
       fireEvent.change(instructionInput, { target: { value: 'Mix ingredients' } });
+
+      fireEvent.click(screen.getByTestId('mock-set-tags'));
       
       const submitButton = screen.getByRole('button', { name: /create recipe/i });
       fireEvent.click(submitButton);
@@ -567,9 +587,12 @@ describe('RecipeCreatePage', () => {
           servings: 4,
           difficulty_level: 'Easy',
           is_public: true,
-          image_url: undefined,
-          selectedTags: [],
-          tag_ids: [],
+          selectedTags: [
+            { id: 1, name: 'tag1' },
+            { id: 2, name: 'tag2' },
+            { id: 3, name: 'tag3' },
+          ],
+          tag_ids: [1, 2, 3],
         });
       });
       
@@ -597,6 +620,8 @@ describe('RecipeCreatePage', () => {
       
       const instructionInput = screen.getByPlaceholderText(/Step 1\.\.\./i);
       fireEvent.change(instructionInput, { target: { value: 'Mix ingredients' } });
+
+      fireEvent.click(screen.getByTestId('mock-set-tags'));
       
       const submitButton = screen.getByRole('button', { name: /create recipe/i });
       fireEvent.click(submitButton);
@@ -623,6 +648,8 @@ describe('RecipeCreatePage', () => {
       
       const instructionInput = screen.getByPlaceholderText(/Step 1\.\.\./i);
       fireEvent.change(instructionInput, { target: { value: 'Mix ingredients' } });
+
+      fireEvent.click(screen.getByTestId('mock-set-tags'));
       
       const submitButton = screen.getByRole('button', { name: /create recipe/i });
       fireEvent.click(submitButton);
@@ -649,6 +676,8 @@ describe('RecipeCreatePage', () => {
       
       const instructionInput = screen.getByPlaceholderText(/Step 1\.\.\./i);
       fireEvent.change(instructionInput, { target: { value: 'Mix ingredients' } });
+
+      fireEvent.click(screen.getByTestId('mock-set-tags'));
       
       const submitButton = screen.getByRole('button', { name: /create recipe/i });
       fireEvent.click(submitButton);

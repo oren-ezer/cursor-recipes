@@ -146,6 +146,7 @@ const RecipeListPage: React.FC = () => {
                   key={recipe.id}
                   recipe={recipe}
                   variant={user?.is_superuser ? "my-recipes" : "default"}
+                  navFrom="recipes"
                   onDelete={user?.is_superuser ? handleDeleteClick : undefined}
                 />
               ))}

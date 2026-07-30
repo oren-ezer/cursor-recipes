@@ -13,12 +13,29 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+  const pathname = location.pathname;
+  const navFrom = (location.state as { from?: string } | null)?.from;
+
+  const isRecipeDetailOrEdit = /^\/recipes\/\d+(\/edit)?$/.test(pathname);
 
   const isActivePath = (path: string) => {
     if (path === '/') {
-      return location.pathname === '/';
+      return pathname === '/';
     }
-    return location.pathname.startsWith(path);
+    if (path === '/my-recipes') {
+      return (
+        pathname === '/my-recipes' ||
+        pathname === '/recipes/my' ||
+        (isRecipeDetailOrEdit && navFrom === 'my-recipes')
+      );
+    }
+    if (path === '/recipes') {
+      if (pathname === '/recipes') return true;
+      if (pathname === '/recipes/my' || pathname === '/recipes/new') return false;
+      if (isRecipeDetailOrEdit) return navFrom !== 'my-recipes';
+      return false;
+    }
+    return pathname.startsWith(path);
   };
 
   const getLinkClasses = (path: string) => {

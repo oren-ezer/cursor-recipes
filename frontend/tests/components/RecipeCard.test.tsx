@@ -81,7 +81,9 @@ describe('RecipeCard', () => {
 
       fireEvent.click(screen.getByText('View Recipe'))
 
-      expect(mockNavigate).toHaveBeenCalledWith(`/recipes/${defaultRecipe.id}`)
+      expect(mockNavigate).toHaveBeenCalledWith(`/recipes/${defaultRecipe.id}`, {
+        state: { from: 'recipes' },
+      })
     })
 
     it('should navigate to recipe edit when Edit is clicked', () => {
@@ -92,7 +94,23 @@ describe('RecipeCard', () => {
 
       fireEvent.click(screen.getByText('Edit'))
 
-      expect(mockNavigate).toHaveBeenCalledWith(`/recipes/${defaultRecipe.id}/edit`)
+      expect(mockNavigate).toHaveBeenCalledWith(`/recipes/${defaultRecipe.id}/edit`, {
+        state: { from: 'my-recipes' },
+      })
+    })
+
+    it('should use navFrom over variant for navigation state', () => {
+      renderRecipeCard({
+        recipe: defaultRecipe,
+        variant: 'my-recipes',
+        navFrom: 'recipes',
+      })
+
+      fireEvent.click(screen.getByText('View'))
+
+      expect(mockNavigate).toHaveBeenCalledWith(`/recipes/${defaultRecipe.id}`, {
+        state: { from: 'recipes' },
+      })
     })
 
     it('should call onDelete when Delete is clicked', () => {

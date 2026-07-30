@@ -15,6 +15,8 @@ import type { Recipe } from '../lib/api-client';
 export interface RecipeCardProps {
   recipe: Recipe;
   variant?: 'default' | 'my-recipes' | 'compact';
+  /** Where the user opened this card from — drives back-nav and header highlight */
+  navFrom?: 'recipes' | 'my-recipes';
   showActions?: boolean;
   onEdit?: (recipe: Recipe) => void;
   onDelete?: (recipe: Recipe) => void;
@@ -27,6 +29,7 @@ export interface RecipeCardProps {
 const RecipeCard: React.FC<RecipeCardProps> = ({
   recipe,
   variant = 'default',
+  navFrom,
   showActions = true,
   onEdit,
   onDelete,
@@ -37,12 +40,15 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
 }) => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const from = navFrom ?? (variant === 'my-recipes' ? 'my-recipes' : 'recipes');
 
   const handleView = () => {
     if (onView) {
       onView(recipe);
     } else {
-      navigate(`/recipes/${recipe.id}`);
+      navigate(`/recipes/${recipe.id}`, {
+        state: { from },
+      });
     }
   };
 
@@ -50,7 +56,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
     if (onEdit) {
       onEdit(recipe);
     } else {
-      navigate(`/recipes/${recipe.id}/edit`);
+      navigate(`/recipes/${recipe.id}/edit`, {
+        state: { from },
+      });
     }
   };
 

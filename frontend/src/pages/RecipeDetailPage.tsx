@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, ApiError } from '../lib/api-client';
@@ -17,9 +17,11 @@ import ImageThumbnailGrid from '../components/ImageThumbnailGrid';
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
   
   const { isAuthenticated, user } = useAuth();
+  const fromMyRecipes = (location.state as { from?: string } | null)?.from === 'my-recipes';
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +59,7 @@ const RecipeDetailPage: React.FC = () => {
       setHasNavigated(true); // Mark that we're navigating
     },
     navigateAfterDelete: true,
-    navigateTo: '/recipes/my',
+    navigateTo: '/my-recipes',
     showSuccessModal: true // Enable success modal
   });
 
@@ -156,7 +158,7 @@ const RecipeDetailPage: React.FC = () => {
     }, []);
 
   const handleEdit = () => {
-    navigate(`/recipes/${recipeId}/edit`);
+    navigate(`/recipes/${recipeId}/edit`, { state: location.state });
   };
 
   const handleExportPdf = async () => {
@@ -324,9 +326,9 @@ const RecipeDetailPage: React.FC = () => {
             <Button 
               variant="outline" 
               className="mt-4"
-              onClick={() => navigate('/recipes')}
+              onClick={() => navigate(fromMyRecipes ? '/my-recipes' : '/recipes')}
             >
-              {t('recipe.detail.back')}
+              {fromMyRecipes ? t('recipe.detail.back_my') : t('recipe.detail.back')}
             </Button>
           </div>
         </PageContainer>
@@ -439,13 +441,13 @@ const RecipeDetailPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Tags */}
-            {recipe.tags && recipe.tags.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t('recipe.form.tags')}</CardTitle>
-                </CardHeader>
-                <CardContent>
+            {/* Tags — always shown to keep the 4-quarter layout */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('recipe.form.tags')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {recipe.tags && recipe.tags.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {recipe.tags.map((tag) => (
                       <span
@@ -456,9 +458,9 @@ const RecipeDetailPage: React.FC = () => {
                       </span>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                ) : null}
+              </CardContent>
+            </Card>
 
             {/* Ingredients */}
             <Card>
@@ -479,29 +481,27 @@ const RecipeDetailPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Images — bottom-right quarter when tags + ingredients fill the other cells */}
-            {(recipeImages.length > 0 || recipe.image_url) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t('recipe.detail.image')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {recipeImages.length > 0 ? (
-                    <ImageThumbnailGrid images={recipeImages} />
-                  ) : (
-                    <ImageThumbnailGrid
-                      images={[{
-                        image_id: 'legacy',
-                        serving_url: recipe.image_url!,
-                        filename: recipe.title,
-                        size_bytes: 0,
-                        is_primary: true,
-                      }]}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            {/* Images — always shown to keep the 4-quarter layout */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('recipe.detail.image')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {recipeImages.length > 0 ? (
+                  <ImageThumbnailGrid images={recipeImages} />
+                ) : recipe.image_url ? (
+                  <ImageThumbnailGrid
+                    images={[{
+                      image_id: 'legacy',
+                      serving_url: recipe.image_url,
+                      filename: recipe.title,
+                      size_bytes: 0,
+                      is_primary: true,
+                    }]}
+                  />
+                ) : null}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Instructions */}
@@ -527,14 +527,14 @@ const RecipeDetailPage: React.FC = () => {
           <div className="flex justify-center gap-4">
             <Button 
               variant="outline" 
-              onClick={() => navigate('/recipes')}
+              onClick={() => navigate(fromMyRecipes ? '/my-recipes' : '/recipes')}
             >
-              {t('recipe.detail.back')}
+              {fromMyRecipes ? t('recipe.detail.back_my') : t('recipe.detail.back')}
             </Button>
-            {isAuthenticated && (
+            {isAuthenticated && !fromMyRecipes && (
               <Button 
                 variant="outline" 
-                onClick={() => navigate('/recipes/my')}
+                onClick={() => navigate('/my-recipes')}
               >
                 {t('recipe.detail.back_my')}
               </Button>

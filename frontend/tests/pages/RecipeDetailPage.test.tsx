@@ -35,6 +35,7 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useParams: vi.fn(),
     useNavigate: vi.fn(),
+    useLocation: vi.fn(),
   };
 });
 
@@ -42,7 +43,7 @@ vi.mock('react-router-dom', async () => {
 import RecipeDetailPage from '../../src/pages/RecipeDetailPage';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { apiClient } from '../../src/lib/api-client';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 // Mock window.confirm
 const mockConfirm = vi.fn();
@@ -103,6 +104,13 @@ describe('RecipeDetailPage', () => {
     
     vi.mocked(useParams).mockReturnValue({ recipeId: '123' });
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
+    vi.mocked(useLocation).mockReturnValue({
+      pathname: '/recipes/123',
+      search: '',
+      hash: '',
+      state: null,
+      key: 'default',
+    } as ReturnType<typeof useLocation>);
     
     vi.mocked(apiClient.getRecipe).mockResolvedValue(mockRecipe);
     vi.mocked(apiClient.deleteRecipe).mockResolvedValue(undefined);
@@ -206,7 +214,7 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Image')).toBeInTheDocument();
+        expect(screen.getByText('Images')).toBeInTheDocument();
         const imgs = screen.getAllByAltText(mockRecipe.title);
         expect(imgs.length).toBeGreaterThan(0);
         expect(imgs.some((img) => img.getAttribute('src') === mockRecipe.image_url)).toBe(true);
@@ -329,7 +337,7 @@ describe('RecipeDetailPage', () => {
       await waitFor(() => {
         const myRecipesButton = screen.getByRole('button', { name: /my recipes/i });
         fireEvent.click(myRecipesButton);
-        expect(mockNavigate).toHaveBeenCalledWith('/recipes/my');
+        expect(mockNavigate).toHaveBeenCalledWith('/my-recipes');
       });
     });
   });
@@ -357,7 +365,7 @@ describe('RecipeDetailPage', () => {
       await waitFor(() => {
         const editButton = screen.getByRole('button', { name: /edit/i });
         fireEvent.click(editButton);
-        expect(mockNavigate).toHaveBeenCalledWith('/recipes/123/edit');
+        expect(mockNavigate).toHaveBeenCalledWith('/recipes/123/edit', { state: null });
       });
     });
 
@@ -417,7 +425,7 @@ describe('RecipeDetailPage', () => {
       
       // Now navigation should happen
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/recipes/my', {
+        expect(mockNavigate).toHaveBeenCalledWith('/my-recipes', {
           replace: true
         });
       });

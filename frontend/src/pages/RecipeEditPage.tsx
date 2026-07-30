@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, ApiError } from '../lib/api-client';
@@ -31,18 +31,19 @@ interface RecipeFormData {
   servings: number;
   difficulty_level: string;
   is_public: boolean;
-  image_url: string;
   selectedTags: Tag[];
 }
 
 const RecipeEditPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [existingImages, setExistingImages] = useState<ImageInfo[]>([]);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
@@ -57,7 +58,6 @@ const RecipeEditPage: React.FC = () => {
     servings: 4,
     difficulty_level: 'Easy',
     is_public: true,
-    image_url: '',
     selectedTags: [],
   });
 
@@ -74,7 +74,7 @@ const RecipeEditPage: React.FC = () => {
       if (!isAuthenticated) return;
 
       if (!recipeId) {
-        setError('Recipe ID is required');
+        setLoadError('Recipe ID is required');
         setIsLoading(false);
         return;
       }
@@ -97,14 +97,13 @@ const RecipeEditPage: React.FC = () => {
           servings: data.servings,
           difficulty_level: data.difficulty_level,
           is_public: data.is_public,
-          image_url: data.image_url || '',
           selectedTags: (data.tags || []) as Tag[],
         });
       } catch (err) {
         if (err instanceof ApiError) {
-          setError(err.message);
+          setLoadError(err.message);
         } else {
-          setError(t('recipe.list.error'));
+          setLoadError(t('recipe.list.error'));
         }
       } finally {
         setIsLoading(false);
@@ -139,12 +138,6 @@ const RecipeEditPage: React.FC = () => {
         try {
           const res = await apiClient.getRecipeImages(parseInt(recipeId));
           setExistingImages(res.images);
-          const primary = res.images.find((img) => img.is_primary);
-          if (primary) {
-            handleInputChange('image_url', primary.serving_url);
-          } else if (remaining.length === 0) {
-            handleInputChange('image_url', '');
-          }
         } catch {
           setExistingImages(remaining);
         }
@@ -168,7 +161,6 @@ const RecipeEditPage: React.FC = () => {
           is_primary: img.image_id === updated.image_id,
         }))
       );
-      handleInputChange('image_url', updated.serving_url);
     } catch {
       setError(t('image_upload.set_primary_error'));
     } finally {
@@ -254,8 +246,8 @@ const RecipeEditPage: React.FC = () => {
       return false;
     }
 
-    if (formData.image_url && !/^https?:\/\//i.test(formData.image_url)) {
-      setError('Image URL must start with http:// or https://');
+    if (formData.selectedTags.length < 3) {
+      setError(t('recipe.form.tags_min_required'));
       return false;
     }
 
@@ -281,14 +273,16 @@ const RecipeEditPage: React.FC = () => {
         ...formData,
         ingredients: cleanIngredients,
         instructions: cleanInstructions,
-        image_url: formData.image_url || undefined,
         tag_ids: formData.selectedTags.map(tag => tag.id),
       };
 
       await apiClient.updateRecipe(parseInt(recipeId), recipeData);
       
       navigate(`/recipes/${recipeId}`, {
-        state: { message: 'Recipe updated successfully!' }
+        state: {
+          message: 'Recipe updated successfully!',
+          from: (location.state as { from?: string } | null)?.from,
+        },
       });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to update recipe');
@@ -313,18 +307,18 @@ const RecipeEditPage: React.FC = () => {
     );
   }
 
-  if (error || !recipe) {
+  if (loadError || !recipe) {
     return (
       <MainLayout>
         <PageContainer>
           <div className="text-center">
             <p className="text-lg text-red-600 dark:text-red-400">
-              {error || 'Recipe not found'}
+              {loadError || 'Recipe not found'}
             </p>
             <Button 
               variant="outline" 
               className="mt-4"
-              onClick={() => navigate('/recipes/my')}
+              onClick={() => navigate('/my-recipes')}
             >
               {t('recipe.detail.back_my')}
             </Button>
@@ -417,39 +411,22 @@ const RecipeEditPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="difficulty">{t('recipe.form.difficulty')}</Label>
-                  <Select
-                    value={formData.difficulty_level}
-                    onValueChange={(value) => handleInputChange('difficulty_level', value)}
-                    disabled={isSaving}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Easy">{t('difficulty.easy')}</SelectItem>
-                      <SelectItem value="Medium">{t('difficulty.medium')}</SelectItem>
-                      <SelectItem value="Hard">{t('difficulty.hard')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="image_url">{t('recipe.form.image_url')}</Label>
-                  <Input
-                    id="image_url"
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) => handleInputChange('image_url', e.target.value)}
-                    placeholder="https://example.com/image.jpg"
-                    maxLength={2048}
-                    pattern="https?://.*"
-                    title="URL must start with http:// or https://"
-                    disabled={isSaving}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="difficulty">{t('recipe.form.difficulty')}</Label>
+                <Select
+                  value={formData.difficulty_level}
+                  onValueChange={(value) => handleInputChange('difficulty_level', value)}
+                  disabled={isSaving}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Easy">{t('difficulty.easy')}</SelectItem>
+                    <SelectItem value="Medium">{t('difficulty.medium')}</SelectItem>
+                    <SelectItem value="Hard">{t('difficulty.hard')}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
@@ -462,7 +439,6 @@ const RecipeEditPage: React.FC = () => {
             <CardContent className="space-y-4">
               {existingImages.length > 0 && (
                 <div className="mb-4">
-                  <p className="text-sm text-muted-foreground mb-2">{t('recipe.form.current_image')}</p>
                   <ImageThumbnailGrid
                     images={existingImages}
                     onDelete={handleDeleteImage}
@@ -483,13 +459,6 @@ const RecipeEditPage: React.FC = () => {
                       is_primary: img.is_primary ?? false,
                     }));
                   });
-                  const primary = images.find((img) => img.is_primary) || images[0];
-                  if (primary?.is_primary) {
-                    handleInputChange('image_url', primary.serving_url);
-                  } else if (!formData.image_url && images[0]) {
-                    // First images for a recipe with no primary yet — backend sets first as primary
-                    handleInputChange('image_url', images[0].serving_url);
-                  }
                 }}
               />
             </CardContent>
@@ -498,7 +467,7 @@ const RecipeEditPage: React.FC = () => {
           {/* Tags */}
           <Card>
             <CardHeader>
-              <CardTitle>{t('recipe.form.tags')}</CardTitle>
+              <CardTitle>{t('recipe.form.tags')} *</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -656,7 +625,7 @@ const RecipeEditPage: React.FC = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate(`/recipes/${recipeId}`)}
+              onClick={() => navigate(`/recipes/${recipeId}`, { state: location.state })}
               disabled={isSaving}
             >
               {t('recipe.form.cancel')}

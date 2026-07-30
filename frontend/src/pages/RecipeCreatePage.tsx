@@ -31,7 +31,6 @@ interface RecipeFormData {
   servings: number;
   difficulty_level: string;
   is_public: boolean;
-  image_url: string;
   selectedTags: Tag[];
 }
 
@@ -57,7 +56,6 @@ const RecipeCreatePage: React.FC = () => {
     servings: 4,
     difficulty_level: 'Easy',
     is_public: true,
-    image_url: '',
     selectedTags: [],
   });
 
@@ -222,6 +220,11 @@ const RecipeCreatePage: React.FC = () => {
       return false;
     }
 
+    if (formData.selectedTags.length < 3) {
+      setError(t('recipe.form.tags_min_required'));
+      return false;
+    }
+
     return true;
   };
 
@@ -244,7 +247,6 @@ const RecipeCreatePage: React.FC = () => {
         ...formData,
         ingredients: cleanIngredients,
         instructions: cleanInstructions,
-        image_url: formData.image_url || undefined,
         tag_ids: formData.selectedTags.map(tag => tag.id),
       };
 
@@ -471,7 +473,7 @@ const RecipeCreatePage: React.FC = () => {
           {/* Tags */}
           <Card>
             <CardHeader>
-              <CardTitle>{t('recipe.form.tags')}</CardTitle>
+              <CardTitle>{t('recipe.form.tags')} *</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -631,7 +633,7 @@ const RecipeCreatePage: React.FC = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate('/recipes/my')}
+              onClick={() => navigate('/my-recipes')}
               disabled={isLoading}
             >
               {t('recipe.form.cancel')}

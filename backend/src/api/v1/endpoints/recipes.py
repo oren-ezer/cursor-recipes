@@ -41,7 +41,7 @@ class RecipeCreate(BaseModel):
     difficulty_level: str = "Easy"
     is_public: bool = True
     image_url: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["image_url"])
-    tag_ids: Optional[List[int]] = None
+    tag_ids: List[int] = Field(..., min_length=3)
 
     @field_validator("title")
     @classmethod
@@ -83,7 +83,7 @@ class RecipeUpdate(BaseModel):
     difficulty_level: Optional[str] = None
     is_public: Optional[bool] = None
     image_url: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["image_url"])
-    tag_ids: Optional[List[int]] = None
+    tag_ids: Optional[List[int]] = Field(default=None, min_length=3)
 
     @field_validator("title")
     @classmethod

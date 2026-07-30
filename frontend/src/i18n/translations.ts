@@ -59,7 +59,6 @@ export const translations = {
     "recipe.form.cook_time": "Cooking Time (minutes)",
     "recipe.form.servings": "Servings",
     "recipe.form.difficulty": "Difficulty Level",
-    "recipe.form.image_url": "Image URL (optional)",
     "recipe.form.images": "Recipe Images",
     "recipe.form.current_image": "Current image",
     "recipe.form.tags": "Tags",
@@ -67,6 +66,7 @@ export const translations = {
     "recipe.form.tags_placeholder": "Select tags for your recipe...",
     "recipe.form.tags_help": "Add tags to help others discover your recipe. You can search by name or browse by category.",
     "recipe.form.tags_help_with_ai": "Add tags to help others discover your recipe. Use AI to suggest relevant tags based on your recipe title and ingredients.",
+    "recipe.form.tags_min_required": "Please select at least 3 tags",
     "recipe.form.ai_suggestion_no_title": "Please enter a recipe title before requesting AI tag suggestions.",
     "recipe.form.ai_suggestion_no_ingredients": "Please add at least one ingredient before requesting AI tag suggestions.",
     "recipe.form.ingredients": "Ingredients",
@@ -91,7 +91,7 @@ export const translations = {
     "recipe.form.edit_login_required": "Please log in to edit a recipe",
 
     "recipe.detail.info": "Recipe Information",
-    "recipe.detail.image": "Image",
+    "recipe.detail.image": "Images",
     "recipe.detail.available": "Available",
     "recipe.detail.back": "Back to Recipes",
     "recipe.detail.back_my": "Back to My Recipes",
@@ -437,7 +437,6 @@ export const translations = {
     "recipe.form.cook_time": "זמן בישול (דקות)",
     "recipe.form.servings": "מספר מנות",
     "recipe.form.difficulty": "רמת קושי",
-    "recipe.form.image_url": "קישור לתמונה (אופציונלי)",
     "recipe.form.images": "תמונות המתכון",
     "recipe.form.current_image": "תמונה נוכחית",
     "recipe.form.tags": "תגיות",
@@ -446,6 +445,7 @@ export const translations = {
     "recipe.form.tags_help": "הוסף תגיות כדי לעזור לאחרים למצוא את המתכון שלך. ניתן לחפש לפי שם או לדפדף לפי קטגוריה.",
     
     "recipe.form.tags_help_with_ai": "הוסף תגיות כדי לעזור לאחרים למצוא את המתכון שלך. השתמש ב-AI להצעת תגיות רלוונטיות לפי כותרת ורכיבי המתכון.",
+    "recipe.form.tags_min_required": "יש לבחור לפחות 3 תגיות",
     "recipe.form.ai_suggestion_no_title": "נא להזין כותרת מתכון לפני בקשת הצעות תגיות מ-AI.",
     "recipe.form.ai_suggestion_no_ingredients": "נא להוסיף לפחות רכיב אחד לפני בקשת הצעות תגיות מ-AI.",
     
@@ -473,7 +473,7 @@ export const translations = {
     "recipe.form.edit_login_required": "נא להתחבר כדי לערוך מתכון",
 
     "recipe.detail.info": "פרטי המתכון",
-    "recipe.detail.image": "תמונה",
+    "recipe.detail.image": "תמונות",
     "recipe.detail.available": "זמינה",
     "recipe.detail.back": "חזרה למתכונים",
     "recipe.detail.back_my": "חזרה למתכונים שלי",
