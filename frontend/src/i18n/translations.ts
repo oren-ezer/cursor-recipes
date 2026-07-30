@@ -326,7 +326,7 @@ export const translations = {
     "nutrition.fiber": "Fiber",
     "nutrition.sodium": "Sodium",
     "nutrition.disclaimer": "Nutritional values are AI-generated estimates based on typical ingredients and serving sizes. Actual values may vary.",
-    "nutrition.calculate": "Calculate Nutrition",
+    "nutrition.calculate": "Calculate Nutrition with AI",
     "nutrition.error": "Failed to calculate nutrition facts. Please try again.",
     
     // Common
@@ -366,6 +366,7 @@ export const translations = {
 
     // Recipe from Image (AI)
     "recipe.from_image.section_title": "Create from Image",
+    "recipe.from_image.ai_badge": "AI Powered",
     "recipe.from_image.description": "Upload a photo of a recipe and let AI extract the details",
     "recipe.from_image.upload_prompt": "Upload one or more images of a recipe to extract its details using AI",
     "recipe.from_image.parse_button": "Extract Recipe with AI",
@@ -708,7 +709,7 @@ export const translations = {
     "nutrition.fiber": "סיבים תזונתיים",
     "nutrition.sodium": "נתרן",
     "nutrition.disclaimer": "הערכים התזונתיים הם הערכות שנוצרו על ידי AI המבוססות על מרכיבים טיפוסיים וגודל מנה. ערכים בפועל עשויים להשתנות.",
-    "nutrition.calculate": "חשב ערכים תזונתיים",
+    "nutrition.calculate": "חשב ערכים תזונתיים עם AI",
     "nutrition.error": "נכשל בחישוב ערכים תזונתיים. אנא נסה שוב.",
     
     // Common
@@ -748,6 +749,7 @@ export const translations = {
 
     // Recipe from Image (AI)
     "recipe.from_image.section_title": "יצירה מתמונה",
+    "recipe.from_image.ai_badge": "מופעל ב-AI",
     "recipe.from_image.description": "העלה תמונה של מתכון ותן ל-AI לחלץ את הפרטים",
     "recipe.from_image.upload_prompt": "העלה תמונה אחת או יותר של מתכון כדי לחלץ את פרטיו באמצעות AI",
     "recipe.from_image.parse_button": "חלץ מתכון עם AI",

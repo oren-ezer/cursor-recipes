@@ -12,6 +12,7 @@ import ConfirmationModal from '../components/ui/confirmation-modal';
 import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
 import NutritionModal from '../components/nutrition-modal';
 import ImageThumbnailGrid from '../components/ImageThumbnailGrid';
+import { Sparkles } from 'lucide-react';
 
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
@@ -361,10 +362,19 @@ const RecipeDetailPage: React.FC = () => {
               <Button 
                 onClick={handleCalculateNutrition}
                 disabled={isCalculatingNutrition}
-                variant="outline"
-                className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-300 dark:border-green-700 hover:from-green-100 hover:to-emerald-100 dark:hover:from-green-900/30 dark:hover:to-emerald-900/30"
+                className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 shadow-sm"
               >
-                🥗 {t('nutrition.calculate')}
+                {isCalculatingNutrition ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    {t('nutrition.calculating')}
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    {t('nutrition.calculate')}
+                  </span>
+                )}
               </Button>
               <Button 
                 onClick={handleExportPdf}

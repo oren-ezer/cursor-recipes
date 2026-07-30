@@ -316,6 +316,7 @@ describe('RecipeCreatePage', () => {
     it('should display image upload section', () => {
       renderWithRouter(<RecipeCreatePage />);
 
+      expect(screen.getByText('Recipe Images')).toBeInTheDocument();
       expect(screen.getByText('Create from Image')).toBeInTheDocument();
     });
 

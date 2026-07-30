@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import TagSelector from '../components/ui/tag-selector';
 import ImageUploader from '../components/ImageUploader';
 import ImageThumbnailGrid from '../components/ImageThumbnailGrid';
+import { Sparkles } from 'lucide-react';
 
 interface Ingredient {
   name: string;
@@ -281,32 +282,20 @@ const RecipeCreatePage: React.FC = () => {
         description={t('recipe.create.description')}
       >
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Recipe Images (uploaded after create) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('recipe.form.images')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {pendingFiles.length > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {pendingFiles.length} {t('image_upload.add_files').toLowerCase()}
-                </p>
-              )}
-              <ImageUploader
-                deferUpload
-                disabled={isLoading || isParsing}
-                onFilesReady={(files) => {
-                  setPendingFiles((prev) => [...prev, ...files]);
-                }}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Create from Image */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('recipe.from_image.section_title')}</CardTitle>
-              <p className="text-sm text-muted-foreground">
+          {/* Create from Image (AI) */}
+          <Card className="border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/80 via-white to-indigo-50/80 dark:from-purple-950/40 dark:via-background dark:to-indigo-950/40 shadow-sm overflow-hidden">
+            <CardHeader className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 px-2.5 py-0.5 text-xs font-semibold text-white shadow-sm">
+                  <Sparkles className="h-3 w-3" />
+                  {t('recipe.from_image.ai_badge')}
+                </span>
+              </div>
+              <CardTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-100">
+                <Sparkles className="h-5 w-5 text-purple-500 dark:text-purple-300" />
+                {t('recipe.from_image.section_title')}
+              </CardTitle>
+              <p className="text-sm text-purple-800/70 dark:text-purple-200/70">
                 {t('recipe.from_image.upload_prompt')}
               </p>
             </CardHeader>
@@ -315,13 +304,15 @@ const RecipeCreatePage: React.FC = () => {
                 <ImageThumbnailGrid images={uploadedImages} />
               )}
 
-              <ImageUploader
-                disabled={isLoading || isParsing}
-                onUploadComplete={(images: ImageInfo[]) => {
-                  setUploadedImages((prev) => [...prev, ...images]);
-                  setParseSuccess(false);
-                }}
-              />
+              <div className="rounded-lg border border-dashed border-purple-300 dark:border-purple-700 bg-white/60 dark:bg-purple-950/20 p-1">
+                <ImageUploader
+                  disabled={isLoading || isParsing}
+                  onUploadComplete={(images: ImageInfo[]) => {
+                    setUploadedImages((prev) => [...prev, ...images]);
+                    setParseSuccess(false);
+                  }}
+                />
+              </div>
 
               {uploadedImages.length > 0 && (
                 <>
@@ -341,13 +332,23 @@ const RecipeCreatePage: React.FC = () => {
                     type="button"
                     onClick={handleParseImages}
                     disabled={isLoading || isParsing || uploadedImages.length === 0}
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 shadow-sm"
                   >
-                    {isParsing ? t('recipe.from_image.parsing') : t('recipe.from_image.parse_button')}
+                    {isParsing ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        {t('recipe.from_image.parsing')}
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        {t('recipe.from_image.parse_button')}
+                      </span>
+                    )}
                   </Button>
 
                   {parseSuccess && (
-                    <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                    <p className="text-sm text-green-600 dark:text-green-400 font-medium rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-3 py-2">
                       {t('recipe.from_image.success')}
                     </p>
                   )}
@@ -367,7 +368,7 @@ const RecipeCreatePage: React.FC = () => {
               )}
 
               {uploadedImages.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center">
+                <p className="text-sm text-purple-700/60 dark:text-purple-300/60 text-center">
                   {t('recipe.from_image.or_manual')}
                 </p>
               )}
@@ -493,6 +494,27 @@ const RecipeCreatePage: React.FC = () => {
                   {t('recipe.form.tags_help_with_ai')}
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Recipe Images (uploaded after create) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('recipe.form.images')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {pendingFiles.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {pendingFiles.length} {t('image_upload.add_files').toLowerCase()}
+                </p>
+              )}
+              <ImageUploader
+                deferUpload
+                disabled={isLoading || isParsing}
+                onFilesReady={(files) => {
+                  setPendingFiles((prev) => [...prev, ...files]);
+                }}
+              />
             </CardContent>
           </Card>
 
