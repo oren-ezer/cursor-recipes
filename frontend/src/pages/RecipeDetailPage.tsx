@@ -8,7 +8,6 @@ import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import RecipeCard from '../components/RecipeCard';
 import ConfirmationModal from '../components/ui/confirmation-modal';
 import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
 import NutritionModal from '../components/nutrition-modal';
@@ -349,15 +348,6 @@ const RecipeDetailPage: React.FC = () => {
         description={recipe.description}
       >
         <div className="space-y-6">
-          {/* Recipe Card Preview */}
-          <div className="max-w-md mx-auto">
-            <RecipeCard
-              recipe={recipe}
-              variant="compact"
-              showActions={false}
-            />
-          </div>
-
           {/* Export Success Message */}
           {exportSuccess && (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded text-center">

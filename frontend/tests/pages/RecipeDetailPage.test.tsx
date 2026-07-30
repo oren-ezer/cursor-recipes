@@ -166,10 +166,8 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        const recipeTitles = screen.getAllByText('Test Recipe');
-        expect(recipeTitles).toHaveLength(2); // One in page title, one in RecipeCard
-        const descriptions = screen.getAllByText('A delicious test recipe');
-        expect(descriptions).toHaveLength(2); // One in page description, one in RecipeCard
+        expect(screen.getByText('Test Recipe')).toBeInTheDocument();
+        expect(screen.getByText('A delicious test recipe')).toBeInTheDocument();
       });
     });
 
@@ -181,8 +179,7 @@ describe('RecipeDetailPage', () => {
         expect(screen.getByText('30 minutes')).toBeInTheDocument(); // preparation time
         expect(screen.getByText('45 minutes')).toBeInTheDocument(); // cooking time
         expect(screen.getByText('4 people')).toBeInTheDocument(); // servings
-        const mediumElements = screen.getAllByText('Medium');
-        expect(mediumElements).toHaveLength(2); // One in RecipeCard, one in Recipe Information
+        expect(screen.getByText('Medium')).toBeInTheDocument();
       });
     });
 
@@ -268,11 +265,7 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        const difficultyElements = screen.getAllByText('Easy');
-        expect(difficultyElements).toHaveLength(2); // One in RecipeCard, one in Recipe Information
-        difficultyElements.forEach(element => {
-          expect(element).toHaveClass('text-green-600');
-        });
+        expect(screen.getByText('Easy')).toHaveClass('text-green-600');
       });
     });
 
@@ -283,11 +276,7 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        const difficultyElements = screen.getAllByText('Medium');
-        expect(difficultyElements).toHaveLength(2); // One in RecipeCard, one in Recipe Information
-        difficultyElements.forEach(element => {
-          expect(element).toHaveClass('text-yellow-600');
-        });
+        expect(screen.getByText('Medium')).toHaveClass('text-yellow-600');
       });
     });
 
@@ -298,11 +287,7 @@ describe('RecipeDetailPage', () => {
       renderWithRouter(<RecipeDetailPage />);
       
       await waitFor(() => {
-        const difficultyElements = screen.getAllByText('Hard');
-        expect(difficultyElements).toHaveLength(2); // One in RecipeCard, one in Recipe Information
-        difficultyElements.forEach(element => {
-          expect(element).toHaveClass('text-red-600');
-        });
+        expect(screen.getByText('Hard')).toHaveClass('text-red-600');
       });
     });
   });
@@ -501,21 +486,6 @@ describe('RecipeDetailPage', () => {
       await waitFor(() => {
         expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Recipe Card Integration', () => {
-    it('should render RecipeCard component with correct props', async () => {
-      renderWithRouter(<RecipeDetailPage />);
-      
-      await waitFor(() => {
-        // RecipeCard should be rendered with the recipe data
-        // Use getAllByText since there are multiple elements with the same text
-        const recipeTitles = screen.getAllByText('Test Recipe');
-        expect(recipeTitles).toHaveLength(2); // One in page title, one in RecipeCard
-        const descriptions = screen.getAllByText('A delicious test recipe');
-        expect(descriptions).toHaveLength(2); // One in page description, one in RecipeCard
       });
     });
   });
