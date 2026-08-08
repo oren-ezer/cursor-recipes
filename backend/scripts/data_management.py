@@ -4,11 +4,17 @@ Data management: database dump, restore (upload), list one backup, and statistic
 
 All backup data lives under: backend/scripts/backups/<backup_subfolder>/
 
+Binary columns (e.g. recipe_images.data BYTEA) are stored in JSON as base64
+with ``_data_encoding: "base64"`` on the row (backup format 3+). Upload
+decodes them back to bytes. Re-dump after upgrading from format 2 — older
+dumps may contain unusable ``"<memory at …>"`` placeholders.
+
 Usage:
     python data_management.py dump [backup_subfolder]
     python data_management.py upload <backup_subfolder>
     python data_management.py upload_seed <backup_subfolder>
     python data_management.py upload_demo <backup_subfolder>
+    python data_management.py build_db <backup_subfolder> [--dataset seed|demo|full]
     python data_management.py list <backup_subfolder>
     python data_management.py stats
     python data_management.py clean [--yes] [--include-alembic]
@@ -20,13 +26,16 @@ Environment variables required:
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import json
 import logging
 import os
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AbstractSet, Dict, List
+from typing import AbstractSet, Any, Dict, List, Optional
 
 # Add the backend directory to Python path so we can import src modules
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -62,9 +71,32 @@ _SKIP_UPLOAD_TABLES = frozenset({"alembic_version"})
 _SEED_TABLES = ("users", "tags", "llm_configs")
 _DEMO_TABLES = _SEED_TABLES + ("recipes", "recipe_tags", "recipe_images")
 
+# Backup JSON format: 3 = BYTEA fields encoded as base64 with _data_encoding marker
+_BACKUP_FORMAT = 3
+_DATA_ENCODING_KEY = "_data_encoding"
+_DATA_ENCODING_BASE64 = "base64"
+_BINARY_FIELDS_KEY = "_binary_fields"
+
 
 def _quote_ident(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
+
+
+def _database_name_from_url(url: str) -> str:
+    """Return the Postgres database name from a connection URL (path after host)."""
+    after_at = url.split("@")[-1] if "@" in url else url
+    after_at = after_at.split("?", 1)[0]
+    if "/" not in after_at:
+        return after_at
+    return after_at.rsplit("/", 1)[-1] or after_at
+
+
+def _database_target_label(url: str) -> str:
+    """Host/path for warnings, with the database name called out explicitly."""
+    after_at = url.split("@")[-1] if "@" in url else url
+    after_at = after_at.split("?", 1)[0]
+    db_name = _database_name_from_url(url)
+    return f"{after_at} (database={db_name})"
 
 
 def _reflect_metadata(engine) -> MetaData:
@@ -107,6 +139,75 @@ def _hash_cleartext_passwords(table_name: str, row: dict) -> None:
     if pwd and not _is_bcrypt_hash(pwd):
         row["hashed_password"] = hash_password(pwd)
         logger.info("Hashed plain-text password for user %s", row.get("email", row.get("id")))
+
+
+def _is_binary_value(value: Any) -> bool:
+    return isinstance(value, (bytes, bytearray, memoryview))
+
+
+def _serialize_row_for_dump(row: dict) -> dict:
+    """Copy a DB row for JSON: encode binary columns as base64 + marker."""
+    out: dict = {}
+    binary_fields: List[str] = []
+    for key, value in row.items():
+        if _is_binary_value(value):
+            raw = bytes(value)
+            out[key] = base64.b64encode(raw).decode("ascii")
+            binary_fields.append(key)
+        else:
+            out[key] = value
+    if binary_fields:
+        out[_DATA_ENCODING_KEY] = _DATA_ENCODING_BASE64
+        out[_BINARY_FIELDS_KEY] = binary_fields
+    return out
+
+
+def _prepare_row_for_upload(table_name: str, row: dict) -> dict | None:
+    """Decode base64 binary fields; strip markers. Returns None if row should be skipped."""
+    encoding = row.pop(_DATA_ENCODING_KEY, None)
+    binary_fields = row.pop(_BINARY_FIELDS_KEY, None)
+    data = row.get("data")
+
+    if isinstance(data, str) and data.startswith("<memory at "):
+        logger.error(
+            "Skipping %s id=%s: legacy broken dump (data looks like '<memory at …>'). "
+            "Re-dump with format %s+ so BYTEA is stored as base64.",
+            table_name,
+            row.get("id", row.get("uuid")),
+            _BACKUP_FORMAT,
+        )
+        return None
+
+    fields_to_decode: List[str] = []
+    if isinstance(binary_fields, list) and binary_fields:
+        fields_to_decode = [f for f in binary_fields if isinstance(f, str)]
+    elif encoding == _DATA_ENCODING_BASE64:
+        fields_to_decode = ["data"] if isinstance(data, str) else []
+    elif (
+        encoding is None
+        and table_name == "recipe_images"
+        and isinstance(data, str)
+        and bool(data)
+    ):
+        fields_to_decode = ["data"]
+
+    for key in fields_to_decode:
+        value = row.get(key)
+        if not isinstance(value, str):
+            continue
+        try:
+            row[key] = base64.b64decode(value, validate=False)
+        except (binascii.Error, ValueError) as e:
+            logger.error(
+                "Failed to base64-decode %s.%s for id=%s: %s",
+                table_name,
+                key,
+                row.get("id", row.get("uuid")),
+                e,
+            )
+            return None
+
+    return row
 
 
 def _coerce_row_datetimes(row: dict) -> None:
@@ -263,7 +364,8 @@ class DataManagement:
             backup_info = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "database_url": self.database_url.split("@")[1] if "@" in self.database_url else "local",
-                "format": 2,
+                "format": _BACKUP_FORMAT,
+                "binary_encoding": _DATA_ENCODING_BASE64,
                 "tables": {},
             }
 
@@ -272,7 +374,10 @@ class DataManagement:
                     logger.info(f"Dumping table: {table_name}")
                     safe = _quote_ident(table_name)
                     result = session.execute(text(f"SELECT * FROM {safe}"))
-                    records = [dict(row._mapping) for row in result]
+                    records = [
+                        _serialize_row_for_dump(dict(row._mapping))
+                        for row in result
+                    ]
 
                     table_file = output_path / f"{table_name}.json"
                     with open(table_file, "w", encoding="utf-8") as f:
@@ -420,9 +525,14 @@ class DataManagement:
                     pk_cols = [c.name for c in table_obj.primary_key.columns]
 
                     uploaded_count = 0
+                    skipped_count = 0
                     for record_data in records:
                         try:
                             row = dict(record_data)
+                            row = _prepare_row_for_upload(table_name, row)
+                            if row is None:
+                                skipped_count += 1
+                                continue
                             allowed = {c.name for c in table_obj.columns}
                             row = {k: v for k, v in row.items() if k in allowed}
                             _coerce_row_datetimes(row)
@@ -452,7 +562,15 @@ class DataManagement:
                             continue
 
                     session.commit()
-                    logger.info(f"Uploaded {uploaded_count} records to {table_name}")
+                    if skipped_count:
+                        logger.warning(
+                            "Uploaded %s records to %s (%s skipped)",
+                            uploaded_count,
+                            table_name,
+                            skipped_count,
+                        )
+                    else:
+                        logger.info(f"Uploaded {uploaded_count} records to {table_name}")
 
                 seq_skip = frozenset(
                     _SKIP_UPLOAD_TABLES
@@ -468,6 +586,112 @@ class DataManagement:
         except Exception as e:
             logger.error(f"Data upload failed: {str(e)}")
             return False
+
+    def recreate_public_schema(self) -> bool:
+        """Drop and recreate the public schema (PostgreSQL) for a true empty database."""
+        try:
+            logger.warning("Dropping and recreating public schema...")
+            with self.engine.connect() as conn:
+                conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+                conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+                conn.execute(text("CREATE SCHEMA public"))
+                conn.execute(text("GRANT ALL ON SCHEMA public TO public"))
+                # postgres role may not exist on all hosts; ignore failures
+                try:
+                    conn.execute(text("GRANT ALL ON SCHEMA public TO CURRENT_USER"))
+                except Exception:
+                    pass
+            logger.info("Public schema recreated")
+            return True
+        except Exception as e:
+            logger.error("Failed to recreate public schema: %s", e)
+            return False
+
+    def run_alembic_upgrade(self, database_url: Optional[str] = None) -> bool:
+        """Run ``alembic upgrade head`` against this database (schema from migrations)."""
+        db_url = database_url or self.database_url
+        env = os.environ.copy()
+        env["DATABASE_URL"] = db_url
+        alembic_ini = Path(backend_dir) / "alembic.ini"
+        if not alembic_ini.is_file():
+            logger.error("alembic.ini not found at %s", alembic_ini)
+            return False
+        cmd = [
+            sys.executable,
+            "-m",
+            "alembic",
+            "-c",
+            str(alembic_ini),
+            "upgrade",
+            "head",
+        ]
+        logger.info("Running migrations: %s", " ".join(cmd))
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=backend_dir,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.stdout:
+                logger.info(result.stdout.strip())
+            if result.returncode != 0:
+                if result.stderr:
+                    logger.error(result.stderr.strip())
+                logger.error("alembic upgrade head failed (exit %s)", result.returncode)
+                return False
+            if result.stderr:
+                logger.info(result.stderr.strip())
+            logger.info("Migrations applied successfully")
+            return True
+        except Exception as e:
+            logger.error("Failed to run alembic: %s", e)
+            return False
+
+    def build_database(
+        self,
+        backup_dir: str,
+        *,
+        dataset: str = "demo",
+        verify_structure: bool = True,
+    ) -> bool:
+        """
+        Recreate schema from migrations, then populate from a backup.
+
+        dataset:
+          - seed: users, tags, llm_configs
+          - demo: seed + recipes, recipe_tags, recipe_images
+          - full: all tables in the backup (except alembic_version)
+        """
+        only_tables: tuple[str, ...] | None
+        if dataset == "seed":
+            only_tables = _SEED_TABLES
+        elif dataset == "demo":
+            only_tables = _DEMO_TABLES
+        elif dataset == "full":
+            only_tables = None
+        else:
+            logger.error("Unknown dataset %r (expected seed|demo|full)", dataset)
+            return False
+
+        if not self.recreate_public_schema():
+            return False
+        # Engine may cache metadata from before drop; dispose so reflection is fresh
+        self.engine.dispose()
+        if not self.run_alembic_upgrade():
+            return False
+        logger.info(
+            "Populating database from %s (dataset=%s)",
+            backup_dir,
+            dataset,
+        )
+        return self.upload_data(
+            backup_dir,
+            verify_structure=verify_structure,
+            only_tables=only_tables,
+        )
 
     def clean_all_data(self, *, include_alembic: bool = False) -> bool:
         """
@@ -639,6 +863,36 @@ def main() -> int:
     )
     upload_demo_parser.add_argument("--database-url", help="Database URL (defaults to env DATABASE_URL)")
 
+    build_db_parser = subparsers.add_parser(
+        "build_db",
+        help=(
+            "Recreate public schema, run alembic upgrade head, then populate from a backup "
+            "(default dataset=demo includes recipes + images)"
+        ),
+    )
+    build_db_parser.add_argument(
+        "backup_subfolder",
+        help="Subfolder name under backups/ (e.g. seed_with_images_verify)",
+    )
+    build_db_parser.add_argument(
+        "--dataset",
+        choices=("seed", "demo", "full"),
+        default="demo",
+        help="seed=users/tags/llm_configs; demo=+recipes/tags/images; full=all tables (default: demo)",
+    )
+    build_db_parser.add_argument("--database-url", help="Database URL (defaults to env DATABASE_URL)")
+    build_db_parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Skip interactive confirmation",
+    )
+    build_db_parser.add_argument(
+        "--skip-verification",
+        action="store_true",
+        help="Skip database structure verification before upload",
+    )
+
     args = parser.parse_args()
 
     if not args.mode:
@@ -673,6 +927,50 @@ def main() -> int:
             if success:
                 stats = manager.get_database_stats()
                 logger.info(f"Final database stats: {stats}")
+            return 0 if success else 1
+
+        if args.mode == "build_db":
+            root = _backups_root()
+            if not root.is_dir():
+                print(_format_backups_root_missing(args.mode))
+                return 1
+            name = args.backup_subfolder
+            target = root / name
+            if not target.is_dir():
+                print(_format_backup_subfolder_missing(args.mode, name))
+                return 1
+            if not (target / "backup_info.json").is_file():
+                print(f"Missing backup_info.json in {target}")
+                return 1
+            manager = DataManagement(database_url=getattr(args, "database_url", None))
+            if not args.yes:
+                try:
+                    reply = input(
+                        f"This DROPS schema public on {_database_target_label(manager.database_url)}, "
+                        f"runs alembic upgrade head, then loads dataset={args.dataset!r} from {name!r}. "
+                        "Type 'yes' to continue: "
+                    )
+                except EOFError:
+                    print("Cancelled (no input).")
+                    return 1
+                if reply.strip().lower() != "yes":
+                    print("Cancelled.")
+                    return 0
+            logger.info("Build DB source backup: %s", target.resolve())
+            success = manager.build_database(
+                str(target),
+                dataset=args.dataset,
+                verify_structure=not args.skip_verification,
+            )
+            if success:
+                stats = manager.get_database_stats()
+                logger.info("Final database stats: %s", stats)
+                print("\nDatabase built successfully.")
+                width = max((len(n) for n in stats), default=5)
+                width = max(width, len("Table"))
+                print(f"{'Table':<{width}}  {'Rows':>10}")
+                for table, count in stats.items():
+                    print(f"{table:<{width}}  {count:>10}")
             return 0 if success else 1
 
         manager = DataManagement(database_url=getattr(args, "database_url", None))

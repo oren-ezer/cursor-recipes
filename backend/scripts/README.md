@@ -4,7 +4,7 @@ JSON snapshots live under **`backend/scripts/backups/<subfolder>/`** (always the
 
 ## Files
 
-- `data_management.py` — CLI: `dump`, `upload`, `list`, `stats`, `clean`
+- `data_management.py` — CLI: `dump`, `upload`, `upload_seed`, `upload_demo`, `build_db`, `list`, `stats`, `clean`
 - `data_management.sh` — Shell wrapper
 - `README.md` — This file
 
@@ -23,8 +23,11 @@ backend/scripts/
 
 | Command | Subfolder | Behavior |
 |--------|-----------|----------|
-| `dump` | Optional | Writes to `backups/<subfolder>/`. If omitted, subfolder name defaults to `backup_YYYYMMDD_HHMMSS`. |
+| `dump` | Optional | Writes to `backups/<subfolder>/`. If omitted, subfolder name defaults to `backup_YYYYMMDD_HHMMSS`. Binary BYTEA (images) is base64 in JSON (format 3). |
 | `upload` | **Required** | Restores from `backups/<subfolder>/`. |
+| `upload_seed` | **Required** | Upserts users, tags, llm_configs only. |
+| `upload_demo` | **Required** | Upserts seed + recipes, recipe_tags, recipe_images. |
+| `build_db` | **Required** | Drops/recreates `public` schema, runs `alembic upgrade head`, then populates from the backup. Dataset: `seed` \| `demo` (default) \| `full`. |
 | `list` | **Required** | Prints `backup_info.json` (if present) and file list for `backups/<subfolder>/`. |
 | `stats` | — | Row counts for every table the DB exposes (same discovery as `dump`). |
 | `clean` | — | Deletes all rows in FK-safe order; leaves `alembic_version` unchanged (use `clean --include-alembic` in Python only if you really need that). |
@@ -36,6 +39,8 @@ backend/scripts/
 ./scripts/data_management.sh dump my_snapshot
 ./scripts/data_management.sh list backup_20260228_214601
 ./scripts/data_management.sh upload backup_20260228_214601
+./scripts/data_management.sh build_db seed_with_images_verify
+./scripts/data_management.sh build_db seed_with_images_verify full
 ./scripts/data_management.sh stats
 ./scripts/data_management.sh clean
 ./scripts/data_management.sh help
@@ -52,6 +57,9 @@ uv run python scripts/data_management.py dump my_snapshot
 uv run python scripts/data_management.py list backup_20260228_214601
 uv run python scripts/data_management.py upload backup_20260228_214601
 uv run python scripts/data_management.py upload my_snapshot --skip-verification
+
+uv run python scripts/data_management.py build_db seed_with_images_verify -y
+uv run python scripts/data_management.py build_db seed_with_images_verify --dataset full -y
 
 uv run python scripts/data_management.py stats
 
