@@ -9,10 +9,16 @@ from src.utils.pdf_export import (
     build_export_filename,
     build_export_filename_utf8,
     contains_hebrew,
+    is_rtl_language,
+    normalize_pdf_language,
     prepare_pdf_text,
     recipe_uses_rtl,
     register_pdf_fonts,
     resolve_pdf_fonts,
+    resolve_pdf_language,
+    translate_difficulty,
+    translate_pdf_text,
+    wrap_text_to_width,
 )
 
 
@@ -35,12 +41,49 @@ class TestPdfExportHelpers:
         assert recipe_uses_rtl(recipe)
 
     def test_prepare_pdf_text_escapes_xml(self):
-        assert prepare_pdf_text('Tom & "Jerry"') == "Tom &amp; &quot;Jerry&quot;"
+        assert prepare_pdf_text("Tom & <b>Jerry</b>") == "Tom &amp; &lt;b&gt;Jerry&lt;/b&gt;"
+
+    def test_prepare_pdf_text_keeps_quotes_unescaped(self):
+        # Quote entities would split the paragraph into separate fragments,
+        # which breaks the visual ordering of a reordered Hebrew line.
+        assert prepare_pdf_text("""Tom's "Jerry\"""") == """Tom's "Jerry\""""
 
     def test_prepare_pdf_text_reorders_hebrew(self):
         original = "מתכון לפנקייק"
-        prepared = prepare_pdf_text(original, rtl=True)
+        prepared = prepare_pdf_text(original)
         assert prepared != original
+
+    def test_prepare_pdf_text_reorders_hebrew_with_apostrophe_as_one_run(self):
+        prepared = prepare_pdf_text("• 500 גר' מסקרפונה")
+
+        assert "&apos;" not in prepared
+        assert "<br/>" not in prepared
+
+    def test_prepare_pdf_text_breaks_hebrew_lines_when_given_a_width(self):
+        fonts = register_pdf_fonts()
+        long_text = "לערבב חלמונים וסוכר היטב ואז לדפוק את הביצים עד לקבלת קצף יציב"
+
+        prepared = prepare_pdf_text(
+            long_text,
+            font_name=fonts.regular,
+            font_size=10,
+            max_width=80,
+        )
+
+        assert "<br/>" in prepared
+
+    def test_wrap_text_to_width_keeps_words_intact(self):
+        fonts = register_pdf_fonts()
+
+        lines = wrap_text_to_width(
+            "one two three four five six seven eight nine ten",
+            font_name=fonts.regular,
+            font_size=10,
+            max_width=60,
+        )
+
+        assert len(lines) > 1
+        assert " ".join(lines).split() == "one two three four five six seven eight nine ten".split()
 
     def test_build_export_filename_preserves_ascii(self):
         assert build_export_filename("Pancake Recipe", 7, "pdf") == "Pancake_Recipe.pdf"
@@ -75,3 +118,52 @@ class TestPdfExportHelpers:
         assert fonts.regular
         assert fonts.bold.endswith("-Bold")
         assert register_pdf_fonts() is fonts
+
+
+class TestPdfLocalization:
+    def _recipe(self, title="English", difficulty="Easy"):
+        return SimpleNamespace(
+            title=title,
+            description="Desc",
+            difficulty_level=difficulty,
+            ingredients=[{"name": "flour", "amount": "1 cup"}],
+            instructions=["Mix"],
+        )
+
+    def test_normalize_pdf_language_accepts_regional_tags(self):
+        assert normalize_pdf_language("he-IL") == "he"
+        assert normalize_pdf_language("EN") == "en"
+        assert normalize_pdf_language("fr") is None
+        assert normalize_pdf_language(None) is None
+
+    def test_is_rtl_language(self):
+        assert is_rtl_language("he")
+        assert not is_rtl_language("en")
+
+    def test_resolve_pdf_language_prefers_explicit_request(self):
+        hebrew_recipe = self._recipe(title="מתכון")
+
+        assert resolve_pdf_language("en", hebrew_recipe) == "en"
+
+    def test_resolve_pdf_language_falls_back_to_recipe_content(self):
+        assert resolve_pdf_language(None, self._recipe(title="מתכון")) == "he"
+        assert resolve_pdf_language(None, self._recipe()) == "en"
+        assert resolve_pdf_language("fr", self._recipe(title="מתכון")) == "he"
+
+    def test_translate_pdf_text_returns_localized_labels(self):
+        assert translate_pdf_text("en", "ingredients") == "Ingredients"
+        assert translate_pdf_text("he", "ingredients") == "רכיבים"
+
+    def test_translate_pdf_text_formats_placeholders(self):
+        assert translate_pdf_text("en", "minutes", count=30) == "30 minutes"
+        assert translate_pdf_text("he", "minutes", count=30) == "30 דקות"
+        assert translate_pdf_text("he", "step", number=2) == "שלב 2:"
+
+    def test_translate_pdf_text_falls_back_to_english(self):
+        assert translate_pdf_text("fr", "servings") == "Servings"
+
+    def test_translate_difficulty(self):
+        assert translate_difficulty("he", "Medium") == "בינוני"
+        assert translate_difficulty("en", "Medium") == "Medium"
+        assert translate_difficulty("he", "Unknown") == "Unknown"
+        assert translate_difficulty("he", None) == ""

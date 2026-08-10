@@ -554,7 +554,7 @@ describe('RecipeDetailPage', () => {
       fireEvent.click(pdfButton);
       
       await waitFor(() => {
-        expect(vi.mocked(apiClient.exportRecipeToPdf)).toHaveBeenCalledWith(123);
+        expect(vi.mocked(apiClient.exportRecipeToPdf)).toHaveBeenCalledWith(123, 'en');
       });
     });
 

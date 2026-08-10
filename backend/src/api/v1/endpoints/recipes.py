@@ -434,7 +434,11 @@ async def export_recipe_json(
 async def export_recipe_pdf(
     recipe_id: int,
     recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
-    request: Request
+    request: Request,
+    language: Optional[str] = Query(
+        default=None,
+        description="UI language for PDF labels ('en' or 'he'); inferred from the recipe when omitted",
+    ),
 ):
     """
     Export a recipe to PDF format.
@@ -462,7 +466,7 @@ async def export_recipe_pdf(
                     detail="Not authorized to export this private recipe"
                 )
 
-        pdf_content = recipe_service.export_recipe_to_pdf(recipe_id)
+        pdf_content = recipe_service.export_recipe_to_pdf(recipe_id, language=language)
 
         return StreamingResponse(
             iter([pdf_content]),

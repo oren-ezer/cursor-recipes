@@ -18,7 +18,7 @@ const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const { isAuthenticated, user } = useAuth();
   const fromMyRecipes = (location.state as { from?: string } | null)?.from === 'my-recipes';
@@ -169,7 +169,7 @@ const RecipeDetailPage: React.FC = () => {
     setExportSuccess(null);
     
     try {
-      const blob = await apiClient.exportRecipeToPdf(recipe.id);
+      const blob = await apiClient.exportRecipeToPdf(recipe.id, language);
       
       // Create download link
       const url = window.URL.createObjectURL(blob);

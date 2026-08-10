@@ -15,6 +15,42 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_PDF_LANGUAGE = "en"
+RTL_LANGUAGES = frozenset({"he"})
+
+PDF_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "en": {
+        "preparation_time": "Preparation Time",
+        "cooking_time": "Cooking Time",
+        "servings": "Servings",
+        "difficulty": "Difficulty",
+        "tags": "Tags",
+        "ingredients": "Ingredients",
+        "instructions": "Instructions",
+        "minutes": "{count} minutes",
+        "step": "Step {number}:",
+        "difficulty_easy": "Easy",
+        "difficulty_medium": "Medium",
+        "difficulty_hard": "Hard",
+        "difficulty_expert": "Expert",
+    },
+    "he": {
+        "preparation_time": "זמן הכנה",
+        "cooking_time": "זמן בישול",
+        "servings": "מספר מנות",
+        "difficulty": "רמת קושי",
+        "tags": "תגיות",
+        "ingredients": "רכיבים",
+        "instructions": "הוראות הכנה",
+        "minutes": "{count} דקות",
+        "step": "שלב {number}:",
+        "difficulty_easy": "קל",
+        "difficulty_medium": "בינוני",
+        "difficulty_hard": "קשה",
+        "difficulty_expert": "מומחה",
+    },
+}
+
 # Families that ship with the OS and cover both Latin and Hebrew, most
 # preferred first. Liberation/Nimbus are the metric-compatible clones that
 # stand in for Arial and Times New Roman on Linux hosts.
@@ -181,14 +217,100 @@ def recipe_uses_rtl(recipe, tags: list | None = None) -> bool:
     return any(contains_hebrew(text) for text in texts if text)
 
 
-def prepare_pdf_text(text: str | None, *, rtl: bool = False) -> str:
-    """Escape text for ReportLab and apply bidi reordering for Hebrew."""
+def normalize_pdf_language(language: str | None) -> str | None:
+    """Map an incoming language tag (``he``, ``he-IL``) to a supported key."""
+    if not language:
+        return None
+    key = language.strip().lower().replace("_", "-").split("-")[0]
+    return key if key in PDF_TRANSLATIONS else None
+
+
+def resolve_pdf_language(requested: str | None, recipe, tags: list | None = None) -> str:
+    """Pick the export language: an explicit request wins over content sniffing."""
+    normalized = normalize_pdf_language(requested)
+    if normalized:
+        return normalized
+    return "he" if recipe_uses_rtl(recipe, tags) else DEFAULT_PDF_LANGUAGE
+
+
+def is_rtl_language(language: str) -> bool:
+    return language in RTL_LANGUAGES
+
+
+def translate_pdf_text(language: str, key: str, **values) -> str:
+    """Look up a PDF label, falling back to English for unknown languages."""
+    catalog = PDF_TRANSLATIONS.get(language, PDF_TRANSLATIONS[DEFAULT_PDF_LANGUAGE])
+    template = catalog.get(key) or PDF_TRANSLATIONS[DEFAULT_PDF_LANGUAGE].get(key, key)
+    return template.format(**values) if values else template
+
+
+def translate_difficulty(language: str, difficulty: str | None) -> str:
+    """Translate a stored difficulty level, leaving unknown values untouched."""
+    if not difficulty:
+        return ""
+    key = f"difficulty_{difficulty.strip().lower()}"
+    catalog = PDF_TRANSLATIONS.get(language, PDF_TRANSLATIONS[DEFAULT_PDF_LANGUAGE])
+    return catalog.get(key, difficulty)
+
+
+def wrap_text_to_width(
+    text: str,
+    *,
+    font_name: str,
+    font_size: float,
+    max_width: float,
+) -> list[str]:
+    """Greedily split text into lines that fit within max_width."""
+    words = text.split()
+    if not words or max_width <= 0:
+        return [text]
+
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}" if current else word
+        if current and pdfmetrics.stringWidth(candidate, font_name, font_size) > max_width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def prepare_pdf_text(
+    text: str | None,
+    *,
+    font_name: str | None = None,
+    font_size: float | None = None,
+    max_width: float | None = None,
+) -> str:
+    """Escape text for ReportLab and apply bidi reordering for Hebrew.
+
+    Reordering keys off the text itself rather than the document direction, so
+    Hebrew stays readable even in an otherwise left-to-right export. ReportLab
+    has no bidi support of its own, and reordering is only correct per rendered
+    line, which is why line breaking happens here instead of being left to
+    ReportLab: pass the font metrics and the available width to get wrapped
+    output.
+    """
     if not text:
         return ""
     value = str(text)
-    if rtl and contains_hebrew(value):
-        value = get_display(value)
-    return escape(value, entities={"'": "&apos;", '"': "&quot;"})
+    if not contains_hebrew(value):
+        return escape(value)
+
+    if font_name and font_size and max_width:
+        lines = wrap_text_to_width(
+            value,
+            font_name=font_name,
+            font_size=font_size,
+            max_width=max_width,
+        )
+    else:
+        lines = [value]
+    return "<br/>".join(escape(get_display(line)) for line in lines)
 
 
 def make_paragraph_style(
@@ -203,12 +325,13 @@ def make_paragraph_style(
     space_before: float | None = None,
     space_after: float | None = None,
 ) -> ParagraphStyle:
+    # wordWrap="RTL" is deliberately not set: without the optional rlbidi
+    # backend ReportLab only reverses word order, which corrupts the text that
+    # prepare_pdf_text has already put into visual order.
     kwargs: dict = {
         "fontName": fonts.bold if bold else fonts.regular,
         "alignment": TA_RIGHT if rtl else TA_LEFT,
     }
-    if rtl:
-        kwargs["wordWrap"] = "RTL"
     if font_size is not None:
         kwargs["fontSize"] = font_size
     if color is not None:

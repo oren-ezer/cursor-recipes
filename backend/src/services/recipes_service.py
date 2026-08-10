@@ -450,12 +450,14 @@ class RecipeService:
         
         return self._add_tags_to_recipe_dict(recipe)
 
-    def export_recipe_to_pdf(self, recipe_id: int) -> bytes:
+    def export_recipe_to_pdf(self, recipe_id: int, language: str | None = None) -> bytes:
         """
         Export a recipe to PDF format.
         
         Args:
             recipe_id: The ID of the recipe to export
+            language: UI language code ("en"/"he") for labels; when omitted the
+                language is inferred from the recipe content
             
         Returns:
             PDF file content as bytes
@@ -472,10 +474,14 @@ class RecipeService:
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
         from src.utils.pdf_export import (
+            is_rtl_language,
             make_paragraph_style,
             prepare_pdf_text,
             recipe_uses_rtl,
             register_pdf_fonts,
+            resolve_pdf_language,
+            translate_difficulty,
+            translate_pdf_text,
         )
 
         recipe = self.get_recipe(recipe_id)
@@ -485,7 +491,14 @@ class RecipeService:
         fonts = register_pdf_fonts()
 
         recipe_dict = self._add_tags_to_recipe_dict(recipe)
-        rtl = recipe_uses_rtl(recipe, recipe_dict.get("tags"))
+        tags = recipe_dict.get("tags")
+        pdf_language = resolve_pdf_language(language, recipe, tags)
+        # Hebrew content is laid out right-to-left even when the labels are in
+        # English, otherwise the recipe itself becomes unreadable.
+        rtl = is_rtl_language(pdf_language) or recipe_uses_rtl(recipe, tags)
+
+        def label(key: str, **values) -> str:
+            return translate_pdf_text(pdf_language, key, **values)
 
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -519,49 +532,79 @@ class RecipeService:
             space_after=6,
             space_before=12,
         )
+        table_label_style = make_paragraph_style(
+            "TableLabel",
+            styles["Normal"],
+            fonts,
+            rtl=rtl,
+            bold=True,
+            font_size=10,
+        )
+        table_value_style = make_paragraph_style(
+            "TableValue",
+            styles["Normal"],
+            fonts,
+            rtl=rtl,
+            font_size=10,
+        )
 
-        story.append(Paragraph(prepare_pdf_text(recipe.title, rtl=rtl), title_style))
+        label_col_width = 2 * inch
+        value_col_width = 4 * inch
+        # ReportLab reserves 6pt of padding on each side of a frame or table cell,
+        # which has to come off the width available for manual RTL line breaking.
+        horizontal_padding = 12
+        content_width = doc.width - horizontal_padding
+
+        def paragraph(text: str, style, max_width: float) -> Paragraph:
+            return Paragraph(
+                prepare_pdf_text(
+                    text,
+                    font_name=style.fontName,
+                    font_size=style.fontSize,
+                    max_width=max_width,
+                ),
+                style,
+            )
+
+        def info_row(label_key: str, value: str) -> list:
+            return [
+                paragraph(label(label_key), table_label_style, label_col_width - horizontal_padding),
+                paragraph(value, table_value_style, value_col_width - horizontal_padding),
+            ]
+
+        story.append(paragraph(recipe.title, title_style, content_width))
         story.append(Spacer(1, 0.2 * inch))
 
         if recipe.description:
-            story.append(Paragraph(prepare_pdf_text(recipe.description, rtl=rtl), body_style))
+            story.append(paragraph(recipe.description, body_style, content_width))
             story.append(Spacer(1, 0.2 * inch))
 
         info_data = [
-            [
-                prepare_pdf_text("Preparation Time", rtl=rtl),
-                prepare_pdf_text(f"{recipe.preparation_time} minutes", rtl=rtl),
-            ],
-            [
-                prepare_pdf_text("Cooking Time", rtl=rtl),
-                prepare_pdf_text(f"{recipe.cooking_time} minutes", rtl=rtl),
-            ],
-            [
-                prepare_pdf_text("Servings", rtl=rtl),
-                prepare_pdf_text(str(recipe.servings), rtl=rtl),
-            ],
-            [
-                prepare_pdf_text("Difficulty", rtl=rtl),
-                prepare_pdf_text(recipe.difficulty_level, rtl=rtl),
-            ],
+            info_row("preparation_time", label("minutes", count=recipe.preparation_time)),
+            info_row("cooking_time", label("minutes", count=recipe.cooking_time)),
+            info_row("servings", str(recipe.servings)),
+            info_row("difficulty", translate_difficulty(pdf_language, recipe.difficulty_level)),
         ]
 
         if recipe_dict.get("tags"):
             tags_text = ", ".join(tag["name"] for tag in recipe_dict["tags"])
-            info_data.append([
-                prepare_pdf_text("Tags", rtl=rtl),
-                prepare_pdf_text(tags_text, rtl=rtl),
-            ])
+            info_data.append(info_row("tags", tags_text))
 
-        table_align = "RIGHT" if rtl else "LEFT"
-        info_table = Table(info_data, colWidths=[2 * inch, 4 * inch])
+        if rtl:
+            # Keep the label column on the reading-start side.
+            info_data = [row[::-1] for row in info_data]
+            col_widths = [value_col_width, label_col_width]
+            label_col = 1
+        else:
+            col_widths = [label_col_width, value_col_width]
+            label_col = 0
+
+        info_table = Table(info_data, colWidths=col_widths)
         info_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#e5e7eb")),
+            ("BACKGROUND", (label_col, 0), (label_col, -1), colors.HexColor("#e5e7eb")),
             ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
-            ("ALIGN", (0, 0), (-1, -1), table_align),
-            ("FONTNAME", (0, 0), (-1, -1), fonts.regular),
-            ("FONTNAME", (0, 0), (0, -1), fonts.bold),
-            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("ALIGN", (0, 0), (-1, -1), "RIGHT" if rtl else "LEFT"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
             ("TOPPADDING", (0, 0), (-1, -1), 8),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
@@ -570,26 +613,28 @@ class RecipeService:
         story.append(info_table)
         story.append(Spacer(1, 0.3 * inch))
 
-        story.append(Paragraph(prepare_pdf_text("Ingredients", rtl=rtl), heading_style))
+        story.append(paragraph(label("ingredients"), heading_style, content_width))
         for ingredient in recipe.ingredients:
             amount = ingredient.get("amount", "")
             name = ingredient.get("name", "")
             # Reorder the whole line at once so bidi keeps the spacing intact.
-            bullet_text = prepare_pdf_text(f"• {amount} {name}".strip(), rtl=rtl)
-            story.append(Paragraph(bullet_text, body_style))
+            story.append(paragraph(f"• {amount} {name}".strip(), body_style, content_width))
         story.append(Spacer(1, 0.2 * inch))
 
-        story.append(Paragraph(prepare_pdf_text("Instructions", rtl=rtl), heading_style))
+        story.append(paragraph(label("instructions"), heading_style, content_width))
         for index, instruction in enumerate(recipe.instructions, 1):
-            step_label = f"Step {index}:"
+            step_label = label("step", number=index)
             if rtl:
-                step_text = prepare_pdf_text(f"{step_label} {instruction}", rtl=True)
+                # Bold markup would split the line into fragments that cannot be
+                # reordered as a unit, so RTL steps stay in a single run.
+                step_text = paragraph(f"{step_label} {instruction}", body_style, content_width)
             else:
-                step_text = (
+                step_text = Paragraph(
                     f"<b>{prepare_pdf_text(step_label)}</b> "
-                    f"{prepare_pdf_text(instruction)}"
+                    f"{prepare_pdf_text(instruction)}",
+                    body_style,
                 )
-            story.append(Paragraph(step_text, body_style))
+            story.append(step_text)
             story.append(Spacer(1, 0.1 * inch))
 
         doc.build(story)

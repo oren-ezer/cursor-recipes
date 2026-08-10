@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from sqlalchemy.orm import Session
 from src.services.recipes_service import RecipeService
 from src.models.recipe import Recipe
@@ -1435,6 +1435,130 @@ class TestRecipeServiceWithTags:
 
         assert result[:4] == b"%PDF"
         assert register_pdf_fonts().regular.encode() in result
+        assert len(result) > 5000
+
+    def _hebrew_recipe_service(self):
+        """Build a service whose only recipe is a Hebrew one."""
+        mock_db = Mock()
+        mock_tag_service = Mock()
+        mock_recipe = Recipe(
+            id=2,
+            uuid="hebrew-recipe-uuid",
+            title="מתכון לפנקייק",
+            description="תיאור",
+            ingredients=[{"name": "מסקרפונה", "amount": "500 גר'"}],
+            instructions=["לערבב הכל", "לטגן במחבת"],
+            preparation_time=5,
+            cooking_time=10,
+            servings=2,
+            difficulty_level="Medium",
+            is_public=True,
+            image_url=None,
+            user_id="test-user-uuid",
+        )
+
+        mock_execute = Mock()
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = mock_recipe
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
+        mock_tag_service.get_tags_for_recipe.return_value = []
+
+        return RecipeService(mock_db, mock_tag_service)
+
+    def _captured_label_languages(self, service, language=None):
+        """Export a PDF and report which language every label was rendered in."""
+        import src.utils.pdf_export as pdf_export
+
+        languages = set()
+        keys = []
+        original = pdf_export.translate_pdf_text
+
+        def spy(lang, key, **values):
+            languages.add(lang)
+            keys.append(key)
+            return original(lang, key, **values)
+
+        with patch.object(pdf_export, "translate_pdf_text", side_effect=spy):
+            result = service.export_recipe_to_pdf(2, language=language)
+
+        assert result[:4] == b"%PDF"
+        return languages, keys
+
+    def test_export_recipe_to_pdf_labels_hebrew_recipe_in_hebrew(self):
+        """Without an explicit language the labels follow the recipe content."""
+        languages, keys = self._captured_label_languages(self._hebrew_recipe_service())
+
+        assert languages == {"he"}
+        assert {"preparation_time", "ingredients", "instructions", "step"} <= set(keys)
+
+    def test_export_recipe_to_pdf_honours_requested_language(self):
+        """An explicit UI language overrides the detected recipe language."""
+        languages, _ = self._captured_label_languages(
+            self._hebrew_recipe_service(), language="en"
+        )
+
+        assert languages == {"en"}
+
+    def test_export_recipe_to_pdf_ignores_unsupported_language(self):
+        """Unknown language tags fall back to the recipe's own language."""
+        languages, _ = self._captured_label_languages(
+            self._hebrew_recipe_service(), language="fr"
+        )
+
+        assert languages == {"he"}
+
+    def test_export_recipe_to_pdf_with_many_tags(self):
+        """Long tag lists should still produce a valid PDF."""
+        mock_db = Mock()
+        mock_tag_service = Mock()
+        mock_recipe = Recipe(
+            id=3,
+            uuid="tagged-recipe-uuid",
+            title="Horta with Garlic",
+            description="A delicious healthy food from the mountains.",
+            ingredients=[{"name": "horta", "amount": "1 bunch"}],
+            instructions=["Wash the horta", "Serve with garlic"],
+            preparation_time=30,
+            cooking_time=20,
+            servings=2,
+            difficulty_level="Easy",
+            is_public=True,
+            image_url=None,
+            user_id="test-user-uuid",
+        )
+        mock_tags = []
+        for i, name in enumerate(
+            [
+                "dairy-free",
+                "gluten-free",
+                "heart-healthy",
+                "high-fiber",
+                "low-carb",
+                "low-fat",
+                "mediterranean",
+                "steamed-greens",
+                "vegan",
+                "vegetarian",
+            ],
+            start=1,
+        ):
+            tag = Mock()
+            tag.id = i
+            tag.name = name
+            tag.category = "Dietary"
+            mock_tags.append(tag)
+
+        mock_execute = Mock()
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = mock_recipe
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
+        mock_tag_service.get_tags_for_recipe.return_value = mock_tags
+
+        result = RecipeService(mock_db, mock_tag_service).export_recipe_to_pdf(3)
+
+        assert result[:4] == b"%PDF"
         assert len(result) > 5000
 
     def test_export_recipe_to_pdf_not_found(self):

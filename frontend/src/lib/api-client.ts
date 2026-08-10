@@ -192,11 +192,12 @@ class ApiClient {
     });
   }
 
-  async exportRecipeToPdf(recipeId: number): Promise<Blob> {
+  async exportRecipeToPdf(recipeId: number, language?: string): Promise<Blob> {
     // Always check localStorage for the latest token
     const currentToken = this.token || localStorage.getItem('authToken');
-    
-    const response = await fetch(`${API_URL}/recipes/${recipeId}/export/pdf`, {
+
+    const query = language ? `?language=${encodeURIComponent(language)}` : '';
+    const response = await fetch(`${API_URL}/recipes/${recipeId}/export/pdf${query}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${currentToken}`,
