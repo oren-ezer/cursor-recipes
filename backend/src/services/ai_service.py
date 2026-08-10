@@ -235,6 +235,7 @@ class AIService:
         recipe_title: str, 
         ingredients: List[str],
         existing_tags: Optional[List[str]] = None,
+        available_tags: Optional[List[str]] = None,
         config_override: Optional[Dict[str, Any]] = None
     ) -> List[str]:
         """
@@ -245,6 +246,7 @@ class AIService:
             recipe_title: The recipe's title
             ingredients: List of ingredient names
             existing_tags: Optional list of tags already applied
+            available_tags: Optional list of all allowed tags to choose from
             config_override: Optional runtime configuration overrides
             
         Returns:
@@ -270,11 +272,16 @@ Provide your response as a JSON object with a "tags" array containing 3-7 tag su
             user_prompt = user_prompt_template.replace("{recipe_title}", recipe_title)
             user_prompt = user_prompt.replace("{ingredients}", ', '.join(ingredients))
             user_prompt = user_prompt.replace("{existing_tags}", existing_tags_str)
+            if available_tags and "{available_tags}" in user_prompt:
+                user_prompt = user_prompt.replace("{available_tags}", ', '.join(available_tags))
+            elif available_tags:
+                user_prompt += f"\n\nPlease ONLY choose from the following available tags: {', '.join(available_tags)}"
         else:
             # Fall back to default prompt
             existing_tags_str = f"\nExisting tags: {', '.join(existing_tags)}" if existing_tags else ""
+            available_tags_str = f"\nAvailable tags to choose from: {', '.join(available_tags)}" if available_tags else ""
             user_prompt = f"""Recipe: {recipe_title}
-Ingredients: {', '.join(ingredients)}{existing_tags_str}
+Ingredients: {', '.join(ingredients)}{existing_tags_str}{available_tags_str}
 
 Suggest appropriate tags for this recipe. Consider:
 - Type of meal (breakfast, lunch, dinner, dessert)

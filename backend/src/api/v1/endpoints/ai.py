@@ -22,10 +22,11 @@ from src.models.ai_models import (
 )
 from src.services.ai_service import AIService
 from src.services.llm_config_service import LLMConfigService
+from src.services.tag_service import TagService
 from src.core.config import settings
 from src.services.app_settings_service import AppSettingsService
 from src.utils.database_session import get_db
-from src.utils.dependencies import get_app_settings_service
+from src.utils.dependencies import get_app_settings_service, get_tag_service
 from sqlmodel import Session
 from openai import AuthenticationError, RateLimitError, APIError
 import base64
@@ -158,17 +159,24 @@ async def test_llm_call(
 async def suggest_recipe_tags(
     http_request: Request,
     request: TagSuggestionRequest,
-    ai_service: Annotated[AIService, Depends(get_ai_service)]
+    ai_service: Annotated[AIService, Depends(get_ai_service)],
+    tag_service: Annotated[TagService, Depends(get_tag_service)]
 ):
     """Suggest relevant tags for a recipe based on its title and ingredients."""
     _require_auth(http_request)
     try:
         logger.info(f"Suggesting tags for recipe: {request.recipe_title}")
         
+        # Get all available tags to guide the LLM
+        tags_response = tag_service.get_all_tags(limit=1000)
+        all_tags = tags_response.get("tags", [])
+        available_tags = [tag.name for tag in all_tags] if all_tags else None
+        
         suggested_tags = await ai_service.suggest_tags(
             recipe_title=request.recipe_title,
             ingredients=request.ingredients,
-            existing_tags=request.existing_tags
+            existing_tags=request.existing_tags,
+            available_tags=available_tags
         )
         
         # Calculate confidence based on number of suggestions
