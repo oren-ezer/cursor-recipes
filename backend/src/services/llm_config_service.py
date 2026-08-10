@@ -235,18 +235,17 @@ class LLMConfigService:
     
     def _get_env_defaults(self) -> Dict[str, Any]:
         """
-        Get default configuration from environment variables.
-        Final fallback if no database config exists.
-        
-        Returns:
-            Dictionary with default config parameters
+        Get default configuration from environment variables / app settings.
+        Final fallback if no database LLM config exists.
         """
-        from src.core.config import settings
+        from src.services.app_settings_service import AppSettingsService
+
+        app_settings = AppSettingsService(self.db)
         return {
             "provider": "OPENAI",
-            "model": settings.OPENAI_DEFAULT_MODEL,
-            "temperature": settings.OPENAI_TEMPERATURE,
-            "max_tokens": settings.OPENAI_MAX_TOKENS,
+            "model": app_settings.get_str("openai_default_model"),
+            "temperature": app_settings.get_float("openai_temperature"),
+            "max_tokens": app_settings.get_int("openai_max_tokens"),
             "system_prompt": None,
             "user_prompt_template": None,
             "response_format": None,

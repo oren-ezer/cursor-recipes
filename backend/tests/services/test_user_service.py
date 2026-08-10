@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import Mock, MagicMock
 from sqlalchemy.orm import Session
+from src.core.config import settings
+from src.services.app_settings_service import AppSettingsService
 from src.services.user_service import UserService
 from src.models.user import User
 from sqlmodel import select
@@ -9,7 +11,16 @@ from datetime import datetime
 
 class TestUserService:
     """Test cases for UserService."""
-    
+
+    @pytest.fixture(autouse=True)
+    def default_token_expiry(self, monkeypatch):
+        """Serve token expiry from defaults so mocked sessions see only user queries."""
+        monkeypatch.setattr(
+            AppSettingsService,
+            "get_int",
+            lambda self, key: settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+        )
+
     def test_get_user_found(self):
         """Test getting a user that exists."""
         # Arrange

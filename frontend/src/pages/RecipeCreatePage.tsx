@@ -133,13 +133,17 @@ const RecipeCreatePage: React.FC = () => {
 
   const handleParseImages = async () => {
     if (fromImageFiles.length === 0) return;
+    if (!languageHint.trim()) {
+      setError(t('recipe.from_image.language_required'));
+      return;
+    }
     setIsParsing(true);
     setError(null);
     setParseSuccess(false);
     try {
       const result = await apiClient.parseRecipeFromImages(
         fromImageFiles,
-        languageHint || undefined,
+        languageHint.trim(),
       );
       setFormData((prev) => ({
         ...prev,
@@ -356,13 +360,14 @@ const RecipeCreatePage: React.FC = () => {
               {fromImageFiles.length > 0 && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="language_hint">{t('recipe.from_image.language_hint')}</Label>
+                    <Label htmlFor="language_hint">{t('recipe.from_image.language_hint')} *</Label>
                     <Input
                       id="language_hint"
                       value={languageHint}
                       onChange={(e) => setLanguageHint(e.target.value)}
                       placeholder={t('recipe.from_image.language_placeholder')}
                       maxLength={50}
+                      required
                       disabled={isLoading || isParsing}
                     />
                   </div>
@@ -370,7 +375,7 @@ const RecipeCreatePage: React.FC = () => {
                   <Button
                     type="button"
                     onClick={handleParseImages}
-                    disabled={isLoading || isParsing || fromImageFiles.length === 0}
+                    disabled={isLoading || isParsing || fromImageFiles.length === 0 || !languageHint.trim()}
                     className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 shadow-sm"
                   >
                     {isParsing ? (

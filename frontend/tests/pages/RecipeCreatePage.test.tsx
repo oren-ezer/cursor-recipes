@@ -21,6 +21,10 @@ vi.mock('../../src/lib/api-client', () => ({
       preparation_time: 30, cooking_time: 30, servings: 4, difficulty_level: 'Easy',
     }),
     uploadImages: vi.fn().mockResolvedValue({ images: [] }),
+    getImageUploadLimits: vi.fn().mockResolvedValue({
+      max_file_size_mb: 10,
+      max_files_per_upload: 5,
+    }),
     getAllTags: vi.fn().mockResolvedValue([]),
   },
   ApiError: class ApiError extends Error {

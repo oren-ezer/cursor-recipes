@@ -3,6 +3,7 @@ from unittest.mock import Mock, MagicMock
 from sqlalchemy.orm import Session
 from src.services.recipes_service import RecipeService
 from src.models.recipe import Recipe
+from src.utils.pdf_export import register_pdf_fonts
 from sqlmodel import select
 
 
@@ -1401,6 +1402,40 @@ class TestRecipeServiceWithTags:
         assert len(result) > 0
         # Check for PDF header
         assert result[:4] == b'%PDF'
+        assert register_pdf_fonts().regular.encode() in result
+
+    def test_export_recipe_to_pdf_hebrew_success(self):
+        """Hebrew recipes should embed Unicode fonts in the PDF."""
+        mock_db = Mock()
+        mock_tag_service = Mock()
+        mock_recipe = Recipe(
+            id=2,
+            uuid="hebrew-recipe-uuid",
+            title="מתכון לפנקייק",
+            description="תיאור",
+            ingredients=[{"name": "קמח", "amount": "1 כוס"}],
+            instructions=["לערבב הכל", "לטגן במחבת"],
+            preparation_time=5,
+            cooking_time=10,
+            servings=2,
+            difficulty_level="Easy",
+            is_public=True,
+            image_url=None,
+            user_id="test-user-uuid",
+        )
+
+        mock_execute = Mock()
+        mock_scalars = Mock()
+        mock_scalars.first.return_value = mock_recipe
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
+        mock_tag_service.get_tags_for_recipe.return_value = []
+
+        result = RecipeService(mock_db, mock_tag_service).export_recipe_to_pdf(2)
+
+        assert result[:4] == b"%PDF"
+        assert register_pdf_fonts().regular.encode() in result
+        assert len(result) > 5000
 
     def test_export_recipe_to_pdf_not_found(self):
         """Test exporting a PDF for a recipe that doesn't exist."""

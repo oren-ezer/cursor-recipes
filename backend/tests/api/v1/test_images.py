@@ -13,7 +13,8 @@ from fastapi import status
 from src.main import app
 from src.core.config import settings
 from src.services.image_storage import StoredImage, DatabaseStorage
-from src.utils.dependencies import get_image_storage, get_database_session
+from src.services.app_settings_service import AppSettingsService
+from src.utils.dependencies import get_image_storage, get_database_session, get_app_settings_service
 
 
 IMAGES_PREFIX = f"{settings.API_V1_STR}/images"
@@ -106,13 +107,30 @@ def mock_db():
 
 
 @pytest.fixture
-def client_with_storage(mock_storage, mock_db):
+def empty_app_settings_db():
+    """DB session with no app_settings rows (env defaults apply)."""
+    session = Mock()
+    result = Mock()
+    result.first = Mock(return_value=None)
+    result.all = Mock(return_value=[])
+    session.exec = Mock(return_value=result)
+    session.add = Mock()
+    session.commit = Mock()
+    return session
+
+
+@pytest.fixture
+def client_with_storage(mock_storage, mock_db, empty_app_settings_db):
     app.dependency_overrides[get_image_storage] = lambda: mock_storage
     app.dependency_overrides[get_database_session] = lambda: mock_db
+    app.dependency_overrides[get_app_settings_service] = (
+        lambda: AppSettingsService(empty_app_settings_db)
+    )
     with TestClient(app) as c:
         yield c, mock_storage, mock_db
     app.dependency_overrides.pop(get_image_storage, None)
     app.dependency_overrides.pop(get_database_session, None)
+    app.dependency_overrides.pop(get_app_settings_service, None)
 
 
 def _upload_files(*names):
@@ -121,6 +139,31 @@ def _upload_files(*names):
 
 def _auth_headers():
     return {"Authorization": "Bearer fake-token"}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GET /images/limits
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestImageUploadLimits:
+    def test_returns_configured_limits(self, client_with_storage):
+        client, _, _ = client_with_storage
+        with patch.object(settings, "MAX_IMAGE_UPLOAD_SIZE_MB", 7):
+            with patch.object(settings, "MAX_IMAGES_PER_UPLOAD", 3):
+                resp = client.get(f"{IMAGES_PREFIX}/limits")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json() == {
+            "max_file_size_mb": 7,
+            "max_files_per_upload": 3,
+        }
+
+    def test_limits_are_public(self, client_with_storage):
+        client, _, _ = client_with_storage
+        resp = client.get(f"{IMAGES_PREFIX}/limits")
+        assert resp.status_code == status.HTTP_200_OK
+        body = resp.json()
+        assert "max_file_size_mb" in body
+        assert "max_files_per_upload" in body
 
 
 # ──────────────────────────────────────────────────────────────────────────────

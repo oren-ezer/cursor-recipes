@@ -21,6 +21,10 @@ vi.mock('../../src/lib/api-client', () => ({
     deleteImage: vi.fn().mockResolvedValue(undefined),
     setPrimaryImage: vi.fn(),
     uploadImages: vi.fn().mockResolvedValue({ images: [] }),
+    getImageUploadLimits: vi.fn().mockResolvedValue({
+      max_file_size_mb: 10,
+      max_files_per_upload: 5,
+    }),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string) {

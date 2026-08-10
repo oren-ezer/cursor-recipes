@@ -4,7 +4,6 @@ from sqlmodel import select
 from sqlalchemy import or_, and_
 from src.models.user import User
 from src.core.security import hash_password, verify_password, create_access_token
-from src.core.config import settings
 from datetime import datetime, timezone, timedelta
 import uuid
 
@@ -343,7 +342,10 @@ class UserService:
             raise ValueError("Inactive user")
 
         # 4. Create access token
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        from src.services.app_settings_service import AppSettingsService
+
+        expire_minutes = AppSettingsService(self.db).get_int("access_token_expire_minutes")
+        access_token_expires = timedelta(minutes=expire_minutes)
         access_token = create_access_token(
             data={
                 "sub": user.email, 

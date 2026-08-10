@@ -50,6 +50,7 @@ async def auth_middleware(request: Request, call_next):
             (f"{settings.API_V1_STR}/tags", "GET"),  # Public tags list
             (f"{settings.API_V1_STR}/tags/search", "GET"),  # Public tags search
             (f"{settings.API_V1_STR}/tags/popular", "GET"),  # Public popular tags
+            (f"{settings.API_V1_STR}/images/limits", "GET"),  # Image upload limits
         ]
         
         # Skip auth for public endpoints (path + method)

@@ -9,7 +9,12 @@ globalThis.URL.createObjectURL = vi.fn(() => `blob:mock/${++objectUrlCounter}`)
 globalThis.URL.revokeObjectURL = vi.fn()
 
 const mockUploadImages = vi.fn()
+const mockGetImageUploadLimits = vi.fn().mockResolvedValue({
+  max_file_size_mb: 10,
+  max_files_per_upload: 5,
+})
 vi.spyOn(apiModule.apiClient, 'uploadImages').mockImplementation(mockUploadImages)
+vi.spyOn(apiModule.apiClient, 'getImageUploadLimits').mockImplementation(mockGetImageUploadLimits)
 
 function createMockFile(name: string, type = 'image/png', sizeKb = 1): File {
   const bytes = new Uint8Array(sizeKb * 1024)
@@ -19,6 +24,11 @@ function createMockFile(name: string, type = 'image/png', sizeKb = 1): File {
 describe('ImageUploader', () => {
   beforeEach(() => {
     mockUploadImages.mockClear()
+    mockGetImageUploadLimits.mockClear()
+    mockGetImageUploadLimits.mockResolvedValue({
+      max_file_size_mb: 10,
+      max_files_per_upload: 5,
+    })
     objectUrlCounter = 0
   })
 
@@ -90,6 +100,18 @@ describe('ImageUploader', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
+  })
+
+  it('rejects files exceeding max size and shows the limit', async () => {
+    render(<ImageUploader maxSizeMb={1} maxFiles={5} />)
+    const input = screen.getByTestId('file-input')
+    const bigFile = createMockFile('huge.png', 'image/png', 2048)
+
+    fireEvent.change(input, { target: { files: [bigFile] } })
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/huge\.png.*maximum file size.*\(1 MB\)/i)
     })
   })
 

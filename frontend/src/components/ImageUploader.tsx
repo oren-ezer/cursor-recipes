@@ -1,12 +1,12 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { apiClient, type ImageInfo } from '../lib/api-client';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from './ui/button';
 
-const MAX_FILE_SIZE_MB = 10;
-const MAX_FILES = 5;
+const DEFAULT_MAX_FILE_SIZE_MB = 10;
+const DEFAULT_MAX_FILES = 5;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export interface ImageUploaderProps {
@@ -32,8 +32,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   recipeId,
   deferUpload = false,
   onFilesReady,
-  maxFiles = MAX_FILES,
-  maxSizeMb = MAX_FILE_SIZE_MB,
+  maxFiles: maxFilesProp,
+  maxSizeMb: maxSizeMbProp,
   className,
   disabled = false,
 }) => {
@@ -42,7 +42,37 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [maxFiles, setMaxFiles] = useState(maxFilesProp ?? DEFAULT_MAX_FILES);
+  const [maxSizeMb, setMaxSizeMb] = useState(maxSizeMbProp ?? DEFAULT_MAX_FILE_SIZE_MB);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (maxFilesProp !== undefined) setMaxFiles(maxFilesProp);
+  }, [maxFilesProp]);
+
+  useEffect(() => {
+    if (maxSizeMbProp !== undefined) setMaxSizeMb(maxSizeMbProp);
+  }, [maxSizeMbProp]);
+
+  useEffect(() => {
+    if (maxFilesProp !== undefined && maxSizeMbProp !== undefined) return;
+
+    let cancelled = false;
+    apiClient
+      .getImageUploadLimits()
+      .then((limits) => {
+        if (cancelled) return;
+        if (maxFilesProp === undefined) setMaxFiles(limits.max_files_per_upload);
+        if (maxSizeMbProp === undefined) setMaxSizeMb(limits.max_file_size_mb);
+      })
+      .catch(() => {
+        // Keep defaults if limits cannot be loaded
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [maxFilesProp, maxSizeMbProp]);
 
   const validateFile = useCallback(
     (file: File): string | null => {
@@ -50,7 +80,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         return t('image_upload.invalid_type');
       }
       if (file.size > maxSizeMb * 1024 * 1024) {
-        return `${file.name} ${t('image_upload.max_size')}`;
+        return `${file.name} ${t('image_upload.max_size')} (${maxSizeMb} MB)`;
       }
       return null;
     },

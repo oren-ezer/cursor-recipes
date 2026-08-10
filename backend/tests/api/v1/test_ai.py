@@ -13,6 +13,8 @@ from src.main import app
 from src.core.config import settings
 from src.api.v1.endpoints.ai import get_ai_service, calculate_cost
 from src.services.ai_service import AIService
+from src.services.app_settings_service import AppSettingsService
+from src.utils.dependencies import get_app_settings_service
 from openai import AuthenticationError, RateLimitError, APIError
 
 
@@ -52,10 +54,20 @@ def _fake_user(is_superuser=False):
 @pytest.fixture
 def client_with_ai(mock_ai_service):
     """TestClient with overridden AI service dependency and authenticated user."""
+    empty_db = Mock()
+    empty_result = Mock()
+    empty_result.first = Mock(return_value=None)
+    empty_result.all = Mock(return_value=[])
+    empty_db.exec = Mock(return_value=empty_result)
+
     app.dependency_overrides[get_ai_service] = lambda: mock_ai_service
+    app.dependency_overrides[get_app_settings_service] = (
+        lambda: AppSettingsService(empty_db)
+    )
     with TestClient(app) as c:
         yield c, mock_ai_service
     app.dependency_overrides.pop(get_ai_service, None)
+    app.dependency_overrides.pop(get_app_settings_service, None)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -498,6 +510,7 @@ class TestParseRecipeFromImagesEndpoint:
         client, _ = client_with_ai
         resp = client.post(
             f"{AI_PREFIX}/parse-recipe-images",
+            data={"language_hint": "English"},
             files=_parse_files("recipe.png"),
         )
         assert resp.status_code == status.HTTP_401_UNAUTHORIZED
@@ -508,6 +521,7 @@ class TestParseRecipeFromImagesEndpoint:
             mock_auth.return_value = _fake_user()
             resp = client.post(
                 f"{AI_PREFIX}/parse-recipe-images",
+                data={"language_hint": "English"},
                 headers=_auth_headers(),
             )
         assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -519,10 +533,34 @@ class TestParseRecipeFromImagesEndpoint:
             mock_auth.return_value = _fake_user()
             resp = client.post(
                 f"{AI_PREFIX}/parse-recipe-images",
+                data={"language_hint": "English"},
                 files=[("images", ("notes.txt", BytesIO(b"hello"), "text/plain"))],
                 headers=_auth_headers(),
             )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_requires_language_hint(self, client_with_ai):
+        client, _ = client_with_ai
+        with patch("src.main._get_current_user_from_token", new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = _fake_user()
+            resp = client.post(
+                f"{AI_PREFIX}/parse-recipe-images",
+                files=_parse_files("recipe.png"),
+                headers=_auth_headers(),
+            )
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_rejects_blank_language_hint(self, client_with_ai):
+        client, _ = client_with_ai
+        with patch("src.main._get_current_user_from_token", new_callable=AsyncMock) as mock_auth:
+            mock_auth.return_value = _fake_user()
+            resp = client.post(
+                f"{AI_PREFIX}/parse-recipe-images",
+                data={"language_hint": "   "},
+                files=_parse_files("recipe.png"),
+                headers=_auth_headers(),
+            )
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_parses_multipart_images(self, client_with_ai):
         client, mock_svc = client_with_ai

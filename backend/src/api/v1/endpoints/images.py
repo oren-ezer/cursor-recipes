@@ -6,9 +6,9 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 import logging
 
-from src.core.config import settings
 from src.services.image_storage import ImageStorageBackend
-from src.utils.dependencies import get_image_storage
+from src.services.app_settings_service import AppSettingsService
+from src.utils.dependencies import get_image_storage, get_app_settings_service
 from src.models.recipe_image import RecipeImage
 from src.models.recipe import Recipe
 from sqlmodel import Session, select
@@ -31,6 +31,11 @@ class ImageInfo(BaseModel):
 
 class ImageUploadResponse(BaseModel):
     images: List[ImageInfo]
+
+
+class ImageUploadLimits(BaseModel):
+    max_file_size_mb: int
+    max_files_per_upload: int
 
 
 def _require_auth(request: Request) -> dict:
@@ -82,6 +87,15 @@ def _clear_primaries(db: Session, recipe_id: int) -> None:
         db.add(img)
 
 
+@router.get("/limits", response_model=ImageUploadLimits)
+async def get_upload_limits(
+    app_settings: Annotated[AppSettingsService, Depends(get_app_settings_service)] = None,
+):
+    """Return configured image upload limits (public; used by the client for validation)."""
+    limits = app_settings.get_image_upload_limits()
+    return ImageUploadLimits(**limits)
+
+
 @router.post("/upload", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_images(
     http_request: Request,
@@ -89,23 +103,28 @@ async def upload_images(
     recipe_id: int = Form(..., description="Recipe to associate images with"),
     storage: Annotated[ImageStorageBackend, Depends(get_image_storage)] = None,
     db: Annotated[Session, Depends(get_database_session)] = None,
+    app_settings: Annotated[AppSettingsService, Depends(get_app_settings_service)] = None,
 ):
     """Upload one or more images and associate them with a recipe."""
     user = _require_auth(http_request)
     recipe = _require_recipe_owner(db, recipe_id, user)
+
+    limits = app_settings.get_image_upload_limits()
+    max_files = limits["max_files_per_upload"]
+    max_size_mb = limits["max_file_size_mb"]
 
     if not images:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="At least one image is required",
         )
-    if len(images) > settings.MAX_IMAGES_PER_UPLOAD:
+    if len(images) > max_files:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Maximum {settings.MAX_IMAGES_PER_UPLOAD} images per upload",
+            detail=f"Maximum {max_files} images per upload",
         )
 
-    max_bytes = settings.MAX_IMAGE_UPLOAD_SIZE_MB * 1024 * 1024
+    max_bytes = max_size_mb * 1024 * 1024
 
     has_primary = db.exec(
         select(RecipeImage).where(
@@ -128,7 +147,7 @@ async def upload_images(
         if len(file_bytes) > max_bytes:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File '{upload.filename}' exceeds {settings.MAX_IMAGE_UPLOAD_SIZE_MB} MB limit",
+                detail=f"File '{upload.filename}' exceeds {max_size_mb} MB limit",
             )
 
         stored = storage.store(

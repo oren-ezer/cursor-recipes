@@ -463,117 +463,139 @@ class RecipeService:
         Raises:
             ValueError: If recipe not found
         """
-        from reportlab.lib.pagesizes import letter
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import inch
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib import colors
         from io import BytesIO
-        from xml.sax.saxutils import escape
-        
+
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+        from src.utils.pdf_export import (
+            make_paragraph_style,
+            prepare_pdf_text,
+            recipe_uses_rtl,
+            register_pdf_fonts,
+        )
+
         recipe = self.get_recipe(recipe_id)
         if not recipe:
             raise ValueError(f"Recipe with ID {recipe_id} not found")
-        
-        # Get recipe with tags
+
+        fonts = register_pdf_fonts()
+
         recipe_dict = self._add_tags_to_recipe_dict(recipe)
-        
-        # Helper function to escape XML special characters
-        def escape_text(text):
-            """Escape special XML characters for ReportLab Paragraph."""
-            if not text:
-                return ""
-            return escape(str(text), entities={
-                "'": "&apos;",
-                '"': "&quot;",
-            })
-        
-        # Create PDF in memory
+        rtl = recipe_uses_rtl(recipe, recipe_dict.get("tags"))
+
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                              topMargin=0.5*inch, bottomMargin=0.5*inch)
-        
-        # Container for PDF elements
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            topMargin=0.5 * inch,
+            bottomMargin=0.5 * inch,
+        )
+
         story = []
         styles = getSampleStyleSheet()
-        
-        # Custom styles
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=24,
-            textColor=colors.HexColor('#1e40af'),
-            spaceAfter=12,
+        body_style = make_paragraph_style("Body", styles["Normal"], fonts, rtl=rtl)
+        title_style = make_paragraph_style(
+            "CustomTitle",
+            styles["Heading1"],
+            fonts,
+            rtl=rtl,
+            bold=True,
+            font_size=24,
+            color=colors.HexColor("#1e40af"),
+            space_after=12,
         )
-        
-        heading_style = ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading2'],
-            fontSize=16,
-            textColor=colors.HexColor('#1e40af'),
-            spaceAfter=6,
-            spaceBefore=12,
+        heading_style = make_paragraph_style(
+            "CustomHeading",
+            styles["Heading2"],
+            fonts,
+            rtl=rtl,
+            bold=True,
+            font_size=16,
+            color=colors.HexColor("#1e40af"),
+            space_after=6,
+            space_before=12,
         )
-        
-        # Title
-        story.append(Paragraph(escape_text(recipe.title), title_style))
-        story.append(Spacer(1, 0.2*inch))
-        
-        # Description
+
+        story.append(Paragraph(prepare_pdf_text(recipe.title, rtl=rtl), title_style))
+        story.append(Spacer(1, 0.2 * inch))
+
         if recipe.description:
-            story.append(Paragraph(escape_text(recipe.description), styles['Normal']))
-            story.append(Spacer(1, 0.2*inch))
-        
-        # Recipe Information Table
+            story.append(Paragraph(prepare_pdf_text(recipe.description, rtl=rtl), body_style))
+            story.append(Spacer(1, 0.2 * inch))
+
         info_data = [
-            ['Preparation Time', f"{recipe.preparation_time} minutes"],
-            ['Cooking Time', f"{recipe.cooking_time} minutes"],
-            ['Servings', str(recipe.servings)],
-            ['Difficulty', escape_text(recipe.difficulty_level)],
+            [
+                prepare_pdf_text("Preparation Time", rtl=rtl),
+                prepare_pdf_text(f"{recipe.preparation_time} minutes", rtl=rtl),
+            ],
+            [
+                prepare_pdf_text("Cooking Time", rtl=rtl),
+                prepare_pdf_text(f"{recipe.cooking_time} minutes", rtl=rtl),
+            ],
+            [
+                prepare_pdf_text("Servings", rtl=rtl),
+                prepare_pdf_text(str(recipe.servings), rtl=rtl),
+            ],
+            [
+                prepare_pdf_text("Difficulty", rtl=rtl),
+                prepare_pdf_text(recipe.difficulty_level, rtl=rtl),
+            ],
         ]
-        
-        if recipe_dict.get('tags'):
-            tags_text = ', '.join([escape_text(tag['name']) for tag in recipe_dict['tags']])
-            info_data.append(['Tags', tags_text])
-        
-        info_table = Table(info_data, colWidths=[2*inch, 4*inch])
+
+        if recipe_dict.get("tags"):
+            tags_text = ", ".join(tag["name"] for tag in recipe_dict["tags"])
+            info_data.append([
+                prepare_pdf_text("Tags", rtl=rtl),
+                prepare_pdf_text(tags_text, rtl=rtl),
+            ])
+
+        table_align = "RIGHT" if rtl else "LEFT"
+        info_table = Table(info_data, colWidths=[2 * inch, 4 * inch])
         info_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e5e7eb')),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#e5e7eb")),
+            ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
+            ("ALIGN", (0, 0), (-1, -1), table_align),
+            ("FONTNAME", (0, 0), (-1, -1), fonts.regular),
+            ("FONTNAME", (0, 0), (0, -1), fonts.bold),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
         ]))
-        
+
         story.append(info_table)
-        story.append(Spacer(1, 0.3*inch))
-        
-        # Ingredients
-        story.append(Paragraph('Ingredients', heading_style))
+        story.append(Spacer(1, 0.3 * inch))
+
+        story.append(Paragraph(prepare_pdf_text("Ingredients", rtl=rtl), heading_style))
         for ingredient in recipe.ingredients:
-            amount = escape_text(ingredient.get('amount', ''))
-            name = escape_text(ingredient.get('name', ''))
-            bullet_text = f"• {amount} {name}"
-            story.append(Paragraph(bullet_text, styles['Normal']))
-        story.append(Spacer(1, 0.2*inch))
-        
-        # Instructions
-        story.append(Paragraph('Instructions', heading_style))
-        for i, instruction in enumerate(recipe.instructions, 1):
-            escaped_instruction = escape_text(instruction)
-            step_text = f"<b>Step {i}:</b> {escaped_instruction}"
-            story.append(Paragraph(step_text, styles['Normal']))
-            story.append(Spacer(1, 0.1*inch))
-        
-        # Build PDF
+            amount = ingredient.get("amount", "")
+            name = ingredient.get("name", "")
+            # Reorder the whole line at once so bidi keeps the spacing intact.
+            bullet_text = prepare_pdf_text(f"• {amount} {name}".strip(), rtl=rtl)
+            story.append(Paragraph(bullet_text, body_style))
+        story.append(Spacer(1, 0.2 * inch))
+
+        story.append(Paragraph(prepare_pdf_text("Instructions", rtl=rtl), heading_style))
+        for index, instruction in enumerate(recipe.instructions, 1):
+            step_label = f"Step {index}:"
+            if rtl:
+                step_text = prepare_pdf_text(f"{step_label} {instruction}", rtl=True)
+            else:
+                step_text = (
+                    f"<b>{prepare_pdf_text(step_label)}</b> "
+                    f"{prepare_pdf_text(instruction)}"
+                )
+            story.append(Paragraph(step_text, body_style))
+            story.append(Spacer(1, 0.1 * inch))
+
         doc.build(story)
-        
-        # Get PDF content - seek to beginning first to ensure we read everything
+
         buffer.seek(0)
         pdf_content = buffer.read()
         buffer.close()
-        
+
         return pdf_content 

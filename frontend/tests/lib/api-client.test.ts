@@ -400,5 +400,20 @@ describe('ApiClient', () => {
       const file = new File([new Uint8Array(100)], 'photo.png', { type: 'image/png' })
       await expect(apiClient.uploadImages([file], 1)).rejects.toThrow('File too large')
     })
+
+    it('should fetch image upload limits', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ max_file_size_mb: 8, max_files_per_upload: 4 }),
+      })
+
+      const result = await apiClient.getImageUploadLimits()
+
+      expect(result).toEqual({ max_file_size_mb: 8, max_files_per_upload: 4 })
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/images/limits',
+        expect.any(Object)
+      )
+    })
   })
 })

@@ -5,7 +5,7 @@ The /test endpoint is restricted to superusers.
 """
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status, Depends
-from typing import Annotated, List, Optional
+from typing import Annotated, List
 import logging
 
 from src.models.ai_models import (
@@ -23,7 +23,9 @@ from src.models.ai_models import (
 from src.services.ai_service import AIService
 from src.services.llm_config_service import LLMConfigService
 from src.core.config import settings
+from src.services.app_settings_service import AppSettingsService
 from src.utils.database_session import get_db
+from src.utils.dependencies import get_app_settings_service
 from sqlmodel import Session
 from openai import AuthenticationError, RateLimitError, APIError
 import base64
@@ -236,9 +238,13 @@ async def calculate_nutrition(
 async def parse_recipe_from_images(
     http_request: Request,
     ai_service: Annotated[AIService, Depends(get_ai_service)],
+    app_settings: Annotated[AppSettingsService, Depends(get_app_settings_service)],
     images: List[UploadFile] = File(..., description="Recipe image files to parse (not stored)"),
-    language_hint: Optional[str] = Form(
-        None, description="Hint about the recipe language (e.g. 'Hebrew', 'English')"
+    language_hint: str = Form(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Language of the recipe text in the image (e.g. 'Hebrew', 'English')",
     ),
 ):
     """
@@ -250,19 +256,30 @@ async def parse_recipe_from_images(
     """
     _require_auth(http_request)
 
+    language_hint = language_hint.strip()
+    if not language_hint:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="language_hint is required",
+        )
+
     if not images:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="At least one image is required",
         )
 
-    if len(images) > settings.MAX_IMAGES_PER_UPLOAD:
+    limits = app_settings.get_image_upload_limits()
+    max_files = limits["max_files_per_upload"]
+    max_size_mb = limits["max_file_size_mb"]
+
+    if len(images) > max_files:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Maximum {settings.MAX_IMAGES_PER_UPLOAD} images per request",
+            detail=f"Maximum {max_files} images per request",
         )
 
-    max_bytes = settings.MAX_IMAGE_UPLOAD_SIZE_MB * 1024 * 1024
+    max_bytes = max_size_mb * 1024 * 1024
     image_data_uris: list[str] = []
     for upload in images:
         if upload.content_type not in ALLOWED_PARSE_CONTENT_TYPES:
@@ -279,7 +296,7 @@ async def parse_recipe_from_images(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
                     f"File '{upload.filename}' exceeds "
-                    f"{settings.MAX_IMAGE_UPLOAD_SIZE_MB} MB limit"
+                    f"{max_size_mb} MB limit"
                 ),
             )
         b64 = base64.b64encode(file_bytes).decode("utf-8")
@@ -327,8 +344,19 @@ async def parse_recipe_from_images(
         )
     except Exception as e:
         logger.error(f"Unexpected error parsing recipe from images: {str(e)}")
+        message = str(e)
+        # Surface common provider misconfiguration (e.g. invalid Gemini model id)
+        if "NOT_FOUND" in message or "is not found" in message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=(
+                    "AI model not found or not supported. "
+                    "Check the recipe_from_image LLM configuration model name "
+                    "(Admin → LLM Configuration)."
+                ),
+            ) from e
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to parse recipe from images",
-        )
+        ) from e
 

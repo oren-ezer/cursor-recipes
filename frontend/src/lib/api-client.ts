@@ -292,6 +292,17 @@ class ApiClient {
     return this.request<any>('/admins/test-setup');
   }
 
+  async getAppSettings(): Promise<AppSettingsResponse> {
+    return this.request<AppSettingsResponse>('/admins/settings');
+  }
+
+  async updateAppSettings(settings: Record<string, string | number>): Promise<AppSettingsResponse> {
+    return this.request<AppSettingsResponse>('/admins/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ settings }),
+    });
+  }
+
   // Admin User Management
   async getAllUsers(limit = 100, offset = 0): Promise<{ users: User[], total: number }> {
     return this.request<{ users: User[], total: number }>(`/users/?limit=${limit}&offset=${offset}`);
@@ -366,6 +377,10 @@ class ApiClient {
   }
 
   // Image endpoints
+  async getImageUploadLimits(): Promise<ImageUploadLimits> {
+    return this.request<ImageUploadLimits>('/images/limits');
+  }
+
   async uploadImages(images: File[], recipeId: number): Promise<ImageUploadResponse> {
     const formData = new FormData();
     images.forEach((file) => formData.append('images', file));
@@ -438,12 +453,10 @@ class ApiClient {
     });
   }
 
-  async parseRecipeFromImages(images: File[], languageHint?: string): Promise<RecipeFromImageResponse> {
+  async parseRecipeFromImages(images: File[], languageHint: string): Promise<RecipeFromImageResponse> {
     const formData = new FormData();
     images.forEach((file) => formData.append('images', file));
-    if (languageHint) {
-      formData.append('language_hint', languageHint);
-    }
+    formData.append('language_hint', languageHint);
 
     const currentToken = this.token || localStorage.getItem('authToken');
     const headers: Record<string, string> = {
@@ -518,6 +531,36 @@ interface ImageInfo {
 
 interface ImageUploadResponse {
   images: ImageInfo[];
+}
+
+interface ImageUploadLimits {
+  max_file_size_mb: number;
+  max_files_per_upload: number;
+}
+
+interface AppSettingItem {
+  key: string;
+  group: string;
+  type: 'string' | 'integer' | 'float' | 'enum';
+  value: string | number;
+  default_value: string | number;
+  source: 'environment' | 'database';
+  description: string;
+  min_value: number | null;
+  max_value: number | null;
+  options: string[] | null;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+interface AppSettingsGroup {
+  id: string;
+  settings: AppSettingItem[];
+}
+
+interface AppSettingsResponse {
+  groups: AppSettingsGroup[];
+  status: Record<string, boolean>;
 }
 
 // AI-related types
@@ -661,6 +704,10 @@ export {
   type PaginatedResponse,
   type ImageInfo,
   type ImageUploadResponse,
+  type ImageUploadLimits,
+  type AppSettingItem,
+  type AppSettingsGroup,
+  type AppSettingsResponse,
   type AITestRequest,
   type AITestResponse,
   type TagSuggestionRequest,

@@ -3,20 +3,64 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiClient, ApiError } from '../lib/api-client';
-import type { Tag, User, Recipe, LLMConfig, LLMConfigCreate, AITestRequest, AITestResponse } from '../lib/api-client';
+import type {
+  Tag,
+  User,
+  Recipe,
+  LLMConfig,
+  LLMConfigCreate,
+  AITestRequest,
+  AITestResponse,
+  AppSettingItem,
+  AppSettingsGroup,
+  AppSettingsResponse,
+} from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import ConfirmationModal from '../components/ui/confirmation-modal';
+import type { TranslationKey } from '../i18n/translations';
+
+const SETTING_FIELD_KEYS: Record<string, TranslationKey> = {
+  project_name: 'admin.settings.field.project_name',
+  project_description: 'admin.settings.field.project_description',
+  access_token_expire_minutes: 'admin.settings.field.access_token_expire_minutes',
+  openai_default_model: 'admin.settings.field.openai_default_model',
+  openai_max_tokens: 'admin.settings.field.openai_max_tokens',
+  openai_temperature: 'admin.settings.field.openai_temperature',
+  max_image_upload_size_mb: 'admin.settings.field.max_image_upload_size_mb',
+  max_images_per_upload: 'admin.settings.field.max_images_per_upload',
+  image_storage_backend: 'admin.settings.field.image_storage_backend',
+  image_storage_path: 'admin.settings.field.image_storage_path',
+};
+
+const SETTING_GROUP_KEYS: Record<string, TranslationKey> = {
+  application: 'admin.settings.group.application',
+  authentication: 'admin.settings.group.authentication',
+  ai_defaults: 'admin.settings.group.ai_defaults',
+  image_uploads: 'admin.settings.group.image_uploads',
+};
+
+const STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
+  database_url_configured: 'admin.settings.status.database_url_configured',
+  supabase_url_configured: 'admin.settings.status.supabase_url_configured',
+  supabase_key_configured: 'admin.settings.status.supabase_key_configured',
+  supabase_service_key_configured: 'admin.settings.status.supabase_service_key_configured',
+  openai_api_key_configured: 'admin.settings.status.openai_api_key_configured',
+  google_api_key_configured: 'admin.settings.status.google_api_key_configured',
+  anthropic_api_key_configured: 'admin.settings.status.anthropic_api_key_configured',
+  secret_key_configured: 'admin.settings.status.secret_key_configured',
+};
 
 const AdminPage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'recipes' | 'tags' | 'system' | 'llm_config'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'recipes' | 'tags' | 'system' | 'llm_config' | 'settings'>('users');
   
   // Tags state
   const [tags, setTags] = useState<Tag[]>([]);
@@ -86,6 +130,13 @@ const AdminPage: React.FC = () => {
   const [llmTestResponse, setLlmTestResponse] = useState<AITestResponse | null>(null);
   const [isTestingLlm, setIsTestingLlm] = useState(false);
   const [llmTestError, setLlmTestError] = useState<string | null>(null);
+
+  // App settings state
+  const [settingsGroups, setSettingsGroups] = useState<AppSettingsGroup[]>([]);
+  const [settingsStatus, setSettingsStatus] = useState<Record<string, boolean>>({});
+  const [settingsForm, setSettingsForm] = useState<Record<string, string>>({});
+  const [settingsMeta, setSettingsMeta] = useState<Record<string, AppSettingItem>>({});
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   
   // Common state
   const [isLoading, setIsLoading] = useState(true);
@@ -116,12 +167,72 @@ const AdminPage: React.FC = () => {
         loadRecipes();
       } else if (activeTab === 'llm_config') {
         loadLlmConfigs();
+      } else if (activeTab === 'settings') {
+        loadAppSettings();
       } else {
         setIsLoading(false);
       }
     }
   }, [activeTab, user]);
 
+  const applySettingsResponse = (data: AppSettingsResponse) => {
+    setSettingsGroups(data.groups);
+    setSettingsStatus(data.status);
+    const form: Record<string, string> = {};
+    const meta: Record<string, AppSettingItem> = {};
+    data.groups.forEach((group) => {
+      group.settings.forEach((item) => {
+        form[item.key] = String(item.value);
+        meta[item.key] = item;
+      });
+    });
+    setSettingsForm(form);
+    setSettingsMeta(meta);
+  };
+
+  const loadAppSettings = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await apiClient.getAppSettings();
+      applySettingsResponse(data);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('admin.settings.error_load'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSettingChange = (key: string, value: string) => {
+    setSettingsForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const updates: Record<string, string | number> = {};
+      Object.entries(settingsForm).forEach(([key, raw]) => {
+        const meta = settingsMeta[key];
+        if (!meta) return;
+        if (meta.type === 'integer') {
+          updates[key] = Number.parseInt(raw, 10);
+        } else if (meta.type === 'float') {
+          updates[key] = Number.parseFloat(raw);
+        } else {
+          updates[key] = raw;
+        }
+      });
+      const data = await apiClient.updateAppSettings(updates);
+      applySettingsResponse(data);
+      setSuccessMessage(t('admin.settings.save_success'));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('admin.settings.error_save'));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
   // Tag Management Functions
   const loadTags = async () => {
     setIsLoading(true);
@@ -644,6 +755,16 @@ const AdminPage: React.FC = () => {
               {t('admin.nav.system')}
             </button>
             <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                activeTab === 'settings'
+                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {t('admin.nav.settings')}
+            </button>
+            <button
               onClick={() => setActiveTab('llm_config')}
               className={`px-4 py-2 font-medium transition-colors border-b-2 ${
                 activeTab === 'llm_config'
@@ -1153,6 +1274,119 @@ const AdminPage: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Application Settings Tab */}
+          {activeTab === 'settings' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold">{t('admin.settings.title')}</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {t('admin.settings.description')}
+                  </p>
+                </div>
+                <Button
+                  onClick={handleSaveSettings}
+                  disabled={isLoading || isSavingSettings}
+                >
+                  {isSavingSettings ? t('admin.settings.saving') : t('admin.settings.save')}
+                </Button>
+              </div>
+
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground">{t('admin.settings.loading')}</p>
+              ) : (
+                <>
+                  {settingsGroups.map((group) => (
+                    <Card key={group.id}>
+                      <CardHeader>
+                        <CardTitle>
+                          {t(SETTING_GROUP_KEYS[group.id] ?? 'admin.settings.title')}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {group.settings.map((item) => (
+                          <div key={item.key} className="space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <Label htmlFor={`setting-${item.key}`}>
+                                {t(SETTING_FIELD_KEYS[item.key] ?? 'admin.settings.title')}
+                              </Label>
+                              <span className="text-xs text-muted-foreground">
+                                {item.source === 'database'
+                                  ? t('admin.settings.source_database')
+                                  : t('admin.settings.source_environment')}
+                              </span>
+                            </div>
+                            {item.description && (
+                              <p className="text-xs text-muted-foreground">{item.description}</p>
+                            )}
+                            {item.type === 'enum' && item.options ? (
+                              <select
+                                id={`setting-${item.key}`}
+                                value={settingsForm[item.key] ?? ''}
+                                onChange={(e) => handleSettingChange(item.key, e.target.value)}
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              >
+                                {item.options.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <Input
+                                id={`setting-${item.key}`}
+                                type={item.type === 'string' ? 'text' : 'number'}
+                                value={settingsForm[item.key] ?? ''}
+                                onChange={(e) => handleSettingChange(item.key, e.target.value)}
+                                min={item.min_value ?? undefined}
+                                max={item.max_value ?? undefined}
+                                step={item.type === 'float' ? '0.1' : item.type === 'integer' ? '1' : undefined}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{t('admin.settings.group.integrations')}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {t('admin.settings.group.integrations_hint')}
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {Object.entries(settingsStatus).map(([key, configured]) => (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between rounded-md border px-3 py-2 dark:border-gray-700"
+                          >
+                            <span className="text-sm">
+                              {t(STATUS_LABEL_KEYS[key] ?? 'admin.settings.title')}
+                            </span>
+                            <span
+                              className={`text-xs font-medium ${
+                                configured
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-amber-600 dark:text-amber-400'
+                              }`}
+                            >
+                              {configured
+                                ? t('admin.settings.status.configured')
+                                : t('admin.settings.status.not_configured')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </div>
           )}
 

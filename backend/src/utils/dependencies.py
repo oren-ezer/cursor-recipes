@@ -9,6 +9,7 @@ from src.services.user_service import UserService
 from src.services.recipes_service import RecipeService
 from src.services.tag_service import TagService
 from src.services.image_storage import ImageStorageBackend, create_storage_backend
+from src.services.app_settings_service import AppSettingsService
 from typing import Annotated
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/users/token")
@@ -93,7 +94,15 @@ def get_recipe_service_with_tags(
 
 def get_image_storage(db: Annotated[Session, Depends(get_database_session)]) -> ImageStorageBackend:
     """FastAPI dependency to get the configured image storage backend."""
-    return create_storage_backend(db, settings)
+    app_settings = AppSettingsService(db)
+    return create_storage_backend(db, app_settings.get_storage_settings())
+
+
+def get_app_settings_service(
+    db: Annotated[Session, Depends(get_database_session)],
+) -> AppSettingsService:
+    """FastAPI dependency for AppSettingsService."""
+    return AppSettingsService(db)
 
 
 def get_tag_service(db: Annotated[Session, Depends(get_database_session)]) -> TagService:

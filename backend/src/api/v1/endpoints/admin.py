@@ -2,9 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from src.core.config import settings
-from src.utils.dependencies import get_database_session, get_tag_service, get_recipe_service_with_tags, get_current_user
+from src.utils.dependencies import (
+    get_database_session,
+    get_tag_service,
+    get_recipe_service_with_tags,
+    get_current_user,
+    get_app_settings_service,
+)
 from src.services.tag_service import TagService
 from src.services.recipes_service import RecipeService
+from src.services.app_settings_service import AppSettingsService
 from src.models.tag import TagCategory
 from src.utils.sanitization import sanitize_text, MAX_LENGTHS
 from pydantic import BaseModel, Field, field_validator
@@ -27,17 +34,54 @@ def get_admin_user(current_user: Dict[str, Any] = Depends(get_current_user)) -> 
     return current_user
 
 
+class AppSettingsUpdateRequest(BaseModel):
+    settings: Dict[str, Any] = Field(..., min_length=1)
+
+
+@router.get("/settings")
+async def get_app_settings(
+    admin: Dict[str, Any] = Depends(get_admin_user),
+    app_settings: AppSettingsService = Depends(get_app_settings_service),
+):
+    """Return all editable settings grouped by purpose, plus integration status."""
+    return app_settings.get_grouped_settings()
+
+
+@router.put("/settings")
+async def update_app_settings(
+    body: AppSettingsUpdateRequest,
+    admin: Dict[str, Any] = Depends(get_admin_user),
+    app_settings: AppSettingsService = Depends(get_app_settings_service),
+):
+    """Update one or more editable settings. Secrets remain env-only."""
+    try:
+        return app_settings.update_settings(
+            body.settings,
+            updated_by=admin.get("uuid"),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
 @router.get("/config-test")
-async def test_config(admin: Dict[str, Any] = Depends(get_admin_user)):
+async def test_config(
+    admin: Dict[str, Any] = Depends(get_admin_user),
+    app_settings: AppSettingsService = Depends(get_app_settings_service),
+):
     """
     Test endpoint to verify environment variables are loaded correctly.
     Returns only boolean flags — no secrets or connection strings.
     """
+    limits = app_settings.get_image_upload_limits()
+    status_flags = app_settings.get_integration_status()
     return {
-        "database_url_configured": bool(settings.DATABASE_URL),
-        "supabase_url_configured": bool(settings.SUPABASE_URL),
-        "supabase_key_configured": bool(settings.SUPABASE_KEY),
-        "supabase_service_key_configured": bool(settings.SUPABASE_SERVICE_KEY),
+        **status_flags,
+        "max_image_upload_size_mb": limits["max_file_size_mb"],
+        "max_images_per_upload": limits["max_files_per_upload"],
+        "image_storage_backend": app_settings.get_str("image_storage_backend"),
     }
 
 @router.get("/test-setup")

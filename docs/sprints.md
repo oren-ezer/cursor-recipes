@@ -1,5 +1,9 @@
 # Sprint Planning
 
+> **Archive.** Story management moved to Linear (team **Recipes**, project **recipes-app**).  
+> This file is kept for historical reference only — do not treat it as the source of truth.  
+> Issues were imported with labels `from-sprints-md` and a migration comment on each issue.
+
 - P0: Critical path/blocking
 - P1: High priority
 - P2: Medium priority

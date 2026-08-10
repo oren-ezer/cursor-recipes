@@ -6,10 +6,10 @@ from src.services.recipes_service import RecipeService
 from src.services.tag_service import TagService
 from src.models.tag import TagCategory
 from src.utils.sanitization import sanitize_text, sanitize_url, MAX_LENGTHS
+from src.utils.pdf_export import build_content_disposition
 from pydantic import BaseModel, field_validator, Field
 from datetime import datetime
 import logging
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -463,16 +463,17 @@ async def export_recipe_pdf(
                 )
 
         pdf_content = recipe_service.export_recipe_to_pdf(recipe_id)
-        
-        safe_title = re.sub(r"[^A-Za-z0-9._-]", "_", recipe.title) if recipe else ""
-        filename = f"{safe_title}.pdf" if safe_title else f"recipe_{recipe_id}.pdf"
-        
+
         return StreamingResponse(
             iter([pdf_content]),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
-            }
+                "Content-Disposition": build_content_disposition(
+                    recipe.title if recipe else None,
+                    recipe_id,
+                    "pdf",
+                )
+            },
         )
         
     except ValueError as e:

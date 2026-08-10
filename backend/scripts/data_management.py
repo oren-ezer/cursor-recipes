@@ -68,7 +68,7 @@ def _configure_logging() -> None:
 _SKIP_UPLOAD_TABLES = frozenset({"alembic_version"})
 
 # Subsets for partial uploads. Keep these in sync when adding new models.
-_SEED_TABLES = ("users", "tags", "llm_configs")
+_SEED_TABLES = ("users", "tags", "llm_configs", "app_settings")
 _DEMO_TABLES = _SEED_TABLES + ("recipes", "recipe_tags", "recipe_images")
 
 # Backup JSON format: 3 = BYTEA fields encoded as base64 with _data_encoding marker

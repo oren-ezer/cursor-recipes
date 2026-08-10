@@ -4,5 +4,14 @@ from src.models.recipe import Recipe
 from src.models.tag import Tag
 from src.models.recipe_tag import RecipeTag
 from src.models.recipe_image import RecipeImage
+from src.models.app_setting import AppSetting
 
-__all__ = ["BaseModel", "User", "Recipe", "Tag", "RecipeTag", "RecipeImage"]
+__all__ = [
+    "BaseModel",
+    "User",
+    "Recipe",
+    "Tag",
+    "RecipeTag",
+    "RecipeImage",
+    "AppSetting",
+]
