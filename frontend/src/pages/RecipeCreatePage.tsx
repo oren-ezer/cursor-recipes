@@ -14,7 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import TagSelector from '../components/ui/tag-selector';
 import ImageUploader from '../components/ImageUploader';
-import { Sparkles, X, ArrowUp, ArrowDown } from 'lucide-react';
+import InstructionListEditor from '../components/InstructionListEditor';
+import { Sparkles, X } from 'lucide-react';
 
 interface Ingredient {
   name: string;
@@ -190,42 +191,6 @@ const RecipeCreatePage: React.FC = () => {
     if (formData.ingredients.length > 1) {
       const newIngredients = formData.ingredients.filter((_, i) => i !== index);
       setFormData(prev => ({ ...prev, ingredients: newIngredients }));
-    }
-  };
-
-  const handleInstructionChange = (index: number, value: string) => {
-    const newInstructions = [...formData.instructions];
-    newInstructions[index] = value;
-    setFormData(prev => ({ ...prev, instructions: newInstructions }));
-  };
-
-  const addInstruction = () => {
-    setFormData(prev => ({
-      ...prev,
-      instructions: [...prev.instructions, '']
-    }));
-  };
-
-  const removeInstruction = (index: number) => {
-    if (formData.instructions.length > 1) {
-      const newInstructions = formData.instructions.filter((_, i) => i !== index);
-      setFormData(prev => ({ ...prev, instructions: newInstructions }));
-    }
-  };
-
-  const moveInstructionUp = (index: number) => {
-    if (index > 0) {
-      const newInstructions = [...formData.instructions];
-      [newInstructions[index - 1], newInstructions[index]] = [newInstructions[index], newInstructions[index - 1]];
-      setFormData(prev => ({ ...prev, instructions: newInstructions }));
-    }
-  };
-
-  const moveInstructionDown = (index: number) => {
-    if (index < formData.instructions.length - 1) {
-      const newInstructions = [...formData.instructions];
-      [newInstructions[index], newInstructions[index + 1]] = [newInstructions[index + 1], newInstructions[index]];
-      setFormData(prev => ({ ...prev, instructions: newInstructions }));
     }
   };
 
@@ -639,70 +604,12 @@ const RecipeCreatePage: React.FC = () => {
             <CardHeader>
               <CardTitle>{t('recipe.form.instructions')} *</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {formData.instructions.map((instruction, index) => (
-                <div key={index} className="flex gap-4">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor={`instruction-${index}`}>{t('recipe.form.step')} {index + 1}</Label>
-                    <Textarea
-                      id={`instruction-${index}`}
-                      value={instruction}
-                      onChange={(e) => handleInstructionChange(index, e.target.value)}
-                      placeholder={`${t('recipe.form.step')} ${index + 1}...`}
-                      rows={2}
-                      required
-                      maxLength={2000}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2 self-end">
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => moveInstructionUp(index)}
-                        disabled={isLoading || index === 0}
-                        className="h-8 w-8"
-                        title={t('recipe.form.move_up')}
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => moveInstructionDown(index)}
-                        disabled={isLoading || index === formData.instructions.length - 1}
-                        className="h-8 w-8"
-                        title={t('recipe.form.move_down')}
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {formData.instructions.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => removeInstruction(index)}
-                        disabled={isLoading}
-                        className="w-full"
-                      >
-                        {t('recipe.form.remove')}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addInstruction}
+            <CardContent>
+              <InstructionListEditor
+                instructions={formData.instructions}
+                onChange={(newInstructions) => setFormData(prev => ({ ...prev, instructions: newInstructions }))}
                 disabled={isLoading}
-              >
-                {t('recipe.form.add_step')}
-              </Button>
+              />
             </CardContent>
           </Card>
 
