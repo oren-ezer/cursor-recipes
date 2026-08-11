@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -49,7 +49,7 @@ function SortableInstruction({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({ id, disabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -60,15 +60,16 @@ function SortableInstruction({
 
   return (
     <div ref={setNodeRef} style={style} className={`flex gap-4 items-start ${isDragging ? 'relative' : ''}`}>
-      <div 
-        {...attributes} 
-        {...listeners} 
-        className={`mt-8 cursor-grab hover:text-primary ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      <div
+        {...attributes}
+        {...listeners}
+        aria-label={t('recipe.form.drag_to_reorder')}
         title={t('recipe.form.drag_to_reorder')}
+        className={`mt-8 touch-none ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-grab hover:text-primary'}`}
       >
         <GripVertical className="h-5 w-5 text-gray-400" />
       </div>
-      
+
       <div className="flex-1 space-y-2">
         <Label htmlFor={`instruction-${id}`}>{t('recipe.form.step')} {index + 1}</Label>
         <Textarea
@@ -83,7 +84,7 @@ function SortableInstruction({
           className={isDragging ? 'ring-2 ring-primary ring-offset-2' : ''}
         />
       </div>
-      
+
       {canRemove && (
         <Button
           type="button"
@@ -113,35 +114,31 @@ export default function InstructionListEditor({
   disabled = false,
 }: InstructionListEditorProps) {
   const { t } = useLanguage();
-  
-  // Keep track of stable IDs for the items
-  const [items, setItems] = useState<{ id: string; text: string }[]>([]);
+
+  // Steps are plain strings, so they need a stable identity of their own for
+  // drag-and-drop: reusing the index would make dnd-kit follow positions rather
+  // than steps, breaking its drop animation and mid-drag tracking on reorder.
+  // The ids live in a ref and move with the steps they belong to; every id
+  // change is paired with an onChange, so the parent's re-render shows both.
+  const idsRef = useRef<string[]>([]);
   const nextId = useRef(0);
 
-  // Sync external instructions with internal items state
-  useEffect(() => {
-    setItems((prevItems) => {
-      // If the lengths are the same, just update the text to avoid re-rendering issues
-      if (prevItems.length === instructions.length) {
-        return prevItems.map((item, index) => ({
-          ...item,
-          text: instructions[index]
-        }));
-      }
-      
-      // If lengths differ, we need to add or remove items
-      // This is a simple approach: if we have more instructions, add new IDs
-      // If we have fewer, truncate the IDs
-      const newItems = instructions.map((text, index) => {
-        if (index < prevItems.length) {
-          return { ...prevItems[index], text };
-        }
-        nextId.current += 1;
-        return { id: `step-${nextId.current}`, text };
-      });
-      return newItems;
-    });
-  }, [instructions]);
+  const createId = () => {
+    nextId.current += 1;
+    return `step-${nextId.current}`;
+  };
+
+  // Reconciled during render (not in an effect) so a step added from outside —
+  // a recipe loading in, or AI image parsing filling the form — never renders a
+  // frame without an id.
+  if (idsRef.current.length !== instructions.length) {
+    const ids = idsRef.current.slice(0, instructions.length);
+    while (ids.length < instructions.length) {
+      ids.push(createId());
+    }
+    idsRef.current = ids;
+  }
+  const ids = idsRef.current;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -156,13 +153,14 @@ export default function InstructionListEditor({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-    if (over && active.id !== over.id) {
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
-      
-      onChange(arrayMove(instructions, oldIndex, newIndex));
-    }
+    const oldIndex = ids.indexOf(String(active.id));
+    const newIndex = ids.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    idsRef.current = arrayMove(ids, oldIndex, newIndex);
+    onChange(arrayMove(instructions, oldIndex, newIndex));
   };
 
   const handleInstructionChange = (index: number, value: string) => {
@@ -172,13 +170,14 @@ export default function InstructionListEditor({
   };
 
   const removeInstruction = (index: number) => {
-    if (instructions.length > 1) {
-      const newInstructions = instructions.filter((_, i) => i !== index);
-      onChange(newInstructions);
-    }
+    if (instructions.length <= 1) return;
+
+    idsRef.current = ids.filter((_, i) => i !== index);
+    onChange(instructions.filter((_, i) => i !== index));
   };
 
   const addInstruction = () => {
+    idsRef.current = [...ids, createId()];
     onChange([...instructions, '']);
   };
 
@@ -189,16 +188,13 @@ export default function InstructionListEditor({
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext
-          items={items.map(i => i.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {items.map((item, index) => (
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          {instructions.map((instruction, index) => (
             <SortableInstruction
-              key={item.id}
-              id={item.id}
+              key={ids[index]}
+              id={ids[index]}
               index={index}
-              instruction={item.text}
+              instruction={instruction}
               onChange={handleInstructionChange}
               onRemove={removeInstruction}
               disabled={disabled}
@@ -207,7 +203,7 @@ export default function InstructionListEditor({
           ))}
         </SortableContext>
       </DndContext>
-      
+
       <Button
         type="button"
         variant="outline"
