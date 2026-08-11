@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import TagSelector from '../components/ui/tag-selector';
 import ImageUploader from '../components/ImageUploader';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface Ingredient {
   name: string;
@@ -209,6 +209,22 @@ const RecipeCreatePage: React.FC = () => {
   const removeInstruction = (index: number) => {
     if (formData.instructions.length > 1) {
       const newInstructions = formData.instructions.filter((_, i) => i !== index);
+      setFormData(prev => ({ ...prev, instructions: newInstructions }));
+    }
+  };
+
+  const moveInstructionUp = (index: number) => {
+    if (index > 0) {
+      const newInstructions = [...formData.instructions];
+      [newInstructions[index - 1], newInstructions[index]] = [newInstructions[index], newInstructions[index - 1]];
+      setFormData(prev => ({ ...prev, instructions: newInstructions }));
+    }
+  };
+
+  const moveInstructionDown = (index: number) => {
+    if (index < formData.instructions.length - 1) {
+      const newInstructions = [...formData.instructions];
+      [newInstructions[index], newInstructions[index + 1]] = [newInstructions[index + 1], newInstructions[index]];
       setFormData(prev => ({ ...prev, instructions: newInstructions }));
     }
   };
@@ -639,18 +655,44 @@ const RecipeCreatePage: React.FC = () => {
                       disabled={isLoading}
                     />
                   </div>
-                  {formData.instructions.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removeInstruction(index)}
-                      disabled={isLoading}
-                      className="self-end"
-                    >
-                      {t('recipe.form.remove')}
-                    </Button>
-                  )}
+                  <div className="flex flex-col gap-2 self-end">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => moveInstructionUp(index)}
+                        disabled={isLoading || index === 0}
+                        className="h-8 w-8"
+                        title={t('recipe.form.move_up')}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => moveInstructionDown(index)}
+                        disabled={isLoading || index === formData.instructions.length - 1}
+                        className="h-8 w-8"
+                        title={t('recipe.form.move_down')}
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {formData.instructions.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeInstruction(index)}
+                        disabled={isLoading}
+                        className="w-full"
+                      >
+                        {t('recipe.form.remove')}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
               <Button
