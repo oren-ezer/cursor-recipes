@@ -28,6 +28,29 @@ interface Tag {
   updated_at: string;
 }
 
+interface InteractionMetadata {
+  favorites_count: number;
+  is_favorited: boolean;
+  average_rating: number;
+  ratings_count: number;
+  user_rating?: number;
+  comments_count: number;
+}
+
+interface RecipeComment {
+  id: number;
+  recipe_id: number;
+  user_id: string;
+  user_full_name?: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  reactions?: {
+    counts: Record<string, number>;
+    user_reaction?: string;
+  };
+}
+
 interface Recipe {
   id: number;
   title: string;
@@ -44,6 +67,7 @@ interface Recipe {
   is_public: boolean;
   image_url?: string;
   tags: Tag[];
+  interaction_meta?: InteractionMetadata;
 }
 
 interface LoginResponse {
@@ -519,6 +543,63 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // ==========================
+  // Interactions
+  // ==========================
+  async toggleFavorite(recipeId: number): Promise<{ status: string }> {
+    return this.request<{ status: string }>(`/recipes/${recipeId}/favorite`, {
+      method: 'POST',
+    });
+  }
+
+  async getMyFavorites(limit = 100, offset = 0): Promise<number[]> {
+    return this.request<number[]>(`/recipes/me/favorites?limit=${limit}&offset=${offset}`);
+  }
+
+  async setRating(recipeId: number, score: number): Promise<{ status: string; score: number }> {
+    return this.request<{ status: string; score: number }>(`/recipes/${recipeId}/rating`, {
+      method: 'POST',
+      body: JSON.stringify({ score }),
+    });
+  }
+
+  async deleteRating(recipeId: number): Promise<{ status: string }> {
+    return this.request<{ status: string }>(`/recipes/${recipeId}/rating`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getComments(recipeId: number, limit = 100, offset = 0): Promise<RecipeComment[]> {
+    return this.request<RecipeComment[]>(`/recipes/${recipeId}/comments?limit=${limit}&offset=${offset}`);
+  }
+
+  async addComment(recipeId: number, content: string): Promise<RecipeComment> {
+    return this.request<RecipeComment>(`/recipes/${recipeId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async updateComment(commentId: number, content: string): Promise<RecipeComment> {
+    return this.request<RecipeComment>(`/recipes/comments/${commentId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async deleteComment(commentId: number): Promise<void> {
+    return this.request<void>(`/recipes/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleCommentReaction(commentId: number, reactionType: string): Promise<{ status: string; reaction_type?: string }> {
+    return this.request<{ status: string; reaction_type?: string }>(`/recipes/comments/${commentId}/reactions`, {
+      method: 'POST',
+      body: JSON.stringify({ reaction_type: reactionType }),
+    });
+  }
 }
 
 // Image types
@@ -722,4 +803,6 @@ export {
   type EffectiveLLMConfig,
   type RecipeFromImageResponse,
   type RecipeFromImageIngredient,
+  type InteractionMetadata,
+  type RecipeComment,
 };

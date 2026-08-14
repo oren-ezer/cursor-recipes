@@ -10,6 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
+import { FavoriteButton } from './RecipeInteractions/FavoriteButton';
+import { RatingStars } from './RecipeInteractions/RatingStars';
 import type { Recipe } from '../lib/api-client';
 
 export interface RecipeCardProps {
@@ -219,17 +221,34 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       <CardContent className="p-4">
         <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
           <div className="flex items-center justify-between">
-            <span>{recipe.ingredients.length} {t('recipe.card.ingredients')}</span>
+            <RatingStars 
+              recipeId={recipe.id}
+              initialAverage={recipe.interaction_meta?.average_rating}
+              initialCount={recipe.interaction_meta?.ratings_count}
+              initialUserRating={recipe.interaction_meta?.user_rating}
+              readOnly={true}
+              size="sm"
+            />
             <span className={getDifficultyColor(recipe.difficulty_level)}>
               {recipe.difficulty_level}
             </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>{recipe.ingredients.length} {t('recipe.card.ingredients')}</span>
+            <span>{t('recipe.card.serves')}: {recipe.servings}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>{t('recipe.card.prep')}: {formatTime(recipe.preparation_time)}</span>
             <span>{t('recipe.card.cook')}: {formatTime(recipe.cooking_time)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span>{t('recipe.card.serves')}: {recipe.servings}</span>
+            <div className="flex items-center gap-2">
+              <FavoriteButton 
+                recipeId={recipe.id}
+                initialIsFavorited={recipe.interaction_meta?.is_favorited}
+                initialCount={recipe.interaction_meta?.favorites_count}
+              />
+            </div>
           </div>
           {/* Tags for default view */}
           {recipe.tags && recipe.tags.length > 0 && (

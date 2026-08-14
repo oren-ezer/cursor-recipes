@@ -5,6 +5,10 @@ from src.models.tag import Tag
 from src.models.recipe_tag import RecipeTag
 from src.models.recipe_image import RecipeImage
 from src.models.app_setting import AppSetting
+from src.models.recipe_favorite import RecipeFavorite
+from src.models.recipe_rating import RecipeRating
+from src.models.recipe_comment import RecipeComment
+from src.models.comment_reaction import CommentReaction
 
 __all__ = [
     "BaseModel",
@@ -14,4 +18,8 @@ __all__ = [
     "RecipeTag",
     "RecipeImage",
     "AppSetting",
+    "RecipeFavorite",
+    "RecipeRating",
+    "RecipeComment",
+    "CommentReaction",
 ]

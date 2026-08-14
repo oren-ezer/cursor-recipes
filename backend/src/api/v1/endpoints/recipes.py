@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import Response, StreamingResponse
 from typing import List, Dict, Any, Optional, Annotated
-from src.utils.dependencies import get_recipe_service_with_tags, get_current_user
+from src.utils.dependencies import get_recipe_service_with_tags, get_current_user, get_interaction_service
 from src.services.recipes_service import RecipeService
 from src.services.tag_service import TagService
+from src.services.interaction_service import InteractionService, InteractionMetadata
 from src.models.tag import TagCategory
 from src.utils.sanitization import sanitize_text, sanitize_url, MAX_LENGTHS
 from src.utils.pdf_export import build_content_disposition
@@ -135,6 +136,7 @@ class RecipeResponse(BaseModel):
     is_public: bool
     image_url: Optional[str] = None
     tags: List[TagInfo] = []
+    interaction_meta: Optional[InteractionMetadata] = None
 
 class RecipesResponse(BaseModel):
     recipes: List[RecipeResponse]
@@ -142,10 +144,26 @@ class RecipesResponse(BaseModel):
     limit: int
     offset: int
 
+def attach_interaction_meta(recipes_list: List[Dict[str, Any]], interaction_service: InteractionService, user_id: Optional[str] = None):
+    """Fetch and attach interaction_meta to each recipe dictionary."""
+    if not recipes_list:
+        return
+    
+    recipe_ids = [r["id"] for r in recipes_list]
+    metadata = interaction_service.get_recipes_metadata(recipe_ids, user_id)
+    
+    for r in recipes_list:
+        r_id = r["id"]
+        if r_id in metadata:
+            r["interaction_meta"] = metadata[r_id].model_dump()
+        else:
+            r["interaction_meta"] = InteractionMetadata().model_dump()
+
 @router.get("/", response_model=RecipesResponse)
 async def read_recipes(
     request: Request,
     recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    interaction_service: Annotated[InteractionService, Depends(get_interaction_service)],
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
@@ -156,12 +174,14 @@ async def read_recipes(
     try:
         user = getattr(request.state, "user", None)
         is_admin = user and user.get("is_superuser", False)
+        user_uuid = user.get("uuid") if user else None
 
         if is_admin:
             result = recipe_service.get_all_recipes_with_tags(limit=limit, offset=offset)
         else:
             result = recipe_service.get_all_public_recipes_with_tags(limit=limit, offset=offset)
 
+        attach_interaction_meta(result["recipes"], interaction_service, user_uuid)
         return result
 
     except HTTPException:
@@ -177,6 +197,7 @@ async def read_recipes(
 async def read_my_recipes(
     request: Request,
     recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    interaction_service: Annotated[InteractionService, Depends(get_interaction_service)],
     limit: int = Query(10, ge=1, le=100, description="Maximum number of records to return"),
     offset: int = Query(0, ge=0, description="Number of records to skip")
 ):
@@ -211,6 +232,7 @@ async def read_my_recipes(
             user_id=user["uuid"]
         )
         
+        attach_interaction_meta(result["recipes"], interaction_service, user["uuid"])
         return result
         
     except HTTPException:
@@ -226,7 +248,8 @@ async def read_my_recipes(
 async def read_recipe(
     recipe_id: int,
     request: Request,
-    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)]
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    interaction_service: Annotated[InteractionService, Depends(get_interaction_service)]
 ):
     """
     Get a specific recipe by ID.
@@ -242,14 +265,16 @@ async def read_recipe(
                 detail=f"Recipe with ID {recipe_id} not found"
             )
 
+        user = getattr(request.state, "user", None)
+        user_uuid = user.get("uuid") if user else None
+
         if not recipe_with_tags.get("is_public", True):
-            user = getattr(request.state, "user", None)
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required to view this recipe"
+                    detail="Authentication required to view this private recipe"
                 )
-            is_owner = user["uuid"] == recipe_with_tags.get("user_id")
+            is_owner = user_uuid == recipe_with_tags.get("user_id")
             is_superuser = user.get("is_superuser", False)
             if not is_owner and not is_superuser:
                 raise HTTPException(
@@ -257,6 +282,7 @@ async def read_recipe(
                     detail="Not authorized to view this private recipe"
                 )
 
+        attach_interaction_meta([recipe_with_tags], interaction_service, user_uuid)
         return recipe_with_tags
 
     except HTTPException:
@@ -272,7 +298,8 @@ async def read_recipe(
 async def create_recipe(
     request: Request,
     recipe_data: RecipeCreate,
-    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)]
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    interaction_service: Annotated[InteractionService, Depends(get_interaction_service)]
 ):
     """
     Create a new recipe.
@@ -298,6 +325,7 @@ async def create_recipe(
         
         # Create recipe with tags
         recipe_with_tags = recipe_service.create_recipe_with_tags(recipe_dict, user["uuid"])
+        attach_interaction_meta([recipe_with_tags], interaction_service, user["uuid"])
         return recipe_with_tags
         
     except ValueError as e:
@@ -311,7 +339,8 @@ async def update_recipe(
     recipe_id: int,
     recipe_data: RecipeUpdate,
     request: Request,
-    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)]
+    recipe_service: Annotated[RecipeService, Depends(get_recipe_service_with_tags)],
+    interaction_service: Annotated[InteractionService, Depends(get_interaction_service)]
 ):
     """
     Update a recipe by ID.
@@ -338,6 +367,7 @@ async def update_recipe(
         # Update recipe with tags (allow superusers to edit any recipe)
         is_superuser = user.get("is_superuser", False)
         recipe_with_tags = recipe_service.update_recipe_with_tags(recipe_id, update_dict, user["uuid"], is_superuser)
+        attach_interaction_meta([recipe_with_tags], interaction_service, user["uuid"])
         return recipe_with_tags
         
     except ValueError as e:

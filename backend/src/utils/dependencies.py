@@ -10,6 +10,7 @@ from src.services.recipes_service import RecipeService
 from src.services.tag_service import TagService
 from src.services.image_storage import ImageStorageBackend, create_storage_backend
 from src.services.app_settings_service import AppSettingsService
+from src.services.interaction_service import InteractionService
 from typing import Annotated
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/users/token")
@@ -122,6 +123,11 @@ def get_tag_service(db: Annotated[Session, Depends(get_database_session)]) -> Ta
             pass
     """
     return TagService(db)
+
+def get_interaction_service(db: Annotated[Session, Depends(get_database_session)]) -> InteractionService:
+    """FastAPI dependency to get InteractionService instance."""
+    return InteractionService(db)
+
 # this method is designed to be used by FastAPI during dependency injection.
 # currently it is not being used.
 async def get_current_user(

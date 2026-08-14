@@ -9,7 +9,10 @@ from dotenv import load_dotenv
 load_dotenv(".env")
 
 # Import the SQLModel metadata
-from src.models import User, Recipe, Tag, RecipeTag, RecipeImage, AppSetting
+from src.models import (
+    User, Recipe, Tag, RecipeTag, RecipeImage, AppSetting,
+    RecipeFavorite, RecipeRating, RecipeComment, CommentReaction
+)
 from sqlmodel import SQLModel
 
 # this is the Alembic Config object, which provides

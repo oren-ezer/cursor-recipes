@@ -14,6 +14,10 @@ import NutritionModal from '../components/nutrition-modal';
 import ImageThumbnailGrid from '../components/ImageThumbnailGrid';
 import { Sparkles } from 'lucide-react';
 
+import { FavoriteButton } from '../components/RecipeInteractions/FavoriteButton';
+import { RatingStars } from '../components/RecipeInteractions/RatingStars';
+import { CommentSection } from '../components/RecipeInteractions/CommentSection';
+
 const RecipeDetailPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const navigate = useNavigate();
@@ -349,6 +353,24 @@ const RecipeDetailPage: React.FC = () => {
         description={recipe.description}
       >
         <div className="space-y-6">
+          {/* Interaction Header */}
+          <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <RatingStars 
+              recipeId={recipe.id}
+              initialAverage={recipe.interaction_meta?.average_rating}
+              initialCount={recipe.interaction_meta?.ratings_count}
+              initialUserRating={recipe.interaction_meta?.user_rating}
+              readOnly={false}
+              size="lg"
+            />
+            <FavoriteButton 
+              recipeId={recipe.id}
+              initialIsFavorited={recipe.interaction_meta?.is_favorited}
+              initialCount={recipe.interaction_meta?.favorites_count}
+              className="mt-4 md:mt-0"
+            />
+          </div>
+
           {/* Export Success Message */}
           {exportSuccess && (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded text-center">
@@ -522,6 +544,9 @@ const RecipeDetailPage: React.FC = () => {
               </ol>
             </CardContent>
           </Card>
+
+          {/* Comments Section */}
+          <CommentSection recipeId={recipe.id} />
 
           {/* Navigation */}
           <div className="flex justify-center gap-4">

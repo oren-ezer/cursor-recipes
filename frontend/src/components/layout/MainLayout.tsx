@@ -72,9 +72,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 {t('nav.recipes')}
               </Link>
               {isAuthenticated && (
-                <Link to="/my-recipes" className={getLinkClasses('/my-recipes')}>
-                  {t('nav.my_recipes')}
-                </Link>
+                <>
+                  <Link to="/my-recipes" className={getLinkClasses('/my-recipes')}>
+                    {t('nav.my_recipes')}
+                  </Link>
+                  <Link to="/favorites" className={getLinkClasses('/favorites')}>
+                    {t('nav.favorites')}
+                  </Link>
+                </>
               )}
               {isAuthenticated && user?.is_superuser && (
                 <Link to="/admin" className={getLinkClasses('/admin')}>
