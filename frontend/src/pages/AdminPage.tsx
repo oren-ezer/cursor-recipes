@@ -296,6 +296,17 @@ const AdminPage: React.FC = () => {
     setShowDeleteTagModal(true);
   };
 
+  const getDeleteTagConfirmMessage = () => {
+    if (!tagToDelete) return '';
+    const name = tagToDelete.name;
+    if (tagToDelete.recipe_counter > 0) {
+      return t('admin.tags.delete_confirm_message_with_recipes')
+        .replace('{name}', name)
+        .replace('{count}', String(tagToDelete.recipe_counter));
+    }
+    return t('admin.tags.delete_confirm_message').replace('{name}', name);
+  };
+
   const handleDeleteTagConfirm = async () => {
     if (!tagToDelete) return;
     
@@ -1780,7 +1791,7 @@ const AdminPage: React.FC = () => {
           onClose={() => setShowDeleteTagModal(false)}
           onConfirm={handleDeleteTagConfirm}
           title={t('admin.tags.delete_confirm_title')}
-          message={t('admin.tags.delete_confirm_message').replace('{name}', tagToDelete?.name || '')}
+          message={getDeleteTagConfirmMessage()}
           confirmText={t('admin.tags.delete')}
           cancelText={t('modal.cancel')}
           variant="destructive"
