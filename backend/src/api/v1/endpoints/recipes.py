@@ -328,6 +328,8 @@ async def create_recipe(
         attach_interaction_meta([recipe_with_tags], interaction_service, user["uuid"])
         return recipe_with_tags
         
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -370,6 +372,8 @@ async def update_recipe(
         attach_interaction_meta([recipe_with_tags], interaction_service, user["uuid"])
         return recipe_with_tags
         
+    except HTTPException:
+        raise
     except ValueError as e:
         if "Recipe with ID" in str(e) and "not found" in str(e):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -411,6 +415,8 @@ async def delete_recipe(
         recipe_service.delete_recipe_with_tags(recipe_id, user["uuid"], is_superuser)
         return None  # 204 No Content
         
+    except HTTPException:
+        raise
     except ValueError as e:
         if "Recipe with ID" in str(e) and "not found" in str(e):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -450,6 +456,8 @@ async def export_recipe_json(
         recipe_data = recipe_service.export_recipe_to_json(recipe_id)
         return recipe_data
         
+    except HTTPException:
+        raise
     except ValueError as e:
         if "Recipe with ID" in str(e) and "not found" in str(e):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -510,6 +518,8 @@ async def export_recipe_pdf(
             },
         )
         
+    except HTTPException:
+        raise
     except ValueError as e:
         if "Recipe with ID" in str(e) and "not found" in str(e):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
