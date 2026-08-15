@@ -25,6 +25,7 @@ interface Ingredient {
 interface RecipeFormData {
   title: string;
   description: string;
+  origin?: string;
   ingredients: Ingredient[];
   instructions: string[];
   preparation_time: number;
@@ -52,6 +53,7 @@ const RecipeEditPage: React.FC = () => {
   const [formData, setFormData] = useState<RecipeFormData>({
     title: '',
     description: '',
+    origin: '',
     ingredients: [{ name: '', amount: '' }],
     instructions: [''],
     preparation_time: 30,
@@ -91,6 +93,7 @@ const RecipeEditPage: React.FC = () => {
         setFormData({
           title: data.title,
           description: data.description,
+          origin: data.origin || '',
           ingredients: data.ingredients.length > 0 ? data.ingredients : [{ name: '', amount: '' }],
           instructions: data.instructions.length > 0 ? data.instructions : [''],
           preparation_time: data.preparation_time,
@@ -278,9 +281,16 @@ const RecipeEditPage: React.FC = () => {
       const cleanInstructions = formData.instructions.filter(inst => inst.trim());
 
       const recipeData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        origin: formData.origin,
         ingredients: cleanIngredients,
         instructions: cleanInstructions,
+        preparation_time: formData.preparation_time,
+        cooking_time: formData.cooking_time,
+        servings: formData.servings,
+        difficulty_level: formData.difficulty_level,
+        is_public: formData.is_public,
         tag_ids: formData.selectedTags.map(tag => tag.id),
       };
 
@@ -375,7 +385,7 @@ const RecipeEditPage: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="preparation_time">{t('recipe.form.prep_time')} *</Label>
                   <Input
@@ -417,24 +427,37 @@ const RecipeEditPage: React.FC = () => {
                     disabled={isSaving}
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="difficulty">{t('recipe.form.difficulty')}</Label>
-                <Select
-                  value={formData.difficulty_level}
-                  onValueChange={(value) => handleInputChange('difficulty_level', value)}
-                  disabled={isSaving}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Easy">{t('difficulty.easy')}</SelectItem>
-                    <SelectItem value="Medium">{t('difficulty.medium')}</SelectItem>
-                    <SelectItem value="Hard">{t('difficulty.hard')}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label htmlFor="difficulty">{t('recipe.form.difficulty')}</Label>
+                  <Select
+                    value={formData.difficulty_level}
+                    onValueChange={(value) => handleInputChange('difficulty_level', value)}
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Easy">{t('difficulty.easy')}</SelectItem>
+                      <SelectItem value="Medium">{t('difficulty.medium')}</SelectItem>
+                      <SelectItem value="Hard">{t('difficulty.hard')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="origin">{t('recipe.form.origin')}</Label>
+                  <Input
+                    id="origin"
+                    type="text"
+                    value={formData.origin || ''}
+                    onChange={(e) => handleInputChange('origin', e.target.value)}
+                    placeholder="e.g. Grandma's, Italian..."
+                    maxLength={200}
+                    disabled={isSaving}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

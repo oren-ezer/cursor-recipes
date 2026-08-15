@@ -25,6 +25,7 @@ interface Ingredient {
 interface RecipeFormData {
   title: string;
   description: string;
+  origin?: string;
   ingredients: Ingredient[];
   instructions: string[];
   preparation_time: number;
@@ -50,6 +51,7 @@ const RecipeCreatePage: React.FC = () => {
   const [formData, setFormData] = useState<RecipeFormData>({
     title: '',
     description: '',
+    origin: '',
     ingredients: [{ name: '', amount: '' }],
     instructions: [''],
     preparation_time: 30,
@@ -432,7 +434,7 @@ const RecipeCreatePage: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="preparation_time">{t('recipe.form.prep_time')} *</Label>
                   <Input
@@ -474,24 +476,37 @@ const RecipeCreatePage: React.FC = () => {
                     disabled={isLoading}
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="difficulty">{t('recipe.form.difficulty')}</Label>
-                <Select
-                  value={formData.difficulty_level}
-                  onValueChange={(value) => handleInputChange('difficulty_level', value)}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Easy">{t('difficulty.easy')}</SelectItem>
-                    <SelectItem value="Medium">{t('difficulty.medium')}</SelectItem>
-                    <SelectItem value="Hard">{t('difficulty.hard')}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label htmlFor="difficulty">{t('recipe.form.difficulty')}</Label>
+                  <Select
+                    value={formData.difficulty_level}
+                    onValueChange={(value) => handleInputChange('difficulty_level', value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Easy">{t('difficulty.easy')}</SelectItem>
+                      <SelectItem value="Medium">{t('difficulty.medium')}</SelectItem>
+                      <SelectItem value="Hard">{t('difficulty.hard')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="origin">{t('recipe.form.origin')}</Label>
+                  <Input
+                    id="origin"
+                    type="text"
+                    value={formData.origin || ''}
+                    onChange={(e) => handleInputChange('origin', e.target.value)}
+                    placeholder="e.g. Grandma's, Italian..."
+                    maxLength={200}
+                    disabled={isLoading}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

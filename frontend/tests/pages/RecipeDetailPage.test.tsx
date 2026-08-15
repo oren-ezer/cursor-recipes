@@ -20,6 +20,12 @@ vi.mock('../../src/lib/api-client', () => ({
     exportRecipeToPdf: vi.fn(),
     exportRecipeToJson: vi.fn(),
     getRecipeImages: vi.fn().mockResolvedValue({ images: [] }),
+    getComments: vi.fn().mockResolvedValue([]),
+    calculateNutrition: vi.fn().mockResolvedValue(null),
+    toggleFavorite: vi.fn(),
+    setRating: vi.fn(),
+    deleteRating: vi.fn(),
+    toggleCommentReaction: vi.fn(),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string) {
@@ -178,7 +184,7 @@ describe('RecipeDetailPage', () => {
         expect(screen.getByText('Recipe Information')).toBeInTheDocument();
         expect(screen.getByText('30 minutes')).toBeInTheDocument(); // preparation time
         expect(screen.getByText('45 minutes')).toBeInTheDocument(); // cooking time
-        expect(screen.getByText('4 people')).toBeInTheDocument(); // servings
+        expect(screen.getByText('4')).toBeInTheDocument(); // servings
         expect(screen.getByText('Medium')).toBeInTheDocument();
       });
     });

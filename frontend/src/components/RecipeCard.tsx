@@ -195,6 +195,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               {recipe.difficulty_level}
             </span>
           </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            🌍 {recipe.origin || '-'}
+          </div>
           {/* Tags for compact view */}
           {recipe.tags && recipe.tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
@@ -240,6 +243,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           <div className="flex items-center justify-between">
             <span>{t('recipe.card.prep')}: {formatTime(recipe.preparation_time)}</span>
             <span>{t('recipe.card.cook')}: {formatTime(recipe.cooking_time)}</span>
+          </div>
+          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1">
+            🌍 {recipe.origin || '-'}
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

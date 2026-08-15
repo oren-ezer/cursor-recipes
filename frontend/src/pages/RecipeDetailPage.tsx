@@ -440,23 +440,29 @@ const RecipeDetailPage: React.FC = () => {
                 <CardTitle>{t('recipe.detail.info')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">{t('recipe.form.prep_time')}:</span>
-                    <p>{formatTime(recipe.preparation_time)}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg flex flex-col items-center justify-center text-center">
+                    <span className="font-medium text-gray-500 dark:text-gray-400">{t('recipe.form.prep_time')}</span>
+                    <p className="text-base font-semibold mt-1">{formatTime(recipe.preparation_time)}</p>
                   </div>
-                  <div>
-                    <span className="font-medium">{t('recipe.form.cook_time')}:</span>
-                    <p>{formatTime(recipe.cooking_time)}</p>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg flex flex-col items-center justify-center text-center">
+                    <span className="font-medium text-gray-500 dark:text-gray-400">{t('recipe.form.cook_time')}</span>
+                    <p className="text-base font-semibold mt-1">{formatTime(recipe.cooking_time)}</p>
                   </div>
-                  <div>
-                    <span className="font-medium">{t('recipe.form.servings')}:</span>
-                    <p>{recipe.servings} people</p>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg flex flex-col items-center justify-center text-center">
+                    <span className="font-medium text-gray-500 dark:text-gray-400">{t('recipe.form.servings')}</span>
+                    <p className="text-base font-semibold mt-1">{recipe.servings}</p>
                   </div>
-                  <div>
-                    <span className="font-medium">{t('recipe.form.difficulty')}:</span>
-                    <p className={getDifficultyColor(recipe.difficulty_level)}>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg flex flex-col items-center justify-center text-center">
+                    <span className="font-medium text-gray-500 dark:text-gray-400">{t('recipe.form.difficulty')}</span>
+                    <p className={`text-base font-semibold mt-1 ${getDifficultyColor(recipe.difficulty_level)}`}>
                       {recipe.difficulty_level}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg flex flex-col items-center justify-center text-center sm:col-span-2">
+                    <span className="font-medium text-gray-500 dark:text-gray-400">{t('recipe.form.origin')}</span>
+                    <p className="text-base font-semibold text-gray-700 dark:text-gray-300 mt-1">
+                      {recipe.origin || '-'}
                     </p>
                   </div>
                 </div>

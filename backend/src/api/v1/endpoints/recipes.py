@@ -42,11 +42,14 @@ class RecipeCreate(BaseModel):
     difficulty_level: str = "Easy"
     is_public: bool = True
     image_url: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["image_url"])
+    origin: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["recipe_title"])
     tag_ids: List[int] = Field(..., min_length=3)
 
-    @field_validator("title")
+    @field_validator("title", "origin")
     @classmethod
     def sanitize_title(cls, v: str) -> str:
+        if v is None:
+            return v
         return sanitize_text(v, max_length=MAX_LENGTHS["recipe_title"])
 
     @field_validator("description")
@@ -84,9 +87,10 @@ class RecipeUpdate(BaseModel):
     difficulty_level: Optional[str] = None
     is_public: Optional[bool] = None
     image_url: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["image_url"])
+    origin: Optional[str] = Field(default=None, max_length=MAX_LENGTHS["recipe_title"])
     tag_ids: Optional[List[int]] = Field(default=None, min_length=3)
 
-    @field_validator("title")
+    @field_validator("title", "origin")
     @classmethod
     def sanitize_title(cls, v: str | None) -> str | None:
         if v is None:
@@ -135,6 +139,7 @@ class RecipeResponse(BaseModel):
     updated_at: datetime
     is_public: bool
     image_url: Optional[str] = None
+    origin: Optional[str] = None
     tags: List[TagInfo] = []
     interaction_meta: Optional[InteractionMetadata] = None
 

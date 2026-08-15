@@ -27,6 +27,7 @@ class Recipe(BaseModel, table=True):
     difficulty_level: str = Field(default="Easy", nullable=False)
     is_public: bool = Field(default=True, nullable=False)
     image_url: Optional[str] = Field(default=None)
+    origin: Optional[str] = Field(default=None)
     user_id: str = Field(foreign_key="users.uuid", nullable=False)
 
     __table_args__ = (

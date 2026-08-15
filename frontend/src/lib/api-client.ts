@@ -66,6 +66,7 @@ interface Recipe {
   updated_at: string;
   is_public: boolean;
   image_url?: string;
+  origin?: string;
   tags: Tag[];
   interaction_meta?: InteractionMetadata;
 }

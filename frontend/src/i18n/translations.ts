@@ -44,6 +44,7 @@ export const translations = {
     "recipe.card.prep": "Prep",
     "recipe.card.cook": "Cook",
     "recipe.card.serves": "Serves",
+    "recipe.card.origin": "Origin",
     "recipe.card.has_image": "Has image",
     "recipe.card.more_tags": "more",
     
@@ -84,6 +85,7 @@ export const translations = {
     "recipe.form.prep_time": "Preparation Time (minutes)",
     "recipe.form.cook_time": "Cooking Time (minutes)",
     "recipe.form.servings": "Servings",
+    "recipe.form.origin": "Origin (Optional)",
     "recipe.form.difficulty": "Difficulty Level",
     "recipe.form.images": "Recipe Images",
     "recipe.form.current_image": "Current image",
@@ -490,6 +492,7 @@ export const translations = {
     "recipe.card.prep": "הכנה",
     "recipe.card.cook": "בישול",
     "recipe.card.serves": "מנות",
+    "recipe.card.origin": "מקור",
     "recipe.card.has_image": "יש תמונה",
     "recipe.card.more_tags": "עוד",
     
@@ -530,6 +533,7 @@ export const translations = {
     "recipe.form.prep_time": "זמן הכנה (דקות)",
     "recipe.form.cook_time": "זמן בישול (דקות)",
     "recipe.form.servings": "מספר מנות",
+    "recipe.form.origin": "מקור (אופציונלי)",
     "recipe.form.difficulty": "רמת קושי",
     "recipe.form.images": "תמונות המתכון",
     "recipe.form.current_image": "תמונה נוכחית",

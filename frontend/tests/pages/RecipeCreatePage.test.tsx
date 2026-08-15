@@ -257,6 +257,7 @@ describe('RecipeCreatePage', () => {
       expect(screen.getByLabelText(/preparation time/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/cooking time/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/servings/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/origin/i)).toBeInTheDocument();
       expect(screen.getByText(/difficulty level/i)).toBeInTheDocument();
       
       // Image upload section and visibility
@@ -306,6 +307,15 @@ describe('RecipeCreatePage', () => {
       fireEvent.change(cookTimeInput, { target: { value: '60' } });
       
       expect(cookTimeInput).toHaveValue(60);
+    });
+
+    it('should handle origin change', () => {
+      renderWithRouter(<RecipeCreatePage />);
+      
+      const originInput = screen.getByLabelText(/origin/i);
+      fireEvent.change(originInput, { target: { value: 'Italian' } });
+      
+      expect(originInput).toHaveValue('Italian');
     });
 
     it('should handle servings change', () => {
@@ -585,6 +595,7 @@ describe('RecipeCreatePage', () => {
         expect(vi.mocked(apiClient.createRecipe)).toHaveBeenCalledWith({
           title: 'Test Recipe',
           description: 'A test recipe',
+          origin: '',
           ingredients: [{ name: 'Flour', amount: '2 cups' }],
           instructions: ['Mix ingredients'],
           preparation_time: 30,

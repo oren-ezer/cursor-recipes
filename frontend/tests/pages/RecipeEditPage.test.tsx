@@ -599,6 +599,7 @@ describe('RecipeEditPage', () => {
         expect(vi.mocked(apiClient.updateRecipe)).toHaveBeenCalledWith(123, {
           title: 'Updated Recipe',
           description: 'Updated description',
+          origin: '',
           ingredients: [
             { name: 'Ingredient 1', amount: '2 cups' },
             { name: 'Ingredient 2', amount: '1 tbsp' },
@@ -612,11 +613,6 @@ describe('RecipeEditPage', () => {
           servings: 4,
           difficulty_level: 'Medium',
           is_public: true,
-          selectedTags: [
-            { id: 1, name: 'tag1', category: 'cuisine' },
-            { id: 2, name: 'tag2', category: 'cuisine' },
-            { id: 3, name: 'tag3', category: 'cuisine' },
-          ],
           tag_ids: [1, 2, 3],
         });
       });
