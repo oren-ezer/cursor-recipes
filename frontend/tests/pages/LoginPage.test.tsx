@@ -221,6 +221,29 @@ describe('LoginPage', () => {
       });
     });
 
+    it('should redirect to change-password if requires_password_change is true', async () => {
+      const mockNavigate = vi.fn();
+      const mockLogin = vi.fn().mockReturnValue({ requires_password_change: true });
+      vi.mocked(useNavigate).mockReturnValue(mockNavigate);
+      vi.mocked(useAuth).mockReturnValue({
+        ...createMockAuth(),
+        login: mockLogin,
+      });
+      
+      renderWithRouter(<LoginPage />);
+      
+      const emailInput = screen.getByLabelText('Email');
+      const passwordInput = screen.getByLabelText('Password');
+      const submitButton = screen.getByRole('button', { name: 'Login' });
+      
+      fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+      fireEvent.change(passwordInput, { target: { value: 'password123' } });
+      fireEvent.click(submitButton);
+      
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/change-password');
+      });
+    });
 
   });
 

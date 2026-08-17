@@ -2,9 +2,18 @@ import React from 'react';
 import { render, screen, fireEvent } from '../../setup/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useNavigate } from 'react-router-dom';
 import MainLayout from '../../../src/components/layout/MainLayout';
 import { AuthProvider } from '../../../src/contexts/AuthProvider';
+
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 // Mock the useAuth hook
 const mockUseAuth = vi.fn();
@@ -220,6 +229,23 @@ describe('MainLayout Component', () => {
       fireEvent.click(logoutButton);
 
       expect(mockLogout).toHaveBeenCalledTimes(1);
+    });
+
+    it('should redirect to /change-password if user requires password change', () => {
+      mockUseAuth.mockReturnValue({
+        isAuthenticated: true,
+        user: { ...mockUser, requires_password_change: true },
+        logout: mockLogout,
+      });
+
+      render(
+        <MainLayout>
+          <div>Content</div>
+        </MainLayout>,
+        { route: '/some-other-page' }
+      );
+
+      expect(mockNavigate).toHaveBeenCalledWith('/change-password', { replace: true });
     });
   });
 

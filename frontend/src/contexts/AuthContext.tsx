@@ -6,6 +6,7 @@ export interface AuthUser {
   email: string;
   uuid?: string;
   is_superuser?: boolean;
+  requires_password_change?: boolean;
   // Add other relevant user fields, e.g., fullName, roles, etc.
 }
 
@@ -14,7 +15,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   user: AuthUser | null;
   token: string | null;
-  login: (token: string, userData?: AuthUser) => Promise<void>; // Made userData optional
+  login: (token: string, userData?: AuthUser) => Promise<AuthUser | undefined>; // Made userData optional and return user
   logout: () => Promise<void>; // Make logout async if it involves async ops
   isLoading: boolean; // To handle loading state, e.g., while checking initial auth status
 }
@@ -26,7 +27,7 @@ export const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
   token: null,
-  login: async (token: string, userData?: AuthUser) => { console.warn("Login function not yet implemented in AuthProvider", token, userData) }, // Reflect optional userData
+  login: async (token: string, userData?: AuthUser) => { console.warn("Login function not yet implemented in AuthProvider", token, userData); return undefined; }, // Reflect optional userData
   logout: async () => { console.warn("Logout function not yet implemented in AuthProvider") },
   isLoading: true, // Assume loading initially until AuthProvider checks
 });

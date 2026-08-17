@@ -18,6 +18,7 @@ class User(BaseModel, table=True):
     full_name: Optional[str] = None
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
+    requires_password_change: bool = Field(default=False)
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True, index=True)
 
     def __repr__(self):

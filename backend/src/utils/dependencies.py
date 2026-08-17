@@ -161,6 +161,7 @@ async def _get_current_user_from_token(user_service: UserService, token: str):
         email: str = payload.get("sub")
         user_id: int = payload.get("user_id")
         user_uuid: str = payload.get("uuid")
+        requires_password_change: bool = payload.get("requires_password_change", False)
         
         if email is None or user_id is None or user_uuid is None:
             logger.error("Missing required claims in token")
@@ -184,6 +185,7 @@ async def _get_current_user_from_token(user_service: UserService, token: str):
             "full_name": user.full_name,
             "is_active": user.is_active,
             "is_superuser": user.is_superuser,
+            "requires_password_change": user.requires_password_change,
             "created_at": user.created_at,
             "updated_at": user.updated_at
         }

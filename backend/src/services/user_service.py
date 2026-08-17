@@ -312,6 +312,75 @@ class UserService:
         
         return existing_user 
 
+    def reset_password_by_admin(self, admin_id: int, target_user_id: int) -> str:
+        """
+        Reset a user's password to a temporary one. Requires admin validation in the endpoint.
+        
+        Args:
+            admin_id: The ID of the admin performing the action
+            target_user_id: The ID of the user whose password is to be reset
+            
+        Returns:
+            The raw temporary password
+            
+        Raises:
+            ValueError: If target user not found
+        """
+        target_user = self.db.exec(select(User).where(User.id == target_user_id)).first()
+        if not target_user:
+            raise ValueError("Target user not found")
+            
+        # Generate temporary password
+        import secrets
+        import string
+        
+        # Ensure it meets criteria
+        upper = secrets.choice(string.ascii_uppercase)
+        lower = secrets.choice(string.ascii_lowercase)
+        digit = secrets.choice(string.digits)
+        special = secrets.choice('!@#$%^&*()_+')
+        rest = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+        
+        temp_password = ''.join(secrets.SystemRandom().sample(list(upper + lower + digit + special + rest), 12))
+        
+        target_user.hashed_password = hash_password(temp_password)
+        target_user.requires_password_change = True
+        target_user.updated_at = datetime.now(timezone.utc)
+        
+        self.db.flush()
+        self.db.commit()
+        
+        return temp_password
+
+    def change_password(self, user_uuid: str, current_password: str, new_password: str) -> None:
+        """
+        Change a user's password.
+        
+        Args:
+            user_uuid: The UUID of the user
+            current_password: The user's current password
+            new_password: The new password to set
+            
+        Raises:
+            ValueError: If user not found, current password invalid, or new password doesn't meet criteria
+        """
+        user = self.db.exec(select(User).where(User.uuid == user_uuid)).first()
+        if not user:
+            raise ValueError("User not found")
+            
+        if not verify_password(current_password, user.hashed_password):
+            raise ValueError("Invalid current password")
+            
+        # Validate new password
+        User.validate_password(new_password)
+        
+        user.hashed_password = hash_password(new_password)
+        user.requires_password_change = False
+        user.updated_at = datetime.now(timezone.utc)
+        
+        self.db.flush()
+        self.db.commit()
+
     def login_for_access_token(self, username: str, password: str) -> dict:
         """
         Authenticate user and create access token.
@@ -351,7 +420,8 @@ class UserService:
                 "sub": user.email, 
                 "user_id": user.id, 
                 "uuid": user.uuid,
-                "is_superuser": user.is_superuser
+                "is_superuser": user.is_superuser,
+                "requires_password_change": user.requires_password_change
             }, 
             expires_delta=access_token_expires
         )

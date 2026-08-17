@@ -32,7 +32,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             id: decodedToken.user_id, 
             email: decodedToken.sub,
             uuid: decodedToken.uuid,
-            is_superuser: decodedToken.is_superuser 
+            is_superuser: decodedToken.is_superuser,
+            requires_password_change: decodedToken.requires_password_change
           }); 
         } else {
           // Token expired
@@ -48,7 +49,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(false); // Finished initial auth check
   }, []);
 
-  const login = async (newToken: string, userData?: AuthUser) => {
+  const login = async (newToken: string, userData?: AuthUser): Promise<AuthUser | undefined> => {
     localStorage.setItem('authToken', newToken);
     setToken(newToken);
     apiClient.setToken(newToken);
@@ -58,16 +59,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     if (userData) {
       setUser(userData);
+      return userData;
     } else {
       // If userData is not passed directly, decode from token
       try {
         const decodedToken = jwtDecode<any>(newToken);
-        setUser({ 
+        const decodedUser = { 
           id: decodedToken.user_id, 
           email: decodedToken.sub,
           uuid: decodedToken.uuid,
-          is_superuser: decodedToken.is_superuser 
-        });
+          is_superuser: decodedToken.is_superuser,
+          requires_password_change: decodedToken.requires_password_change
+        };
+        setUser(decodedUser);
+        return decodedUser;
       } catch (error) {
         console.error("Failed to decode token on login:", error);
         // Handle error, maybe clear token and user
@@ -75,6 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setToken(null);
         localStorage.removeItem('authToken');
         apiClient.setToken(null);
+        return undefined;
       }
     }
   };

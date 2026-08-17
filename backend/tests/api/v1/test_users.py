@@ -411,6 +411,74 @@ def test_set_superuser_status_exception(client, mock_user_service, mock_admin_us
     response = client.put("/api/v1/users/2/set-superuser", json={"is_superuser": True})
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
+def test_reset_password_success(client, mock_user_service, mock_admin_user):
+    app.dependency_overrides[get_admin_user] = lambda: mock_admin_user
+    mock_user_service.reset_password_by_admin.return_value = "TempPass123!"
+    
+    response = client.post("/api/v1/users/2/reset-password")
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["temporary_password"] == "TempPass123!"
+    mock_user_service.reset_password_by_admin.assert_called_once_with(admin_id=mock_admin_user["id"], target_user_id=2)
+
+def test_reset_password_not_found(client, mock_user_service, mock_admin_user):
+    app.dependency_overrides[get_admin_user] = lambda: mock_admin_user
+    mock_user_service.reset_password_by_admin.side_effect = ValueError("Target user not found")
+    
+    response = client.post("/api/v1/users/2/reset-password")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+def test_reset_password_value_error_other(client, mock_user_service, mock_admin_user):
+    app.dependency_overrides[get_admin_user] = lambda: mock_admin_user
+    mock_user_service.reset_password_by_admin.side_effect = ValueError("Other error")
+    
+    response = client.post("/api/v1/users/2/reset-password")
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+def test_reset_password_exception(client, mock_user_service, mock_admin_user):
+    app.dependency_overrides[get_admin_user] = lambda: mock_admin_user
+    mock_user_service.reset_password_by_admin.side_effect = Exception("DB Error")
+    
+    response = client.post("/api/v1/users/2/reset-password")
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+def test_change_password_success(client, mock_user_service, mock_current_user):
+    app.dependency_overrides[get_current_user] = lambda: mock_current_user
+    mock_user_service.change_password.return_value = None
+    
+    response = client.post("/api/v1/users/me/change-password", json={
+        "current_password": "OldPassword123!",
+        "new_password": "NewPassword123!"
+    })
+    
+    assert response.status_code == status.HTTP_200_OK
+    mock_user_service.change_password.assert_called_once_with(
+        user_uuid=mock_current_user["uuid"],
+        current_password="OldPassword123!",
+        new_password="NewPassword123!"
+    )
+
+def test_change_password_value_error(client, mock_user_service, mock_current_user):
+    app.dependency_overrides[get_current_user] = lambda: mock_current_user
+    mock_user_service.change_password.side_effect = ValueError("Invalid current password")
+    
+    response = client.post("/api/v1/users/me/change-password", json={
+        "current_password": "WrongPassword123!",
+        "new_password": "NewPassword123!"
+    })
+    
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+def test_change_password_exception(client, mock_user_service, mock_current_user):
+    app.dependency_overrides[get_current_user] = lambda: mock_current_user
+    mock_user_service.change_password.side_effect = Exception("DB Error")
+    
+    response = client.post("/api/v1/users/me/change-password", json={
+        "current_password": "OldPassword123!",
+        "new_password": "NewPassword123!"
+    })
+    
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
 def test_login_for_access_token_success(client, mock_user_service):
     mock_user_service.login_for_access_token.return_value = {
         "access_token": "token123",
