@@ -595,7 +595,7 @@ class ApiClient {
     });
   }
 
-  async resetUserPassword(userId: number): Promise<{ temporary_password: string }> {
+  async resetUserPassword(userId: string | number): Promise<{ temporary_password: string }> {
     return this.request<{ temporary_password: string }>(`/users/${userId}/reset-password`, {
       method: 'POST',
     });

@@ -12,7 +12,7 @@ import ConfirmationModal from '../components/ui/confirmation-modal';
 import { useRecipeDeletion } from '../hooks/useRecipeDeletion';
 import NutritionModal from '../components/nutrition-modal';
 import ImageThumbnailGrid from '../components/ImageThumbnailGrid';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Languages, FileText, Layout, X } from 'lucide-react';
 
 import { FavoriteButton } from '../components/RecipeInteractions/FavoriteButton';
 import { RatingStars } from '../components/RecipeInteractions/RatingStars';
@@ -39,6 +39,9 @@ const RecipeDetailPage: React.FC = () => {
   const [nutritionData, setNutritionData] = useState<any>(null);
   const [isCalculatingNutrition, setIsCalculatingNutrition] = useState(false);
   const [nutritionError, setNutritionError] = useState<string | null>(null);
+
+  const [showExportLangModal, setShowExportLangModal] = useState(false);
+  const [detectedLanguage, setDetectedLanguage] = useState<'he' | 'en'>('en');
 
   // Use the consistent deletion hook
   const {
@@ -165,15 +168,45 @@ const RecipeDetailPage: React.FC = () => {
     navigate(`/recipes/${recipeId}/edit`, { state: location.state });
   };
 
-  const handleExportPdf = async () => {
+  const isRtlText = (text: string | null | undefined): boolean => {
+    if (!text) return false;
+    return /[\u0590-\u05FF]/.test(text);
+  };
+
+  const detectRecipeLanguage = (recipe: Recipe): string => {
+    const texts = [
+      recipe.title,
+      recipe.description,
+      recipe.difficulty_level,
+      ...(recipe.ingredients?.map(i => i.name) || []),
+      ...(recipe.ingredients?.map(i => i.amount) || []),
+      ...(recipe.instructions || [])
+    ];
+    return texts.some(isRtlText) ? 'he' : 'en';
+  };
+
+  const handleExportPdfClick = () => {
     if (!recipe) return;
     
+    const recipeLang = detectRecipeLanguage(recipe);
+    if (recipeLang !== language) {
+      setDetectedLanguage(recipeLang as 'he' | 'en');
+      setShowExportLangModal(true);
+    } else {
+      handleExportPdf(recipeLang);
+    }
+  };
+
+  const handleExportPdf = async (lang: string) => {
+    if (!recipe) return;
+    
+    setShowExportLangModal(false);
     setIsExporting(true);
     setError(null);
     setExportSuccess(null);
     
     try {
-      const blob = await apiClient.exportRecipeToPdf(recipe.id, language);
+      const blob = await apiClient.exportRecipeToPdf(recipe.id, lang);
       
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -399,7 +432,7 @@ const RecipeDetailPage: React.FC = () => {
                 )}
               </Button>
               <Button 
-                onClick={handleExportPdf}
+                onClick={handleExportPdfClick}
                 disabled={isExporting}
                 variant="outline"
               >
@@ -609,6 +642,83 @@ const RecipeDetailPage: React.FC = () => {
         error={nutritionError}
         recipeName={recipe?.title || ''}
       />
+
+      {/* Export Language Conflict Modal */}
+      {showExportLangModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-6 border-b dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                  <Languages className="w-5 h-5" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  {t('recipe.detail.export_lang_conflict_title')}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowExportLangModal(false)}
+                className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-full p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 space-y-6">
+              <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+                {t('recipe.detail.export_lang_conflict_desc')}
+              </p>
+              
+              <div className="flex flex-col gap-3">
+                <button
+                  className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-left group"
+                  onClick={() => handleExportPdf(detectedLanguage)}
+                >
+                  <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/50 transition-colors shrink-0">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div className="ml-4 rtl:mr-4 rtl:ml-0 flex-1">
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                      {t('recipe.detail.export_lang_recipe')}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                      {t(`recipe.detail.export_lang_${detectedLanguage}`)}
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-left group"
+                  onClick={() => handleExportPdf(language)}
+                >
+                  <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900/50 transition-colors shrink-0">
+                    <Layout className="w-6 h-6" />
+                  </div>
+                  <div className="ml-4 rtl:mr-4 rtl:ml-0 flex-1">
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                      {t('recipe.detail.export_lang_ui')}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                      {t(`recipe.detail.export_lang_${language}`)}
+                    </div>
+                  </div>
+                </button>
+              </div>
+              
+              <div className="pt-2 flex justify-end">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowExportLangModal(false)}
+                >
+                  {t('modal.cancel')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 };
