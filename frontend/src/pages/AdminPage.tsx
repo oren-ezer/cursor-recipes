@@ -88,6 +88,10 @@ const AdminPage: React.FC = () => {
   // Users state
   const [users, setUsers] = useState<User[]>([]);
   const [editingUserId, setEditingUserId] = useState<string | number | null>(null);
+  const [resettingPasswordUserId, setResettingPasswordUserId] = useState<string | null>(null);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [showTemporaryPasswordModal, setShowTemporaryPasswordModal] = useState(false);
   const [editingUserData, setEditingUserData] = useState<{
     email: string;
     full_name: string;
@@ -697,6 +701,40 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  const handleResetPasswordClick = (user: User) => {
+    setResettingPasswordUserId(user.id);
+    setShowResetPasswordModal(true);
+  };
+
+  const handleResetPasswordConfirm = async () => {
+    if (resettingPasswordUserId === null) return;
+    
+    setError(null);
+    try {
+      const response = await apiClient.resetUserPassword(resettingPasswordUserId);
+      setTemporaryPassword(response.temporary_password);
+      setShowResetPasswordModal(false);
+      setShowTemporaryPasswordModal(true);
+      setSuccessMessage(t('admin.users.reset_password_success'));
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('admin.users.reset_password_error'));
+      setShowResetPasswordModal(false);
+    } finally {
+      setResettingPasswordUserId(null);
+    }
+  };
+
+  const handleCopyPassword = () => {
+    if (temporaryPassword) {
+      navigator.clipboard.writeText(temporaryPassword);
+      setSuccessMessage(t('admin.users.password_copied'));
+      setTimeout(() => setSuccessMessage(null), 2000);
+    }
+  };
+
   // Show unauthorized message for non-superusers
   if (!user?.is_superuser) {
     return (
@@ -932,6 +970,13 @@ const AdminPage: React.FC = () => {
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                   <div className="flex justify-end gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleResetPasswordClick(u)}
+                                    >
+                                      {t('admin.users.reset_password')}
+                                    </Button>
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -1823,6 +1868,51 @@ const AdminPage: React.FC = () => {
           variant="destructive"
           isLoading={deletingLlmConfigId !== null}
         />
+        <ConfirmationModal
+          isOpen={showResetPasswordModal}
+          onClose={() => {
+            setShowResetPasswordModal(false);
+            setResettingPasswordUserId(null);
+          }}
+          onConfirm={handleResetPasswordConfirm}
+          title={t('admin.users.reset_password_confirm_title')}
+          message={t('admin.users.reset_password_confirm_message')}
+          confirmText={t('admin.users.reset_password')}
+          cancelText={t('admin.users.cancel')}
+        />
+
+        {showTemporaryPasswordModal && temporaryPassword && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {t('admin.users.temporary_password_title')}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {t('admin.users.temporary_password_message')}
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={temporaryPassword}
+                  readOnly
+                  className="font-mono text-center text-lg"
+                />
+                <Button onClick={handleCopyPassword} variant="outline">
+                  {t('admin.users.copy_password')}
+                </Button>
+              </div>
+              <div className="flex justify-end pt-4">
+                <Button
+                  onClick={() => {
+                    setShowTemporaryPasswordModal(false);
+                    setTemporaryPassword(null);
+                  }}
+                >
+                  {t('admin.users.close')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </PageContainer>
     </MainLayout>
   );

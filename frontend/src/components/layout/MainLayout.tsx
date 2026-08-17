@@ -53,6 +53,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
+  React.useEffect(() => {
+    // If the user requires a password change, redirect them to the change password page immediately
+    if (isAuthenticated && user?.requires_password_change && pathname !== '/change-password') {
+      navigate('/change-password', { replace: true });
+    }
+  }, [isAuthenticated, user, pathname, navigate]);
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <nav className="bg-white dark:bg-gray-800 shadow-md">

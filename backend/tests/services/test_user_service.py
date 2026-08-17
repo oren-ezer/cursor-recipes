@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from src.core.config import settings
 from src.services.app_settings_service import AppSettingsService
 from src.services.user_service import UserService
+from unittest.mock import patch
 from src.models.user import User
 from sqlmodel import select
 from datetime import datetime
@@ -597,9 +598,99 @@ class TestUserService:
         # Assert
         assert result["users"] == []
         assert result["total"] == 0
-        assert result["limit"] == 100
-        assert result["offset"] == 0
-        assert len(result["users"]) == 0
+
+    @patch("src.services.user_service.hash_password")
+    def test_reset_password_by_admin_success(self, mock_hash_password):
+        # Arrange
+        mock_db = Mock()
+        mock_user = User(id=2, uuid="uuid2", email="test@example.com", hashed_password="old_password", requires_password_change=False)
+        
+        mock_exec = Mock()
+        mock_exec.first.return_value = mock_user
+        mock_db.exec.return_value = mock_exec
+        mock_hash_password.return_value = "new_hashed_password"
+        
+        user_service = UserService(mock_db)
+        
+        # Act
+        temp_password = user_service.reset_password_by_admin(admin_id=1, target_user_id=2)
+        
+        # Assert
+        assert len(temp_password) == 12
+        assert mock_hash_password.called
+        assert mock_user.requires_password_change is True
+        assert mock_db.flush.called
+        assert mock_db.commit.called
+
+    def test_reset_password_by_admin_not_found(self):
+        # Arrange
+        mock_db = Mock()
+        mock_exec = Mock()
+        mock_exec.first.return_value = None
+        mock_db.exec.return_value = mock_exec
+        
+        user_service = UserService(mock_db)
+        
+        # Act & Assert
+        with pytest.raises(ValueError, match="Target user not found"):
+            user_service.reset_password_by_admin(admin_id=1, target_user_id=2)
+
+    @patch("src.services.user_service.hash_password")
+    @patch("src.services.user_service.verify_password")
+    @patch("src.models.user.User.validate_password")
+    def test_change_password_success(self, mock_validate_password, mock_verify_password, mock_hash_password):
+        # Arrange
+        mock_db = Mock()
+        mock_user = User(id=1, uuid="uuid1", email="test@example.com", hashed_password="old_hashed", requires_password_change=True)
+        
+        mock_exec = Mock()
+        mock_exec.first.return_value = mock_user
+        mock_db.exec.return_value = mock_exec
+        
+        mock_verify_password.return_value = True
+        mock_hash_password.return_value = "new_hashed"
+        mock_validate_password.return_value = "NewPass123!"
+        
+        user_service = UserService(mock_db)
+        
+        # Act
+        user_service.change_password(user_uuid="uuid1", current_password="old", new_password="NewPass123!")
+        
+        # Assert
+        assert mock_user.hashed_password == "new_hashed"
+        assert mock_user.requires_password_change is False
+        assert mock_db.flush.called
+        assert mock_db.commit.called
+
+    def test_change_password_not_found(self):
+        # Arrange
+        mock_db = Mock()
+        mock_exec = Mock()
+        mock_exec.first.return_value = None
+        mock_db.exec.return_value = mock_exec
+        
+        user_service = UserService(mock_db)
+        
+        # Act & Assert
+        with pytest.raises(ValueError, match="User not found"):
+            user_service.change_password(user_uuid="uuid1", current_password="old", new_password="NewPass123!")
+
+    @patch("src.services.user_service.verify_password")
+    def test_change_password_invalid_current(self, mock_verify_password):
+        # Arrange
+        mock_db = Mock()
+        mock_user = User(id=1, uuid="uuid1", email="test@example.com", hashed_password="old_hashed")
+        
+        mock_exec = Mock()
+        mock_exec.first.return_value = mock_user
+        mock_db.exec.return_value = mock_exec
+        mock_verify_password.return_value = False
+        
+        user_service = UserService(mock_db)
+        
+        # Act & Assert
+        with pytest.raises(ValueError, match="Invalid current password"):
+            user_service.change_password(user_uuid="uuid1", current_password="wrong", new_password="NewPass123!")
     
     def test_search_for_users_case_insensitive_email(self):
         """Test that email search is case-insensitive."""

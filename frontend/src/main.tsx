@@ -14,6 +14,7 @@ import RecipeCreatePage from './pages/RecipeCreatePage'
 import RecipeEditPage from './pages/RecipeEditPage'
 import FavoritesPage from './pages/FavoritesPage'
 import AdminPage from './pages/AdminPage'
+import ChangePasswordPage from './pages/ChangePasswordPage'
 import PageContainer from './components/layout/PageContainer'
 import ErrorBoundary from './components/ErrorBoundary'
 
@@ -67,6 +68,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/my-recipes" element={<MainLayout><MyRecipesPage /></MainLayout>} />
           <Route path="/favorites" element={<MainLayout><FavoritesPage /></MainLayout>} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
         </Routes>

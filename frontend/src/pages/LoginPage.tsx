@@ -39,8 +39,13 @@ const LoginPage: React.FC = () => {
 
     try {
       const { access_token } = await apiClient.login(email, password);
-      await login(access_token);
-      navigate('/');
+      const decodedUser = await login(access_token);
+      
+      if (decodedUser?.requires_password_change) {
+        navigate('/change-password');
+      } else {
+        navigate('/');
+      }
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setError(err.message);

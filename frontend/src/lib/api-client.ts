@@ -595,6 +595,19 @@ class ApiClient {
     });
   }
 
+  async resetUserPassword(userId: number): Promise<{ temporary_password: string }> {
+    return this.request<{ temporary_password: string }>(`/users/${userId}/reset-password`, {
+      method: 'POST',
+    });
+  }
+
+  async changePassword(current_password: string, new_password: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/users/me/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password, new_password }),
+    });
+  }
+
   async toggleCommentReaction(commentId: number, reactionType: string): Promise<{ status: string; reaction_type?: string }> {
     return this.request<{ status: string; reaction_type?: string }>(`/recipes/comments/${commentId}/reactions`, {
       method: 'POST',

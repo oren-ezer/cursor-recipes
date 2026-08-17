@@ -416,4 +416,59 @@ describe('ApiClient', () => {
       )
     })
   })
+
+  describe('Users', () => {
+    it('should set superuser status', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 1, is_superuser: true }),
+      })
+
+      const result = await apiClient.setUserSuperuser(1, true)
+
+      expect(result).toEqual({ id: 1, is_superuser: true })
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/users/1/set-superuser',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ is_superuser: true }),
+        })
+      )
+    })
+
+    it('should reset user password by admin', async () => {
+      const mockResponse = { temporary_password: 'new_temp_password' }
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      })
+
+      const result = await apiClient.resetUserPassword(123)
+
+      expect(result).toEqual(mockResponse)
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/users/123/reset-password',
+        expect.objectContaining({
+          method: 'POST',
+        })
+      )
+    })
+
+    it('should change user password', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      })
+
+      await apiClient.changePassword('oldpass', 'newpass')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/users/me/change-password',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ current_password: 'oldpass', new_password: 'newpass' }),
+        })
+      )
+    })
+  })
 })

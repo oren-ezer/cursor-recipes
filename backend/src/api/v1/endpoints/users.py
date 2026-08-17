@@ -66,6 +66,13 @@ class UsersResponse(BaseModel):
 class SetSuperuserRequest(BaseModel):
     is_superuser: bool
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+class ResetPasswordResponse(BaseModel):
+    temporary_password: str
+
 # New Token schema
 class Token(BaseModel):
     access_token: str
@@ -378,6 +385,67 @@ async def set_superuser_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to set superuser status"
+        )
+
+@router.post("/{user_id}/reset-password", response_model=ResetPasswordResponse)
+async def reset_password(
+    user_id: int,
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    admin: Dict[str, Any] = Depends(get_admin_user)
+):
+    """
+    Reset a user's password to a temporary one. Requires admin access.
+    """
+    try:
+        temp_password = user_service.reset_password_by_admin(admin_id=admin["id"], target_user_id=user_id)
+        return {"temporary_password": temp_password}
+    except ValueError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e)
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resetting password for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to reset password"
+        )
+
+@router.post("/me/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    user_service: Annotated[UserService, Depends(get_user_service)],
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Change current user's password.
+    """
+    try:
+        user_service.change_password(
+            user_uuid=current_user["uuid"],
+            current_password=payload.current_password,
+            new_password=payload.new_password
+        )
+        return {"message": "Password changed successfully"}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error changing password: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to change password"
         )
 
 # Login endpoint
