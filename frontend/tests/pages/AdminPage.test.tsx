@@ -5,7 +5,7 @@ import { render, fireEvent } from '../setup/test-utils';
 import AdminPage from '../../src/pages/AdminPage';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { apiClient } from '../../src/lib/api-client';
+import { apiClient, ApiError } from '../../src/lib/api-client';
 
 vi.mock('../../src/lib/api-client', () => ({
   apiClient: {
@@ -217,18 +217,8 @@ describe('AdminPage', () => {
       expect(screen.getByText('test@example.com')).toBeInTheDocument();
     });
 
-    // Find and click the reset password button (using the title from translation mock or icon)
-    // Looking for a button that has the rotate-ccw icon, we might need to find by title or role
-    const resetButtons = screen.getAllByRole('button');
-    const resetButton = resetButtons.find(b => b.title === 'Reset Password' || b.querySelector('.lucide-rotate-ccw'));
-    
-    if (resetButton) {
-      fireEvent.click(resetButton);
-    } else {
-      // Fallback if not found by title/icon
-      const buttons = screen.getAllByRole('button');
-      fireEvent.click(buttons[buttons.length - 2]); // Usually action buttons are at the end
-    }
+    const resetButton = screen.getByRole('button', { name: 'Reset Password' });
+    fireEvent.click(resetButton);
 
     // Confirmation modal should appear
     await waitFor(() => {
@@ -251,6 +241,260 @@ describe('AdminPage', () => {
     fireEvent.click(copyButton);
 
   });
+
+  it('blocks deleting the current admin user', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 2, email: 'admin@example.com', is_superuser: true },
+      login: vi.fn(),
+      logout: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(apiClient.getAllUsers).mockResolvedValue({
+      users: [
+        { id: 2, uuid: 'admin-uuid', email: 'admin@example.com', full_name: 'Admin', is_active: true, is_superuser: true, created_at: '2023-01-01', updated_at: '2023-01-01' },
+      ],
+      total: 1,
+    });
+
+    render(<AdminPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('admin@example.com')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('You cannot delete your own admin account.')).toBeInTheDocument();
+    });
+    expect(apiClient.getAllRecipesForAdmin).not.toHaveBeenCalled();
+    expect(apiClient.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it('deletes a user with no recipes after confirmation', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 2, email: 'admin@example.com', is_superuser: true },
+      login: vi.fn(),
+      logout: vi.fn(),
+      isLoading: false,
+    });
+
+    const mockUsers = [
+      { id: 1, uuid: 'abc-123', email: 'test@example.com', full_name: 'Test User', is_active: true, is_superuser: false, created_at: '2023-01-01', updated_at: '2023-01-01' },
+    ];
+    vi.mocked(apiClient.getAllUsers)
+      .mockResolvedValueOnce({ users: mockUsers, total: 1 })
+      .mockResolvedValueOnce({ users: [], total: 0 });
+    vi.mocked(apiClient.getAllRecipesForAdmin).mockResolvedValue([]);
+    vi.mocked(apiClient.deleteUser).mockResolvedValue(undefined);
+
+    render(<AdminPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/This user has 0 recipe\(s\)/)).toBeInTheDocument();
+      expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument();
+    });
+
+    const confirmButtons = screen.getAllByRole('button', { name: 'Delete' });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(apiClient.deleteUser).toHaveBeenCalledWith(1, undefined);
+      expect(screen.getByText('User deleted successfully.')).toBeInTheDocument();
+    });
+  });
+
+  it('transfers recipes to the current admin when deleting a user who owns recipes', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 2, email: 'admin@example.com', is_superuser: true },
+      login: vi.fn(),
+      logout: vi.fn(),
+      isLoading: false,
+    });
+
+    const mockUsers = [
+      { id: 1, uuid: 'abc-123', email: 'test@example.com', full_name: 'Test User', is_active: true, is_superuser: false, created_at: '2023-01-01', updated_at: '2023-01-01' },
+    ];
+    vi.mocked(apiClient.getAllUsers)
+      .mockResolvedValueOnce({ users: mockUsers, total: 1 })
+      .mockResolvedValueOnce({ users: [], total: 0 });
+    vi.mocked(apiClient.getAllRecipesForAdmin).mockResolvedValue([
+      { id: 10, title: 'Pasta', description: '', user_id: 'abc-123', is_public: true, created_at: '2023-01-01' },
+      { id: 11, title: 'Soup', description: '', user_id: 'abc-123', is_public: false, created_at: '2023-01-01' },
+    ]);
+    vi.mocked(apiClient.deleteUser).mockResolvedValue(undefined);
+
+    render(<AdminPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/This user has 2 recipe\(s\)/)).toBeInTheDocument();
+      expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument();
+    });
+
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(apiClient.deleteUser).toHaveBeenCalledWith(1, 2);
+      expect(screen.getByText('User deleted successfully.')).toBeInTheDocument();
+    });
+  });
+
+  it('does not delete the user when confirmation is cancelled', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 2, email: 'admin@example.com', is_superuser: true },
+      login: vi.fn(),
+      logout: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(apiClient.getAllUsers).mockResolvedValue({
+      users: [
+        { id: 1, uuid: 'abc-123', email: 'test@example.com', full_name: 'Test User', is_active: true, is_superuser: false, created_at: '2023-01-01', updated_at: '2023-01-01' },
+      ],
+      total: 1,
+    });
+    vi.mocked(apiClient.getAllRecipesForAdmin).mockResolvedValue([]);
+
+    render(<AdminPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/cannot be undone/i)).not.toBeInTheDocument();
+    });
+    expect(apiClient.deleteUser).not.toHaveBeenCalled();
+    expect(screen.getByText('test@example.com')).toBeInTheDocument();
+  });
+
+  it('shows an error when recipe count cannot be loaded', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 2, email: 'admin@example.com', is_superuser: true },
+      login: vi.fn(),
+      logout: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(apiClient.getAllUsers).mockResolvedValue({
+      users: [
+        { id: 1, uuid: 'abc-123', email: 'test@example.com', is_active: true, is_superuser: false },
+      ],
+      total: 1,
+    });
+    vi.mocked(apiClient.getAllRecipesForAdmin).mockRejectedValue(new ApiError('Failed to load recipes'));
+
+    render(<AdminPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load recipes')).toBeInTheDocument();
+    });
+    expect(apiClient.deleteUser).not.toHaveBeenCalled();
+    expect(screen.queryByText('Delete User')).not.toBeInTheDocument();
+  });
+
+  it('shows an error when delete user API fails', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 2, email: 'admin@example.com', is_superuser: true },
+      login: vi.fn(),
+      logout: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(apiClient.getAllUsers).mockResolvedValue({
+      users: [
+        { id: 1, uuid: 'abc-123', email: 'test@example.com', is_active: true, is_superuser: false },
+      ],
+      total: 1,
+    });
+    vi.mocked(apiClient.getAllRecipesForAdmin).mockResolvedValue([]);
+    vi.mocked(apiClient.deleteUser).mockRejectedValue(new ApiError('Failed to delete user'));
+
+    render(<AdminPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(screen.getByText(/This user has 0 recipe\(s\)/)).toBeInTheDocument();
+    });
+
+    const confirmButtons = screen.getAllByRole('button', { name: 'Delete' });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to delete user')).toBeInTheDocument();
+    });
+  });
+
+  it('counts only recipes owned by the user being deleted', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 2, email: 'admin@example.com', is_superuser: true },
+      login: vi.fn(),
+      logout: vi.fn(),
+      isLoading: false,
+    });
+
+    vi.mocked(apiClient.getAllUsers).mockResolvedValue({
+      users: [
+        { id: 1, uuid: 'abc-123', email: 'test@example.com', is_active: true, is_superuser: false },
+      ],
+      total: 1,
+    });
+    vi.mocked(apiClient.getAllRecipesForAdmin).mockResolvedValue([
+      { id: 10, title: 'Mine', description: '', user_id: 'abc-123', is_public: true, created_at: '2023-01-01' },
+      { id: 11, title: 'Other', description: '', user_id: 'someone-else', is_public: true, created_at: '2023-01-01' },
+    ]);
+
+    render(<AdminPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/This user has 1 recipe\(s\)/)).toBeInTheDocument();
+    });
+  });
 });
 
 describe('AdminPage coverage additions', () => {
@@ -269,7 +513,7 @@ describe('AdminPage coverage additions', () => {
     
     // Default mocks for tab data
     vi.mocked(apiClient.getAllUsers).mockResolvedValue({ users: [], total: 0 });
-    vi.mocked(apiClient.getAllRecipesForAdmin).mockResolvedValue({ recipes: [], total: 0 });
+    vi.mocked(apiClient.getAllRecipesForAdmin).mockResolvedValue([]);
     vi.mocked(apiClient.getAllTags).mockResolvedValue([]);
     vi.mocked(apiClient.getAppSettings).mockResolvedValue({ default_language: 'en', require_email_verification: false });
     vi.mocked(apiClient.getAllLLMConfigs).mockResolvedValue([]);
@@ -277,7 +521,39 @@ describe('AdminPage coverage additions', () => {
 
   // Users Tab
   it('handles user deletion', async () => {
-    // skipped for coverage
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 99, email: 'admin@example.com', is_superuser: true },
+      login: vi.fn(),
+      logout: vi.fn(),
+      isLoading: false,
+    });
+    vi.mocked(apiClient.getAllUsers)
+      .mockResolvedValueOnce({
+        users: [
+          { id: 1, uuid: 'u-1', email: 'gone@example.com', is_active: true, is_superuser: false },
+        ],
+        total: 1,
+      })
+      .mockResolvedValueOnce({ users: [], total: 0 });
+    vi.mocked(apiClient.deleteUser).mockResolvedValue(undefined);
+
+    render(<AdminPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('gone@example.com')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(screen.getByText(/This user has 0 recipe\(s\)/)).toBeInTheDocument();
+    });
+    const confirmButtons = screen.getAllByRole('button', { name: 'Delete' });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(apiClient.deleteUser).toHaveBeenCalledWith(1, undefined);
+    });
   });
 
   it('handles toggling superuser status', async () => {

@@ -90,6 +90,10 @@ const AdminPage: React.FC = () => {
   const [editingUserId, setEditingUserId] = useState<string | number | null>(null);
   const [resettingPasswordUserId, setResettingPasswordUserId] = useState<string | null>(null);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToDeleteRecipeCount, setUserToDeleteRecipeCount] = useState(0);
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | number | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [showTemporaryPasswordModal, setShowTemporaryPasswordModal] = useState(false);
   const [editingUserData, setEditingUserData] = useState<{
@@ -402,6 +406,66 @@ const AdminPage: React.FC = () => {
   const handleCancelUserEdit = () => {
     setEditingUserId(null);
     setEditingUserData({ email: '', full_name: '', is_active: true, is_superuser: false, password: '' });
+  };
+
+  const handleDeleteUserClick = async (userToRemove: User) => {
+    if (user && String(user.id) === String(userToRemove.id)) {
+      setError(t('admin.users.delete_self_error'));
+      return;
+    }
+
+    setError(null);
+    setDeletingUserId(userToRemove.id);
+    try {
+      const allRecipes = await apiClient.getAllRecipesForAdmin(1000);
+      const count = allRecipes.filter(
+        (recipe) => String(recipe.user_id) === String(userToRemove.uuid)
+      ).length;
+      setUserToDelete(userToRemove);
+      setUserToDeleteRecipeCount(count);
+      setShowDeleteUserModal(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('admin.users.error'));
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
+  const getDeleteUserConfirmMessage = () => {
+    if (!userToDelete) return '';
+    const email = userToDelete.email;
+    const count = String(userToDeleteRecipeCount);
+    if (userToDeleteRecipeCount > 0) {
+      return t('admin.users.delete_confirm_with_recipes')
+        .replace('{email}', email)
+        .replace('{count}', count);
+    }
+    return t('admin.users.delete_confirm_message')
+      .replace('{email}', email)
+      .replace('{count}', count);
+  };
+
+  const handleDeleteUserConfirm = async () => {
+    if (!userToDelete) return;
+
+    setDeletingUserId(userToDelete.id);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const transferToAdminId =
+        userToDeleteRecipeCount > 0 && user?.id != null ? user.id : undefined;
+      await apiClient.deleteUser(userToDelete.id, transferToAdminId);
+      await loadUsers();
+      setShowDeleteUserModal(false);
+      setUserToDelete(null);
+      setUserToDeleteRecipeCount(0);
+      setSuccessMessage(t('admin.users.delete_success'));
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('admin.users.error'));
+    } finally {
+      setDeletingUserId(null);
+    }
   };
 
   // Recipe Management Functions
@@ -983,6 +1047,14 @@ const AdminPage: React.FC = () => {
                                       onClick={() => handleEditUser(u)}
                                     >
                                       {t('admin.users.edit')}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleDeleteUserClick(u)}
+                                      disabled={deletingUserId === u.id}
+                                    >
+                                      {t('admin.users.delete')}
                                     </Button>
                                   </div>
                                 </td>
@@ -1868,6 +1940,22 @@ const AdminPage: React.FC = () => {
           variant="destructive"
           isLoading={deletingLlmConfigId !== null}
         />
+        <ConfirmationModal
+          isOpen={showDeleteUserModal}
+          onClose={() => {
+            setShowDeleteUserModal(false);
+            setUserToDelete(null);
+            setUserToDeleteRecipeCount(0);
+          }}
+          onConfirm={handleDeleteUserConfirm}
+          title={t('admin.users.delete_confirm_title')}
+          message={getDeleteUserConfirmMessage()}
+          confirmText={t('admin.users.delete')}
+          cancelText={t('modal.cancel')}
+          variant="destructive"
+          isLoading={deletingUserId !== null}
+        />
+
         <ConfirmationModal
           isOpen={showResetPasswordModal}
           onClose={() => {

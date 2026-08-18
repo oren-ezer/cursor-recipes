@@ -436,6 +436,47 @@ describe('ApiClient', () => {
       )
     })
 
+    it('should delete a user', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+      })
+
+      await apiClient.deleteUser(1)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/users/1',
+        expect.objectContaining({
+          method: 'DELETE',
+        })
+      )
+    })
+
+    it('should delete a user and transfer recipes to an admin', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+      })
+
+      await apiClient.deleteUser(1, 2)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/v1/users/1?transfer_to_admin_id=2',
+        expect.objectContaining({
+          method: 'DELETE',
+        })
+      )
+    })
+
+    it('should throw ApiError when delete user fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ detail: 'User owns recipes' }),
+      })
+
+      await expect(apiClient.deleteUser(1)).rejects.toThrow('User owns recipes')
+    })
+
     it('should reset user password by admin', async () => {
       const mockResponse = { temporary_password: 'new_temp_password' }
       mockFetch.mockResolvedValueOnce({
