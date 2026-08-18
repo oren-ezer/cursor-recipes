@@ -60,3 +60,13 @@ class TestPrepareRowForUpload:
         prepared = dm._prepare_row_for_upload("recipe_images", row)
         assert prepared is not None
         assert prepared["data"] == raw
+
+
+class TestSeedAndDemoTableSets:
+    def test_seed_includes_app_settings(self):
+        assert "app_settings" in dm._SEED_TABLES
+        assert dm._SEED_TABLES == ("users", "tags", "llm_configs", "app_settings")
+
+    def test_demo_includes_seed_tables(self):
+        for table in dm._SEED_TABLES:
+            assert table in dm._DEMO_TABLES

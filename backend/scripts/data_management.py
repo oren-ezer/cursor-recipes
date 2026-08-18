@@ -664,8 +664,8 @@ class DataManagement:
         Recreate schema from migrations, then populate from a backup.
 
         dataset:
-          - seed: users, tags, llm_configs
-          - demo: seed + recipes, recipe_tags, recipe_images
+          - seed: users, tags, llm_configs, app_settings
+          - demo: seed + recipes, recipe_tags, recipe_images, interactions
           - full: all tables in the backup (except alembic_version)
         """
         only_tables: tuple[str, ...] | None

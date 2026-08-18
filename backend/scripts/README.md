@@ -25,8 +25,8 @@ backend/scripts/
 |--------|-----------|----------|
 | `dump` | Optional | Writes to `backups/<subfolder>/`. If omitted, subfolder name defaults to `backup_YYYYMMDD_HHMMSS`. Binary BYTEA (images) is base64 in JSON (format 3). |
 | `upload` | **Required** | Restores from `backups/<subfolder>/`. |
-| `upload_seed` | **Required** | Upserts users, tags, llm_configs only. |
-| `upload_demo` | **Required** | Upserts seed + recipes, recipe_tags, recipe_images. |
+| `upload_seed` | **Required** | Upserts users, tags, llm_configs, app_settings only. |
+| `upload_demo` | **Required** | Upserts seed + recipes, recipe_tags, recipe_images, and interaction tables. |
 | `build_db` | **Required** | Drops/recreates `public` schema, runs `alembic upgrade head`, then populates from the backup. Dataset: `seed` \| `demo` (default) \| `full`. |
 | `list` | **Required** | Prints `backup_info.json` (if present) and file list for `backups/<subfolder>/`. |
 | `stats` | — | Row counts for every table the DB exposes (same discovery as `dump`). |
