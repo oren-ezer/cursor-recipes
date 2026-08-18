@@ -479,7 +479,7 @@ class ApiClient {
     });
   }
 
-  async parseRecipeFromImages(images: File[], languageHint: string): Promise<RecipeFromImageResponse> {
+  async parseRecipeFromImages(images: File[], languageHint: string, signal?: AbortSignal): Promise<RecipeFromImageResponse> {
     const formData = new FormData();
     images.forEach((file) => formData.append('images', file));
     formData.append('language_hint', languageHint);
@@ -498,6 +498,7 @@ class ApiClient {
       headers,
       body: formData,
       credentials: 'include',
+      signal,
     });
 
     if (!response.ok) {

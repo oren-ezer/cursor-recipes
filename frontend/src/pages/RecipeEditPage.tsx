@@ -40,7 +40,7 @@ const RecipeEditPage: React.FC = () => {
   const { recipeId } = useParams<{ recipeId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -125,6 +125,14 @@ const RecipeEditPage: React.FC = () => {
   };
 
   const handleTagsChange = (tags: Tag[]) => {
+    if (!user?.is_superuser) {
+      const hasEzerFamily = tags.some(t => t.name.toLowerCase().includes('ezer family'));
+      if (hasEzerFamily) {
+        setError('Only admin users can use the "Ezer Family" tag');
+        return;
+      }
+    }
+    setError(null);
     setFormData(prev => ({
       ...prev,
       selectedTags: tags
@@ -177,6 +185,9 @@ const RecipeEditPage: React.FC = () => {
     try {
       const tags = await apiClient.getAllTags();
       console.log('Tags loaded successfully:', tags);
+      if (!user?.is_superuser) {
+        return tags.filter(tag => !tag.name.toLowerCase().includes('ezer family'));
+      }
       return tags;
     } catch (error) {
       console.error('Error loading tags:', error);
@@ -495,32 +506,6 @@ const RecipeEditPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Tags */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('recipe.form.tags')} *</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Label>{t('recipe.form.recipe_tags')}</Label>
-                <TagSelector
-                  value={formData.selectedTags}
-                  onChange={handleTagsChange}
-                  placeholder={t('recipe.form.tags_placeholder')}
-                  disabled={isSaving}
-                  onLoadTags={loadTagsWithLogging}
-                  showSearch={true}
-                  showCategories={true}
-                  showAiSuggestion={true}
-                  onSuggestTags={handleAiTagSuggestion}
-                />
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t('recipe.form.tags_help_with_ai')}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Ingredients */}
           <Card>
             <CardHeader>
@@ -588,6 +573,32 @@ const RecipeEditPage: React.FC = () => {
                 onChange={(newInstructions) => setFormData(prev => ({ ...prev, instructions: newInstructions }))}
                 disabled={isSaving}
               />
+            </CardContent>
+          </Card>
+
+          {/* Tags */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('recipe.form.tags')} *</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label>{t('recipe.form.recipe_tags')}</Label>
+                <TagSelector
+                  value={formData.selectedTags}
+                  onChange={handleTagsChange}
+                  placeholder={t('recipe.form.tags_placeholder')}
+                  disabled={isSaving}
+                  onLoadTags={loadTagsWithLogging}
+                  showSearch={true}
+                  showCategories={true}
+                  showAiSuggestion={true}
+                  onSuggestTags={handleAiTagSuggestion}
+                />
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('recipe.form.tags_help_with_ai')}
+                </p>
+              </div>
             </CardContent>
           </Card>
 

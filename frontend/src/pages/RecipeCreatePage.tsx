@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import TagSelector from '../components/ui/tag-selector';
 import ImageUploader from '../components/ImageUploader';
 import InstructionListEditor from '../components/InstructionListEditor';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X, XCircle } from 'lucide-react';
 
 interface Ingredient {
   name: string;
@@ -38,16 +38,16 @@ interface RecipeFormData {
 
 const RecipeCreatePage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fromImageFiles, setFromImageFiles] = useState<File[]>([]);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [parseSuccess, setParseSuccess] = useState(false);
-  const [keepImages, setKeepImages] = useState(true);
   const [languageHint, setLanguageHint] = useState('');
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [formData, setFormData] = useState<RecipeFormData>({
     title: '',
     description: '',
@@ -62,16 +62,16 @@ const RecipeCreatePage: React.FC = () => {
     selectedTags: [],
   });
 
-  const fromImagePreviews = useMemo(
-    () => fromImageFiles.map((file) => ({ name: file.name, url: URL.createObjectURL(file) })),
-    [fromImageFiles]
+  const selectedImagePreviews = useMemo(
+    () => selectedImages.map((file) => ({ name: file.name, url: URL.createObjectURL(file) })),
+    [selectedImages]
   );
 
   useEffect(() => {
     return () => {
-      fromImagePreviews.forEach((p) => URL.revokeObjectURL(p.url));
+      selectedImagePreviews.forEach((p) => URL.revokeObjectURL(p.url));
     };
-  }, [fromImagePreviews]);
+  }, [selectedImagePreviews]);
 
   // Redirect if not authenticated
   React.useEffect(() => {
@@ -88,6 +88,14 @@ const RecipeCreatePage: React.FC = () => {
   };
 
   const handleTagsChange = (tags: Tag[]) => {
+    if (!user?.is_superuser) {
+      const hasEzerFamily = tags.some(t => t.name.toLowerCase().includes('ezer family'));
+      if (hasEzerFamily) {
+        setError('Only admin users can use the "Ezer Family" tag');
+        return;
+      }
+    }
+    setError(null);
     setFormData(prev => ({
       ...prev,
       selectedTags: tags
@@ -99,6 +107,9 @@ const RecipeCreatePage: React.FC = () => {
     try {
       const tags = await apiClient.getAllTags();
       console.log('Tags loaded successfully:', tags);
+      if (!user?.is_superuser) {
+        return tags.filter(tag => !tag.name.toLowerCase().includes('ezer family'));
+      }
       return tags;
     } catch (error) {
       console.error('Error loading tags:', error);
@@ -135,18 +146,27 @@ const RecipeCreatePage: React.FC = () => {
   };
 
   const handleParseImages = async () => {
-    if (fromImageFiles.length === 0) return;
+    if (selectedImages.length === 0) return;
     if (!languageHint.trim()) {
       setError(t('recipe.from_image.language_required'));
       return;
     }
+    
+    // Abort previous if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsParsing(true);
     setError(null);
     setParseSuccess(false);
     try {
       const result = await apiClient.parseRecipeFromImages(
-        fromImageFiles,
+        selectedImages,
         languageHint.trim(),
+        controller.signal
       );
       setFormData((prev) => ({
         ...prev,
@@ -164,15 +184,29 @@ const RecipeCreatePage: React.FC = () => {
         difficulty_level: result.difficulty_level || prev.difficulty_level,
       }));
       setParseSuccess(true);
-    } catch {
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return; // aborted by user
+      }
       setError(t('recipe.from_image.error'));
     } finally {
+      if (abortControllerRef.current === controller) {
+        setIsParsing(false);
+        abortControllerRef.current = null;
+      }
+    }
+  };
+
+  const cancelParsing = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
       setIsParsing(false);
     }
   };
 
-  const removeFromImageFile = (index: number) => {
-    setFromImageFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeSelectedImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
     setParseSuccess(false);
   };
 
@@ -254,13 +288,9 @@ const RecipeCreatePage: React.FC = () => {
 
       const createdRecipe = await apiClient.createRecipe(recipeData);
 
-      const imagesToAttach = [
-        ...pendingFiles,
-        ...(keepImages ? fromImageFiles : []),
-      ];
-      if (imagesToAttach.length > 0) {
+      if (selectedImages.length > 0) {
         try {
-          await apiClient.uploadImages(imagesToAttach, createdRecipe.id);
+          await apiClient.uploadImages(selectedImages, createdRecipe.id);
         } catch {
           // Recipe created; image upload failed — user can add images on edit
         }
@@ -287,7 +317,7 @@ const RecipeCreatePage: React.FC = () => {
         description={t('recipe.create.description')}
       >
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Create from Image (AI) */}
+          {/* Images & AI */}
           <Card className="border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/80 via-white to-indigo-50/80 dark:from-purple-950/40 dark:via-background dark:to-indigo-950/40 shadow-sm overflow-hidden">
             <CardHeader className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
@@ -297,26 +327,26 @@ const RecipeCreatePage: React.FC = () => {
                 </span>
               </div>
               <CardTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-100">
-                <Sparkles className="h-5 w-5 text-purple-500 dark:text-purple-300" />
-                {t('recipe.from_image.section_title')}
+                {t('recipe.form.images')}
               </CardTitle>
               <p className="text-sm text-purple-800/70 dark:text-purple-200/70">
                 {t('recipe.from_image.upload_prompt')}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {fromImagePreviews.length > 0 && (
+              {selectedImagePreviews.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {fromImagePreviews.map((preview, index) => (
+                  {selectedImagePreviews.map((preview, index) => (
                     <div key={`${preview.name}-${index}`} className="relative group rounded-md overflow-hidden border border-purple-200 dark:border-purple-800">
                       <img
                         src={preview.url}
                         alt={preview.name}
-                        className="w-full h-28 object-cover"
+                        className="w-full h-28 object-cover cursor-pointer"
+                        onClick={() => setViewingImage(preview.url)}
                       />
                       <button
                         type="button"
-                        onClick={() => removeFromImageFile(index)}
+                        onClick={() => removeSelectedImage(index)}
                         disabled={isLoading || isParsing}
                         className="absolute top-1 right-1 rtl:right-auto rtl:left-1 rounded-full bg-destructive/80 text-destructive-foreground p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         aria-label={t('image_upload.remove')}
@@ -334,68 +364,74 @@ const RecipeCreatePage: React.FC = () => {
                   deferUpload
                   disabled={isLoading || isParsing}
                   onFilesReady={(files) => {
-                    setFromImageFiles((prev) => [...prev, ...files]);
+                    setSelectedImages((prev) => [...prev, ...files]);
                     setParseSuccess(false);
                   }}
                 />
               </div>
 
-              {fromImageFiles.length > 0 && (
+              {selectedImages.length > 0 && (
                 <>
-                  <div className="space-y-2">
-                    <Label htmlFor="language_hint">{t('recipe.from_image.language_hint')} *</Label>
+                  <div className="space-y-2 pt-2 border-t border-purple-200 dark:border-purple-800/50">
+                    <Label htmlFor="language_hint" className="text-purple-900 dark:text-purple-100 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-purple-500" />
+                      {t('recipe.from_image.language_hint')} *
+                      <span className="text-xs font-normal text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded-full ml-2 whitespace-nowrap">
+                        {t('recipe.from_image.required_for_ai')}
+                      </span>
+                    </Label>
                     <Input
                       id="language_hint"
                       value={languageHint}
                       onChange={(e) => setLanguageHint(e.target.value)}
                       placeholder={t('recipe.from_image.language_placeholder')}
                       maxLength={50}
-                      required
                       disabled={isLoading || isParsing}
                     />
                   </div>
 
-                  <Button
-                    type="button"
-                    onClick={handleParseImages}
-                    disabled={isLoading || isParsing || fromImageFiles.length === 0 || !languageHint.trim()}
-                    className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 shadow-sm"
-                  >
-                    {isParsing ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        {t('recipe.from_image.parsing')}
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center gap-2">
-                        <Sparkles className="h-4 w-4" />
-                        {t('recipe.from_image.parse_button')}
-                      </span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleParseImages}
+                      disabled={isLoading || isParsing || selectedImages.length === 0 || !languageHint.trim()}
+                      className="flex-1 bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 shadow-sm"
+                    >
+                      {isParsing ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          {t('recipe.from_image.parsing')}
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          {t('recipe.from_image.parse_button')}
+                        </span>
+                      )}
+                    </Button>
+                    
+                    {isParsing && (
+                      <button
+                        type="button"
+                        onClick={cancelParsing}
+                        className="flex items-center justify-center px-4 shadow-sm whitespace-nowrap text-purple-700 dark:text-purple-300 hover:text-purple-800 dark:hover:text-purple-200 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-md transition-colors"
+                      >
+                        <XCircle className="h-4 w-4 mr-2 rtl:ml-2 rtl:mr-0" />
+                        {t('recipe.from_image.stop_analyzing')}
+                      </button>
                     )}
-                  </Button>
+                  </div>
 
                   {parseSuccess && (
                     <p className="text-sm text-green-600 dark:text-green-400 font-medium rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-3 py-2">
                       {t('recipe.from_image.success')}
                     </p>
                   )}
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="keep_images"
-                      checked={keepImages}
-                      onChange={(e) => setKeepImages(e.target.checked)}
-                      disabled={isLoading}
-                      className="rounded"
-                    />
-                    <Label htmlFor="keep_images">{t('recipe.from_image.keep_images')}</Label>
-                  </div>
                 </>
               )}
 
-              {fromImageFiles.length === 0 && (
-                <p className="text-sm text-purple-700/60 dark:text-purple-300/60 text-center">
+              {selectedImages.length === 0 && (
+                <p className="text-sm text-purple-700/60 dark:text-purple-300/60 text-center pt-2">
                   {t('recipe.from_image.or_manual')}
                 </p>
               )}
@@ -511,53 +547,6 @@ const RecipeCreatePage: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Tags */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('recipe.form.tags')} *</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Label>{t('recipe.form.recipe_tags')}</Label>
-                <TagSelector
-                  value={formData.selectedTags}
-                  onChange={handleTagsChange}
-                  placeholder={t('recipe.form.tags_placeholder')}
-                  disabled={isLoading}
-                  onLoadTags={loadTagsWithLogging}
-                  showSearch={true}
-                  showCategories={true}
-                  showAiSuggestion={true}
-                  onSuggestTags={handleAiTagSuggestion}
-                />
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t('recipe.form.tags_help_with_ai')}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recipe Images (uploaded after create) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('recipe.form.images')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {pendingFiles.length > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {pendingFiles.length} {t('image_upload.add_files').toLowerCase()}
-                </p>
-              )}
-              <ImageUploader
-                deferUpload
-                disabled={isLoading || isParsing}
-                onFilesReady={(files) => {
-                  setPendingFiles((prev) => [...prev, ...files]);
-                }}
-              />
-            </CardContent>
-          </Card>
-
           {/* Ingredients */}
           <Card>
             <CardHeader>
@@ -628,6 +617,32 @@ const RecipeCreatePage: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* Tags */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('recipe.form.tags')} *</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label>{t('recipe.form.recipe_tags')}</Label>
+                <TagSelector
+                  value={formData.selectedTags}
+                  onChange={handleTagsChange}
+                  placeholder={t('recipe.form.tags_placeholder')}
+                  disabled={isLoading}
+                  onLoadTags={loadTagsWithLogging}
+                  showSearch={true}
+                  showCategories={true}
+                  showAiSuggestion={true}
+                  onSuggestTags={handleAiTagSuggestion}
+                />
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('recipe.form.tags_help_with_ai')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Visibility */}
           <Card>
             <CardHeader>
@@ -664,16 +679,34 @@ const RecipeCreatePage: React.FC = () => {
               type="button"
               variant="outline"
               onClick={() => navigate('/my-recipes')}
-              disabled={isLoading}
+              disabled={isLoading || isParsing}
             >
               {t('recipe.form.cancel')}
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || isParsing}>
               {isLoading ? t('recipe.form.creating') : t('recipe.form.create')}
             </Button>
           </div>
         </form>
       </PageContainer>
+
+      {/* Full Screen Image Viewer Modal */}
+      {viewingImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setViewingImage(null)}>
+          <button 
+            className="absolute top-4 right-4 rtl:left-4 rtl:right-auto text-white hover:text-gray-300 p-2 rounded-full bg-black/50"
+            onClick={(e) => { e.stopPropagation(); setViewingImage(null); }}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img 
+            src={viewingImage} 
+            alt="Full size preview" 
+            className="max-w-full max-h-[90vh] object-contain rounded-md"
+            onClick={(e) => e.stopPropagation()} 
+          />
+        </div>
+      )}
     </MainLayout>
   );
 };
