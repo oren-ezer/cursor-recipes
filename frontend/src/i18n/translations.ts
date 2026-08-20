@@ -475,6 +475,13 @@ export const translations = {
     "recipe.from_image.language_placeholder": "e.g. Hebrew, English, French",
     "recipe.from_image.language_required": "Recipe language is required",
     "recipe.from_image.or_manual": "Or fill in the recipe details manually below",
+    "recipe.from_image.multiple_found": "Found {count} recipes in the image",
+    "recipe.from_image.select_recipe": "Select a recipe to create",
+    "recipe.from_image.more_remaining": "{count} more recipes available",
+    "recipe.from_image.create_next": "Create next recipe",
+    "recipe.from_image.skip_remaining": "Skip remaining",
+    "recipe.from_image.ingredients_count": "{count} ingredients",
+    "recipe.from_image.recipe_created_more": "Recipe created! {count} more recipes were found in your image.",
   },
   he: {
     "app.title": "אפליקציית מתכונים",
@@ -944,7 +951,7 @@ export const translations = {
     "recipe.from_image.section_title": "יצירה מתמונה",
     "recipe.from_image.ai_badge": "מופעל ב-AI",
     "recipe.from_image.description": "העלה תמונה של מתכון ותן ל-AI לחלץ את הפרטים",
-    "recipe.from_image.upload_prompt": "הוסף תמונה אחת או יותר של מתכון — ה-AI יחלץ את הפרטים בלי לשמור אותן עדיין",
+    "recipe.from_image.upload_prompt": "הוסף תמונה אחת או יותר של מתכון — ה-AI יחלץ את הפרטים בלי לשמור אותם עדיין",
     "recipe.from_image.parse_button": "חלץ מתכון עם AI",
     "recipe.from_image.stop_analyzing": "עצור ניתוח",
     "recipe.from_image.required_for_ai": "חובה עבור AI",
@@ -956,6 +963,13 @@ export const translations = {
     "recipe.from_image.language_placeholder": "למשל עברית, אנגלית, צרפתית",
     "recipe.from_image.language_required": "שפת המתכון היא שדה חובה",
     "recipe.from_image.or_manual": "או מלא את פרטי המתכון ידנית למטה",
+    "recipe.from_image.multiple_found": "נמצאו {count} מתכונים בתמונה",
+    "recipe.from_image.select_recipe": "בחר מתכון ליצירה",
+    "recipe.from_image.more_remaining": "עוד {count} מתכונים זמינים",
+    "recipe.from_image.create_next": "צור מתכון הבא",
+    "recipe.from_image.skip_remaining": "דלג על הנותרים",
+    "recipe.from_image.ingredients_count": "{count} מרכיבים",
+    "recipe.from_image.recipe_created_more": "המתכון נוצר! נמצאו עוד {count} מתכונים בתמונה.",
   }
 };
 

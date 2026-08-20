@@ -19,6 +19,7 @@ from src.models.ai_models import (
     NutritionResponse,
     RecipeFromImageResponse,
     RecipeFromImageIngredient,
+    MultiRecipeFromImageResponse,
 )
 from src.services.ai_service import AIService
 from src.services.llm_config_service import LLMConfigService
@@ -242,7 +243,7 @@ async def calculate_nutrition(
         )
 
 
-@router.post("/parse-recipe-images", response_model=RecipeFromImageResponse)
+@router.post("/parse-recipe-images", response_model=MultiRecipeFromImageResponse)
 async def parse_recipe_from_images(
     http_request: Request,
     ai_service: Annotated[AIService, Depends(get_ai_service)],
@@ -313,26 +314,41 @@ async def parse_recipe_from_images(
     try:
         logger.info(f"Parsing recipe from {len(image_data_uris)} image(s)")
 
-        result = await ai_service.parse_recipe_from_images(
+        results = await ai_service.parse_recipe_from_images(
             image_data_uris=image_data_uris,
             language_hint=language_hint,
         )
 
-        ingredients = [
-            RecipeFromImageIngredient(name=ing.get("name", ""), amount=ing.get("amount", ""))
-            for ing in result.get("ingredients", [])
-        ]
+        recipes = []
+        for result in results:
+            raw_ingredients = result.get("ingredients", [])
+            ingredients = []
+            for ing in raw_ingredients:
+                if isinstance(ing, dict):
+                    ingredients.append(
+                        RecipeFromImageIngredient(name=ing.get("name", ""), amount=ing.get("amount", ""))
+                    )
+                elif isinstance(ing, str):
+                    ingredients.append(RecipeFromImageIngredient(name=ing, amount=""))
 
-        return RecipeFromImageResponse(
-            title=result.get("title", ""),
-            description=result.get("description", ""),
-            ingredients=ingredients,
-            instructions=result.get("instructions", []),
-            preparation_time=result.get("preparation_time", 30),
-            cooking_time=result.get("cooking_time", 30),
-            servings=result.get("servings", 4),
-            difficulty_level=result.get("difficulty_level", "Easy"),
-        )
+            raw_instructions = result.get("instructions", [])
+            instructions = [
+                step if isinstance(step, str) else str(step)
+                for step in raw_instructions
+            ]
+
+            recipes.append(RecipeFromImageResponse(
+                title=result.get("title", ""),
+                description=result.get("description", ""),
+                ingredients=ingredients,
+                instructions=instructions,
+                preparation_time=int(result.get("preparation_time", 30) or 30),
+                cooking_time=int(result.get("cooking_time", 30) or 30),
+                servings=int(result.get("servings", 4) or 4),
+                difficulty_level=result.get("difficulty_level", "Easy") or "Easy",
+            ))
+
+        return MultiRecipeFromImageResponse(recipes=recipes)
 
     except AuthenticationError:
         raise HTTPException(
@@ -351,7 +367,7 @@ async def parse_recipe_from_images(
             detail="AI service temporarily unavailable",
         )
     except Exception as e:
-        logger.error(f"Unexpected error parsing recipe from images: {str(e)}")
+        logger.error(f"Unexpected error parsing recipe from images: {str(e)}", exc_info=True)
         message = str(e)
         # Surface common provider misconfiguration (e.g. invalid Gemini model id)
         if "NOT_FOUND" in message or "is not found" in message.lower():

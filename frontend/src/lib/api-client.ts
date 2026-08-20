@@ -479,7 +479,7 @@ class ApiClient {
     });
   }
 
-  async parseRecipeFromImages(images: File[], languageHint: string, signal?: AbortSignal): Promise<RecipeFromImageResponse> {
+  async parseRecipeFromImages(images: File[], languageHint: string, signal?: AbortSignal): Promise<MultiRecipeFromImageResponse> {
     const formData = new FormData();
     images.forEach((file) => formData.append('images', file));
     formData.append('language_hint', languageHint);
@@ -732,6 +732,10 @@ interface RecipeFromImageResponse {
   difficulty_level: string;
 }
 
+interface MultiRecipeFromImageResponse {
+  recipes: RecipeFromImageResponse[];
+}
+
 // LLM Configuration types
 interface LLMConfig {
   id: number;
@@ -818,6 +822,7 @@ export {
   type EffectiveLLMConfig,
   type RecipeFromImageResponse,
   type RecipeFromImageIngredient,
+  type MultiRecipeFromImageResponse,
   type InteractionMetadata,
   type RecipeComment,
 };

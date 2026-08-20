@@ -564,7 +564,7 @@ class TestParseRecipeFromImagesEndpoint:
 
     def test_parses_multipart_images(self, client_with_ai):
         client, mock_svc = client_with_ai
-        mock_svc.parse_recipe_from_images.return_value = {
+        mock_svc.parse_recipe_from_images.return_value = [{
             "title": "Hummus",
             "description": "Creamy",
             "ingredients": [{"name": "chickpeas", "amount": "1 cup"}],
@@ -573,7 +573,7 @@ class TestParseRecipeFromImagesEndpoint:
             "cooking_time": 0,
             "servings": 4,
             "difficulty_level": "Easy",
-        }
+        }]
         with patch("src.main._get_current_user_from_token", new_callable=AsyncMock) as mock_auth:
             mock_auth.return_value = _fake_user()
             resp = client.post(
@@ -584,8 +584,9 @@ class TestParseRecipeFromImagesEndpoint:
             )
         assert resp.status_code == status.HTTP_200_OK
         body = resp.json()
-        assert body["title"] == "Hummus"
-        assert body["ingredients"][0]["name"] == "chickpeas"
+        assert len(body["recipes"]) == 1
+        assert body["recipes"][0]["title"] == "Hummus"
+        assert body["recipes"][0]["ingredients"][0]["name"] == "chickpeas"
         call_kwargs = mock_svc.parse_recipe_from_images.call_args[1]
         assert call_kwargs["language_hint"] == "Hebrew"
         assert len(call_kwargs["image_data_uris"]) == 1

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
-import { apiClient, ApiError, type Tag } from '../lib/api-client';
+import { apiClient, ApiError, type Tag, type RecipeFromImageResponse } from '../lib/api-client';
 import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import { Button } from '../components/ui/button';
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import TagSelector from '../components/ui/tag-selector';
 import ImageUploader from '../components/ImageUploader';
 import InstructionListEditor from '../components/InstructionListEditor';
-import { Sparkles, X, XCircle } from 'lucide-react';
+import { Sparkles, X, XCircle, ChefHat, Check, SkipForward } from 'lucide-react';
 
 interface Ingredient {
   name: string;
@@ -48,6 +48,8 @@ const RecipeCreatePage: React.FC = () => {
   const [languageHint, setLanguageHint] = useState('');
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [parsedRecipes, setParsedRecipes] = useState<RecipeFromImageResponse[]>([]);
+  const [createdRecipeIndices, setCreatedRecipeIndices] = useState<Set<number>>(new Set());
   const [formData, setFormData] = useState<RecipeFormData>({
     title: '',
     description: '',
@@ -145,6 +147,58 @@ const RecipeCreatePage: React.FC = () => {
     }
   };
 
+  const fillFormFromRecipe = (recipe: RecipeFromImageResponse) => {
+    setFormData((prev) => ({
+      ...prev,
+      title: recipe.title || prev.title,
+      description: recipe.description || prev.description,
+      ingredients: recipe.ingredients.length > 0
+        ? recipe.ingredients.map((ing) => ({ name: ing.name, amount: ing.amount }))
+        : prev.ingredients,
+      instructions: recipe.instructions.length > 0
+        ? recipe.instructions
+        : prev.instructions,
+      preparation_time: recipe.preparation_time || prev.preparation_time,
+      cooking_time: recipe.cooking_time || prev.cooking_time,
+      servings: recipe.servings || prev.servings,
+      difficulty_level: recipe.difficulty_level || prev.difficulty_level,
+    }));
+  };
+
+  const selectParsedRecipe = (index: number) => {
+    const recipe = parsedRecipes[index];
+    if (!recipe) return;
+    resetForm();
+    fillFormFromRecipe(recipe);
+    setParseSuccess(true);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      origin: '',
+      ingredients: [{ name: '', amount: '' }],
+      instructions: [''],
+      preparation_time: 30,
+      cooking_time: 30,
+      servings: 4,
+      difficulty_level: 'Easy',
+      is_public: true,
+      selectedTags: [],
+    });
+    setError(null);
+  };
+
+  const dismissRemainingRecipes = () => {
+    setParsedRecipes([]);
+    setCreatedRecipeIndices(new Set());
+  };
+
+  const remainingRecipeCount = parsedRecipes.length > 0
+    ? parsedRecipes.length - createdRecipeIndices.size
+    : 0;
+
   const handleParseImages = async () => {
     if (selectedImages.length === 0) return;
     if (!languageHint.trim()) {
@@ -162,31 +216,27 @@ const RecipeCreatePage: React.FC = () => {
     setIsParsing(true);
     setError(null);
     setParseSuccess(false);
+    setParsedRecipes([]);
+    setCreatedRecipeIndices(new Set());
     try {
-      const result = await apiClient.parseRecipeFromImages(
+      const response = await apiClient.parseRecipeFromImages(
         selectedImages,
         languageHint.trim(),
         controller.signal
       );
-      setFormData((prev) => ({
-        ...prev,
-        title: result.title || prev.title,
-        description: result.description || prev.description,
-        ingredients: result.ingredients.length > 0
-          ? result.ingredients.map((ing) => ({ name: ing.name, amount: ing.amount }))
-          : prev.ingredients,
-        instructions: result.instructions.length > 0
-          ? result.instructions
-          : prev.instructions,
-        preparation_time: result.preparation_time || prev.preparation_time,
-        cooking_time: result.cooking_time || prev.cooking_time,
-        servings: result.servings || prev.servings,
-        difficulty_level: result.difficulty_level || prev.difficulty_level,
-      }));
-      setParseSuccess(true);
+
+      const recipes = response.recipes;
+      setParsedRecipes(recipes);
+
+      if (recipes.length === 1) {
+        fillFormFromRecipe(recipes[0]);
+        setParseSuccess(true);
+      } else if (recipes.length > 1) {
+        setParseSuccess(true);
+      }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        return; // aborted by user
+        return;
       }
       setError(t('recipe.from_image.error'));
     } finally {
@@ -275,7 +325,6 @@ const RecipeCreatePage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Filter out empty ingredients and instructions
       const cleanIngredients = formData.ingredients.filter(ing => ing.name.trim() && ing.amount.trim());
       const cleanInstructions = formData.instructions.filter(inst => inst.trim());
 
@@ -296,9 +345,33 @@ const RecipeCreatePage: React.FC = () => {
         }
       }
 
-      navigate(`/recipes/${createdRecipe.id}`, {
-        state: { message: 'Recipe created successfully!' }
-      });
+      // Track which parsed recipe was just created
+      const justCreatedIndex = parsedRecipes.findIndex(
+        (r) => r.title === formData.title
+      );
+      if (justCreatedIndex >= 0) {
+        setCreatedRecipeIndices((prev) => new Set(prev).add(justCreatedIndex));
+      }
+
+      const newCreated = new Set(createdRecipeIndices);
+      if (justCreatedIndex >= 0) newCreated.add(justCreatedIndex);
+      const remaining = parsedRecipes.filter((_, i) => !newCreated.has(i));
+
+      if (remaining.length > 0) {
+        resetForm();
+        const nextIndex = parsedRecipes.findIndex((_, i) => !newCreated.has(i));
+        if (nextIndex >= 0) {
+          fillFormFromRecipe(parsedRecipes[nextIndex]);
+        }
+        setCreatedRecipeIndices(newCreated);
+        setParseSuccess(true);
+        setError(null);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        navigate(`/recipes/${createdRecipe.id}`, {
+          state: { message: 'Recipe created successfully!' }
+        });
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to create recipe');
     } finally {
@@ -422,10 +495,77 @@ const RecipeCreatePage: React.FC = () => {
                     )}
                   </div>
 
-                  {parseSuccess && (
+                  {parseSuccess && parsedRecipes.length <= 1 && (
                     <p className="text-sm text-green-600 dark:text-green-400 font-medium rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-3 py-2">
                       {t('recipe.from_image.success')}
                     </p>
+                  )}
+
+                  {/* Multi-recipe picker */}
+                  {parseSuccess && parsedRecipes.length > 1 && (
+                    <div className="space-y-3 pt-2 border-t border-purple-200 dark:border-purple-800/50">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                          {t('recipe.from_image.multiple_found').replace('{count}', String(parsedRecipes.length))}
+                        </p>
+                        {remainingRecipeCount > 0 && createdRecipeIndices.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={dismissRemainingRecipes}
+                            className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200 flex items-center gap-1"
+                          >
+                            <SkipForward className="h-3 w-3" />
+                            {t('recipe.from_image.skip_remaining')}
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-purple-700/70 dark:text-purple-300/70">
+                        {t('recipe.from_image.select_recipe')}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {parsedRecipes.map((recipe, idx) => {
+                          const isCreated = createdRecipeIndices.has(idx);
+                          const isActive = formData.title === recipe.title && !isCreated;
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              disabled={isCreated || isLoading}
+                              onClick={() => selectParsedRecipe(idx)}
+                              className={`text-left p-3 rounded-lg border transition-all ${
+                                isCreated
+                                  ? 'border-green-300 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10 opacity-60'
+                                  : isActive
+                                    ? 'border-purple-400 dark:border-purple-600 bg-purple-100/80 dark:bg-purple-900/40 ring-1 ring-purple-400'
+                                    : 'border-purple-200 dark:border-purple-800 bg-white/60 dark:bg-purple-950/20 hover:border-purple-400 dark:hover:border-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30'
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                {isCreated ? (
+                                  <Check className="h-4 w-4 mt-0.5 text-green-600 dark:text-green-400 shrink-0" />
+                                ) : (
+                                  <ChefHat className="h-4 w-4 mt-0.5 text-purple-500 dark:text-purple-400 shrink-0" />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className={`text-sm font-medium truncate ${isCreated ? 'line-through text-muted-foreground' : 'text-purple-900 dark:text-purple-100'}`}>
+                                    {recipe.title || `Recipe ${idx + 1}`}
+                                  </p>
+                                  <p className="text-xs text-purple-700/60 dark:text-purple-300/60 mt-0.5">
+                                    {t('recipe.from_image.ingredients_count').replace('{count}', String(recipe.ingredients.length))}
+                                    {recipe.description && ` · ${recipe.description.slice(0, 60)}${recipe.description.length > 60 ? '…' : ''}`}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {remainingRecipeCount > 0 && createdRecipeIndices.size > 0 && (
+                        <p className="text-xs text-purple-600 dark:text-purple-400 font-medium bg-purple-100/50 dark:bg-purple-900/20 rounded px-2 py-1.5 text-center">
+                          {t('recipe.from_image.recipe_created_more').replace('{count}', String(remainingRecipeCount))}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </>
               )}

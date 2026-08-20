@@ -618,9 +618,10 @@ class TestParseRecipeFromImages:
         result = await ai_service.parse_recipe_from_images(
             image_data_uris=["data:image/png;base64,AAAA"]
         )
-        assert result["title"] == "Chocolate Cake"
-        assert len(result["ingredients"]) == 1
-        assert len(result["instructions"]) == 2
+        assert len(result) == 1
+        assert result[0]["title"] == "Chocolate Cake"
+        assert len(result[0]["ingredients"]) == 1
+        assert len(result[0]["instructions"]) == 2
 
     @pytest.mark.asyncio
     async def test_uses_recipe_from_image_service_name(self, ai_service, mock_config_service):

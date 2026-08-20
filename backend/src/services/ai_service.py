@@ -424,18 +424,39 @@ Return as JSON with: calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg (al
             logger.error(f"Error calculating nutrition: {str(e)}")
             return {}
 
+    @staticmethod
+    def _normalize_recipe_list(items: list) -> List[Dict[str, Any]]:
+        """Ensure every item in a recipes list is a dict, parsing JSON strings if needed."""
+        result: List[Dict[str, Any]] = []
+        for item in items:
+            if isinstance(item, dict):
+                result.append(item)
+            elif isinstance(item, str):
+                try:
+                    parsed = json.loads(item)
+                    if isinstance(parsed, dict):
+                        result.append(parsed)
+                    else:
+                        logger.warning("Skipping non-dict recipe item after JSON parse: %s", type(parsed))
+                except json.JSONDecodeError:
+                    logger.warning("Skipping unparseable recipe item: %.100s", item)
+            else:
+                logger.warning("Skipping unexpected recipe item type: %s", type(item))
+        return result
+
     async def parse_recipe_from_images(
         self,
         image_data_uris: List[str],
         language_hint: Optional[str] = None,
         config_override: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    ) -> List[Dict[str, Any]]:
         """
-        Extract a recipe from one or more images using a vision-capable model.
+        Extract one or more recipes from image(s) using a vision-capable model.
 
         The images can contain handwritten or printed recipes, photos of food,
         preparation steps, etc. The LLM uses OCR + understanding to produce
-        structured recipe data.
+        structured recipe data. If the image contains multiple distinct recipes,
+        the LLM returns all of them.
 
         Args:
             image_data_uris: List of base64 data URIs (data:image/...;base64,...)
@@ -443,8 +464,8 @@ Return as JSON with: calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg (al
             config_override: Optional runtime configuration overrides
 
         Returns:
-            Dict with recipe fields: title, description, ingredients, instructions,
-            preparation_time, cooking_time, servings, difficulty_level
+            List of dicts, each with recipe fields: title, description, ingredients,
+            instructions, preparation_time, cooking_time, servings, difficulty_level
         """
         config = self.config_service.get_effective_config(
             service_name="recipe_from_image",
@@ -455,7 +476,10 @@ Return as JSON with: calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg (al
             "You are a culinary AI that extracts recipes from images. "
             "Analyze the provided image(s) which may contain handwritten or printed recipes, "
             "photos of prepared food, or cooking steps. "
-            "Extract all recipe information and return it as a JSON object with these fields:\n"
+            "Extract all recipe information and return it as JSON.\n"
+            "If the image contains multiple distinct recipes, return ALL of them.\n"
+            "Always wrap your response in a JSON object with a top-level \"recipes\" key "
+            "containing an array of recipe objects. Each recipe object has these fields:\n"
             '- "title": string (recipe name)\n'
             '- "description": string (brief description)\n'
             '- "ingredients": array of objects with "name" and "amount" strings\n'
@@ -477,8 +501,8 @@ Return as JSON with: calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg (al
         else:
             lang_note = f" The recipe may be in {language_hint}." if language_hint else ""
             user_prompt = (
-                f"Please analyze the attached image(s) and extract the recipe.{lang_note} "
-                "Return a complete JSON object with all recipe fields."
+                f"Please analyze the attached image(s) and extract all recipes.{lang_note} "
+                "Return a JSON object with a \"recipes\" array containing each recipe."
             )
 
         try:
@@ -497,9 +521,23 @@ Return as JSON with: calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg (al
 
             content = response["content"]
             if isinstance(content, dict):
-                return content
-            logger.warning(f"Unexpected response format for recipe parsing: {content}")
-            return {}
+                if "recipes" in content and isinstance(content["recipes"], list):
+                    return self._normalize_recipe_list(content["recipes"])
+                return [content]
+            if isinstance(content, str):
+                logger.warning("recipe_from_image returned unparsed string; attempting JSON parse")
+                try:
+                    parsed = json.loads(content)
+                    if isinstance(parsed, dict):
+                        if "recipes" in parsed and isinstance(parsed["recipes"], list):
+                            return self._normalize_recipe_list(parsed["recipes"])
+                        return [parsed]
+                    if isinstance(parsed, list):
+                        return self._normalize_recipe_list(parsed)
+                except json.JSONDecodeError:
+                    pass
+            logger.warning(f"Unexpected response format for recipe parsing: {type(content)}")
+            return []
 
         except Exception as e:
             logger.error(f"Error parsing recipe from images: {str(e)}")

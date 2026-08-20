@@ -261,7 +261,7 @@ describe('RecipeCreatePage', () => {
       expect(screen.getByText(/difficulty level/i)).toBeInTheDocument();
       
       // Image upload section and visibility
-      expect(screen.getByText('Create from Image')).toBeInTheDocument();
+      expect(screen.getByText('Recipe Images')).toBeInTheDocument();
       expect(screen.getByLabelText(/make this recipe public/i)).toBeInTheDocument();
     });
 
@@ -331,7 +331,6 @@ describe('RecipeCreatePage', () => {
       renderWithRouter(<RecipeCreatePage />);
 
       expect(screen.getByText('Recipe Images')).toBeInTheDocument();
-      expect(screen.getByText('Create from Image')).toBeInTheDocument();
     });
 
     it('should handle public/private toggle', () => {

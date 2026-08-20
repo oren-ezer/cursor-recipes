@@ -170,3 +170,9 @@ class RecipeFromImageResponse(BaseModel):
     servings: int = 4
     difficulty_level: str = "Easy"
 
+
+class MultiRecipeFromImageResponse(BaseModel):
+    """Wrapper for one or more recipes extracted from image(s) by AI."""
+
+    recipes: List[RecipeFromImageResponse]
+
